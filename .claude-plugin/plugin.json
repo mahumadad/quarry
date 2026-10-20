@@ -1,0 +1,8 @@
+{
+  "name": "pentest",
+  "version": "0.1.0",
+  "description": "Plugin de pentest completo para engagements autorizados. Cubre recon, mapping, hunting por clase de vuln, encadenamiento de findings, validación adversarial y reporting con MITRE/NIST/CVSS.",
+  "author": "mahumadad",
+  "license": "UNLICENSED",
+  "private": true
+}

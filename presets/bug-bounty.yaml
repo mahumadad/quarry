@@ -1,0 +1,17 @@
+name: bug-bounty
+description: Bug bounty — foco en impact y velocidad
+workflow: web-app-pentest
+budget:
+  recon: 100
+  hunting: 200
+  chaining: 80
+  validating: 100
+  reporting: 50
+settings:
+  strategy: priority-then-breadth
+  max_identical_retries: 3
+  timeout_default: 60
+  timeout_hard: 600
+  rebuttal_max_rounds: 2
+  coverage_target: 0.7
+  report_format: platform-specific

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+.pentest-state/
+*.swp
+*.swo
+*~
+.DS_Store
