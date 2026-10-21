@@ -219,3 +219,10 @@ Persist to `.pentest-state/surface-probes.json`:
   not just a cache HIT on a public page
 - Probe E: CORS wildcard (*) WITHOUT credentials:true is by design and not
   exploitable for authenticated data theft
+- **Rate limiting via proxy/Tor:** Tools like nuclei saturate Tor circuits
+  with parallel connections → "connection refused" → 0 matches ≠ clean.
+  When operating through Tor/VPN/proxy with limited bandwidth: run one host
+  at a time, set `-rl 1 -c 1` (nuclei) or equivalent rate limiting, and
+  accept that full-speed scanning requires a direct authorized IP.
+  Surface probes (curl-based) are inherently sequential and safe over Tor;
+  only parallelized tools need throttling.

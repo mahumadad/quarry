@@ -104,3 +104,14 @@ spec-driven exploration.
   confirming scope and getting any required sign-off for auth-bypass testing.
 - Rate limiting on brute-forced API path guessing applies just like any other fuzzing —
   follow `opsec-discipline` concurrency/delay settings, not ffuf's aggressive defaults.
+- **SPA fallback false positives:** Many SPAs (Next.js, React Router, Vue Router)
+  return 200 + their `index.html` for ANY path, including `/graphql`, `/api/anything`,
+  etc. A 200 alone does NOT confirm the endpoint exists. Always check
+  `Content-Type`: if it's `text/html` on a path that should return JSON/GraphQL,
+  it's the SPA catch-all, not a real API endpoint. Verify with:
+  ```bash
+  ct=$(curl -sk -o /dev/null -w '%{content_type}' "https://{host}/graphql")
+  echo "$ct"  # text/html → SPA fallback, application/json → real endpoint
+  ```
+  A 405 (Method Not Allowed) is actually a stronger signal than 200 — it means
+  the path exists but the method is wrong (try POST for GraphQL).
