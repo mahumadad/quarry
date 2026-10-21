@@ -122,6 +122,25 @@ sequence — that activates the vulnerability, not just a theoretical condition?
    re-justified against what the *combination* demonstrably adds (per `chain-report.md`'s
    Combined CVSS section).
 
+## 7-Question Gate (pre-submission)
+
+After the four structural gates pass AND the adversarial rebuttal loop completes,
+every finding that will be submitted to a bounty platform or included in a final
+report MUST pass the 7-Question Gate defined in `references/seven-question-gate.md`.
+
+This is the final check before submission. All 7 answers must be YES:
+
+1. Is it reproducible?
+2. Is the impact real?
+3. Is it in scope?
+4. Is it a duplicate?
+5. Does it pass the never-submit list?
+6. Is the severity justified?
+7. Would you mass-close this as a triager?
+
+A NO on any question blocks submission. See the reference for details on each
+question, common failures, and rare override conditions.
+
 ## Validation gate (meta — for this skill's own output)
 
 - [ ] All four gates have an explicit PASS/FAIL and a one-line reason, for every finding/chain

@@ -116,3 +116,36 @@ True-Client-IP: 127.0.0.1
 | Modify data | Update/delete resources via admin functions |
 | Create admin accounts | Self-registration with admin role |
 | Full admin access | All admin functionality accessible |
+
+## Advanced Bypass Patterns
+
+### GraphQL Auth Bypass
+- Introspection query without auth → discover all queries/mutations
+- Batch queries: `[{"query":"..."}, {"query":"..."}]` — some auth middleware only checks first
+- Alias-based bypass: `{a:sensitiveQuery b:sensitiveQuery}` may bypass rate limiting
+- Nested query depth attack to exhaust auth timeout
+
+### API Gateway Bypass
+- Direct backend access if IP is exposed (skip API gateway auth)
+- Path normalization differences: `/api/v1/admin` vs `/api/v1//admin` vs `/api/v1/./admin`
+- HTTP/2 downgrade: send HTTP/2 to skip HTTP/1.1-only WAF rules
+- `X-Original-URL` / `X-Rewrite-URL` header injection (some reverse proxies)
+
+### OAuth 2.0 Advanced
+- `redirect_uri` manipulation: `https://legit.com@evil.com`, path traversal, open redirect chain
+- PKCE downgrade: request token without `code_verifier` if server doesn't enforce
+- Token exchange abuse: exchange refresh token for access token of different scope
+- `.well-known/openid-configuration` information disclosure → discover all endpoints
+- `client_secret` in JavaScript source or mobile app bundle
+
+### SAML Bypass
+- XML Signature wrapping: move signed element, add unsigned duplicate
+- Comment injection in NameID: `admin<!---->.evil.com` → interpreted as `admin`
+- XSLT injection in SAML response processing
+- Certificate confusion: register your own IdP certificate
+
+### Session Fixation / Prediction
+- Pre-login session tokens that persist post-login
+- Sequential session IDs (timestamp-based, counter-based)
+- Weak randomness: PHP `session_id()` with predictable seed
+- Session token in URL → Referer header leak

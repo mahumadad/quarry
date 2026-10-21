@@ -199,3 +199,131 @@ class RebuttalEngine:
         for s in self._sessions.values():
             by_outcome[s.outcome] = by_outcome.get(s.outcome, 0) + 1
         return {"total": len(self._sessions), "by_outcome": by_outcome}
+
+
+@dataclass
+class AgentVerdict:
+    agent_id: str
+    verdict: str  # CONFIRMED / DENIED / UNCERTAIN
+    confidence: float
+    reasoning: str
+    timestamp: str = ""
+
+    def __post_init__(self):
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc).isoformat()
+
+
+@dataclass
+class ReconciliationSession:
+    finding_id: str
+    num_agents: int = 3
+    verdicts: list[dict] = field(default_factory=list)
+    final_verdict: str = "pending"
+    final_confidence: float = 0.0
+    requires_human: bool = False
+    started_at: str = ""
+    completed_at: str = ""
+
+    def __post_init__(self):
+        if not self.started_at:
+            self.started_at = datetime.now(timezone.utc).isoformat()
+
+
+class ReconciliationEngine:
+    """Multi-agent reconciliation for high-stakes findings.
+
+    When a finding is critical (CVSS >= 9.0) or part of a high-value chain,
+    run N independent agents and reconcile by majority vote.
+    """
+
+    def __init__(self, audit_dir: str):
+        self.state_dir = Path(audit_dir) / ".pentest-state"
+        self.recon_file = self.state_dir / "reconciliation.json"
+        self._sessions: dict[str, ReconciliationSession] = {}
+        self._load()
+
+    def _load(self):
+        if self.recon_file.exists():
+            data = json.loads(self.recon_file.read_text())
+            for sd in data.get("sessions", []):
+                s = ReconciliationSession(**sd)
+                self._sessions[s.finding_id] = s
+
+    def _save(self):
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        self.recon_file.write_text(json.dumps({
+            "sessions": [asdict(s) for s in self._sessions.values()],
+        }, indent=2))
+
+    def start_reconciliation(self, finding_id: str, num_agents: int = 3) -> dict:
+        session = ReconciliationSession(finding_id=finding_id, num_agents=num_agents)
+        self._sessions[finding_id] = session
+        self._save()
+        return asdict(session)
+
+    def record_agent_verdict(
+        self,
+        finding_id: str,
+        agent_id: str,
+        verdict: str,
+        confidence: float,
+        reasoning: str,
+    ) -> dict:
+        session = self._sessions.get(finding_id)
+        if not session:
+            return {"error": "No reconciliation session for this finding"}
+
+        v = AgentVerdict(
+            agent_id=agent_id,
+            verdict=verdict.upper(),
+            confidence=min(1.0, max(0.0, confidence)),
+            reasoning=reasoning,
+        )
+        session.verdicts.append(asdict(v))
+        self._save()
+        return asdict(v)
+
+    def reconcile(self, finding_id: str) -> dict:
+        session = self._sessions.get(finding_id)
+        if not session:
+            return {"error": "No reconciliation session for this finding"}
+
+        votes = {"CONFIRMED": 0, "DENIED": 0, "UNCERTAIN": 0}
+        for v in session.verdicts:
+            vd = v.get("verdict", "UNCERTAIN")
+            votes[vd] = votes.get(vd, 0) + 1
+
+        total = sum(votes.values())
+        if total == 0:
+            return {"verdict": "pending", "votes": votes, "requires_human": True}
+
+        majority = max(votes, key=votes.get)
+        majority_count = votes[majority]
+        confidence = majority_count / total if total > 0 else 0.0
+
+        if majority == "UNCERTAIN" or majority_count <= total / 2:
+            final = "SPLIT"
+            requires_human = True
+        else:
+            final = majority
+            requires_human = confidence < 0.8
+
+        session.final_verdict = final
+        session.final_confidence = confidence
+        session.requires_human = requires_human
+        session.completed_at = datetime.now(timezone.utc).isoformat()
+        self._save()
+
+        return {
+            "verdict": final,
+            "confidence": round(confidence, 2),
+            "votes": votes,
+            "requires_human": requires_human,
+        }
+
+    def pending_reconciliations(self) -> list[dict]:
+        return [
+            asdict(s) for s in self._sessions.values()
+            if s.final_verdict == "pending"
+        ]

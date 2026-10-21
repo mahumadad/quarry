@@ -124,6 +124,23 @@ Each finding from SAST should include:
 - PoC or exploitation path (if determinable statically)
 - Confidence: HIGH (clear path) / MEDIUM (likely) / LOW (needs dynamic confirm)
 
+## SAST Agent Pipeline (for large codebases)
+
+For repositories with 50+ files of security-relevant code, use the full
+SAST agent pipeline instead of manual analysis:
+
+1. `sast-file-ranker` (haiku) — ranks files by security relevance (0-100)
+2. `sast-entry-mapper` (haiku) — maps all entry points with auth context
+3. `sast-sink-finder` (sonnet) — finds dangerous sinks per vuln class
+4. `sast-flow-tracer` (opus) — traces source → sanitization → sink paths
+5. `sast-gap-analyzer` (sonnet) — identifies coverage gaps
+6. `sast-devils-advocate` (sonnet) — adversarial review of all findings
+
+The pipeline uses stable IDs (EP-nnn, SINK-nnn, TRACE-nnn, GAP-nnn) to
+link stages. Flow-tracer findings are capped at `Inferred` confidence
+since static analysis cannot `Demonstrate` — dynamic verification is
+required for HIGH confidence findings.
+
 ## Gotchas
 
 - SAST findings at LOW confidence MUST be verified dynamically before reporting
