@@ -114,6 +114,18 @@ chains_with: [hunt-host-header, hunt-session-management, hunt-crlf-injection]
 - `state`-less flows are sometimes intentionally safe if the app binds the session via a different anti-CSRF cookie — check before claiming CSRF.
 - Don't confuse the OIDC `nonce` (replay protection for id_token) with `state` (CSRF protection) — test both independently.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **redirect_uri bypass to code theft** — Can a loosely validated redirect_uri exfiltrate the authorization code/token to an attacker domain?
+2. **state parameter absence (CSRF)** — Is the state parameter missing or not validated, enabling CSRF-based account linking?
+3. **Scope escalation** — Can you request or retain scopes beyond what the client application was granted?
+4. **Token leakage via implicit flow/referer** — Does the access token leak via the URL fragment/Referer header to third-party resources loaded on the callback page?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Open redirect on client app → code/token leakage via Referer → full account takeover (chain with hunt-host-header if the redirect target is host-header-derived).

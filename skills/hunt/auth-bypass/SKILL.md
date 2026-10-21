@@ -200,6 +200,18 @@ chains_with: [idor, jwt, csrf, race-condition]
   poisoned domain (check a real test mailbox) — a response that merely reflects the Host header
   in a debug page is not the same as confirming the email content.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Admin function access** — Does the bypass grant access to admin-only functions, not just a generic authenticated view?
+2. **Other users' data** — Can you access other users' data through the bypassed auth check?
+3. **Reliability** — Is the bypass deterministic, or is it actually a race condition that only sometimes succeeds?
+4. **Blast radius** — Does the bypass affect one endpoint, or does it invalidate auth checks across the entire API (e.g. a shared middleware flaw)?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Forced-browsing admin bypass → **idor** (once in, authorization gaps on specific objects).

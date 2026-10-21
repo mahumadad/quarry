@@ -161,6 +161,19 @@ chains_with: [hunt-csrf, hunt-broken-access-control, hunt-auth-bypass]
 - Message schemas often change between app versions/features — don't assume a schema
   captured from one feature applies unmodified to another socket endpoint.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Origin validation absence (CSWSH)** — Does the WebSocket handshake validate Origin, or can a cross-site page open an authenticated socket on the victim's behalf?
+2. **Message-level auth gaps** — Is authorization enforced per-message, or only at connection time, allowing privilege escalation after a low-priv handshake?
+3. **Injection in message payloads** — Do WebSocket messages feed into a sink (SQL, template, HTML render) without the same validation as the HTTP API?
+4. **Session/token leakage over the socket** — Are session tokens or sensitive data sent over the socket without equivalent protections (encryption, scoping) as HTTP?
+5. **Chain with CORS/CSRF** — Can the lack of Origin checks be combined with a CSRF-style attack to perform actions over the authenticated socket?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Confirmed CSWSH delivering authenticated data to a cross-origin page → combine with a

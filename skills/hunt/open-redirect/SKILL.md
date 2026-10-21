@@ -157,6 +157,18 @@ chains_with: [auth-bypass, xss, csrf]
 - Browser-specific parsing differences matter here (backslash-as-slash normalization varies by
   browser) — note which browser confirmed the bypass if it's browser-dependent.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **OAuth redirect_uri abuse** — Can the open redirect be used as the redirect_uri in an OAuth/OIDC flow to steal authorization codes or tokens?
+2. **Referer leakage** — Does navigating through the redirect leak tokens/codes via the Referer header to an attacker-controlled endpoint?
+3. **SSRF chaining** — Can the redirect be chained into an SSRF primitive elsewhere in the app (a server-side followed redirect)?
+4. **Phishing with trusted domain** — Does the redirect keep the trusted domain visible in the address bar long enough to be convincing for phishing?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Open redirect → OAuth token/code theft → **auth-bypass**/account takeover (the highest-impact

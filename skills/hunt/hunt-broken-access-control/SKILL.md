@@ -126,6 +126,18 @@ chains_with: [hunt-api-abuse, hunt-mass-assignment, hunt-business-logic]
 - Path traversal payloads blocked by a WAF at the edge doesn't mean the origin app sanitizes correctly — note whether you tested against the edge or confirmed direct origin access, where in scope.
 - Don't confuse a 404 (object doesn't exist) with a 403 (exists but denied) when iterating object IDs — a 404 on someone else's object can also mean enumeration is simply hard, not that access control works; verify object existence independently where possible.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Horizontal escalation** — Can you access another user's resources through the same broken check?
+2. **Vertical escalation** — Can you reach admin/privileged functionality from a low-privilege account?
+3. **Consistency across endpoints** — Is the missing check isolated to one endpoint, or does the same role/permission bug appear across the API surface?
+4. **Mapped to IDOR/mass assignment** — Does the broken check combine with an IDOR or mass-assignment finding to widen impact?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Horizontal IDOR + sequential/predictable IDs → systemic mass data exposure (quantify scope without exfiltrating real data at bulk).

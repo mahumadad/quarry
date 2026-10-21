@@ -179,6 +179,18 @@ chains_with: [sqli, auth-bypass, ssrf, deserialization]
 - Don't confuse "verbose in a staging/dev environment explicitly in scope and labeled as such"
   with a production finding — note environment context in every disclosure finding.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Credential validity** — Do the leaked credentials/tokens/API keys still work when tested against the live service?
+2. **SSRF enablement** — Do leaked internal IPs or hostnames enable a follow-up SSRF probe?
+3. **LFI enablement** — Do leaked file paths enable a follow-up LFI/path traversal probe?
+4. **Chaining** — Can this disclosure be combined with another open finding to raise severity (e.g. leaked session ID + CSRF)?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Leaked credentials (`.env`, `.git` history, source maps) → **auth-bypass** /

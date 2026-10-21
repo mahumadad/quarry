@@ -201,6 +201,18 @@ chains_with: [ssrf, info-disclosure, lfi-rfi]
   normalizes/sanitizes the file first; this is a mitigating factor to document, not silently
   drop as "not vulnerable."
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Local file read** — Can you read /etc/passwd or the Windows equivalent via an external entity?
+2. **SSRF via entity** — Can you trigger SSRF by pointing an external entity at an internal URL?
+3. **OOB exfiltration** — When in-band extraction fails, can you exfiltrate data out-of-band (error-based, or FTP/HTTP collaborator)?
+4. **Parameter entity support** — Does the parser support parameter entities? Needed for OOB exfiltration of multi-line files.
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - XXE → **ssrf** (external entity as a network-request primitive — reaches internal services/

@@ -111,6 +111,18 @@ chains_with: [hunt-oauth, hunt-crlf-injection, hunt-clickjacking]
 - Claiming a resource, even temporarily, is an action with real-world footprint (billing, abuse reports, DNS propagation delay) — get sign-off, document start/end time, and tear down immediately after capturing evidence.
 - Wildcard DNS and load-balanced CNAMEs with health checks can produce false "dangling" signals that self-heal — re-test before reporting.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Full takeover confirmation** — Can you actually claim the dangling resource (register on the unclaimed service) and serve content from the subdomain, not just observe a dangling CNAME?
+2. **Cookie/session scope abuse** — Does the takeover let you set or read cookies scoped to the parent domain, stealing session data from sibling subdomains?
+3. **CORS/CSP trust abuse** — Is the taken-over subdomain listed as a trusted origin in CORS or CSP policy elsewhere in the app, enabling a further chain?
+4. **Phishing/malware hosting** — Can the takeover host convincing phishing content under the trusted domain?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Claimed subdomain → host arbitrary content under victim's domain → phishing/credential harvesting with a trusted-looking origin, or OAuth `redirect_uri` registered to that subdomain (chain with hunt-oauth).

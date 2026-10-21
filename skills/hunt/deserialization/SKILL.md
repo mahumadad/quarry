@@ -167,6 +167,19 @@ chains_with: [rce, info-disclosure, auth-bypass]
   non-destructive canary (DNS/HTTP callback, sleep) to confirm the primitive before any
   escalation, and only with explicit operator sign-off per the human-gate rules.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Gadget chain to RCE** — Does a known gadget chain for the library/framework in use achieve full RCE, not just object instantiation or a crash?
+2. **DoS via recursive/oversized payload** — Can a crafted payload (deeply nested, billion-laughs-style) cause resource exhaustion?
+3. **Property/field injection** — Does deserializing attacker-controlled data let you set internal fields that bypass app-level validation (role, balance, ownership)?
+4. **Blind deserialization confirmation** — If no direct output is visible, can you confirm execution via an out-of-band channel (DNS/HTTP callback)?
+5. **Cross-service reach** — Is the vulnerable deserialization reachable from an internal queue/message bus, widening the attack surface beyond the HTTP API?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Confirmed side effect with a code-execution-capable gadget → feeds **rce** for the full

@@ -241,6 +241,86 @@ class ChainEngine:
             return [c for c in self._chains.values() if c.status == status]
         return list(self._chains.values())
 
+    def analyze_capabilities(self, findings: list[dict], brain) -> list[Chain]:
+        """Capability-graph mode: model chains as gives/needs relationships.
+
+        Uses Brain's FINDING_CAPABILITIES to find findings whose 'gives'
+        satisfy another finding's 'needs', producing multi-step chains
+        with trust-boundary crossings scored higher.
+        """
+        from .brain import FINDING_CAPABILITIES, TRUST_BOUNDARIES
+
+        capabilities_by_finding: dict[str, set[str]] = {}
+        needs_by_finding: dict[str, set[str]] = {}
+
+        for f in findings:
+            fid = f["id"]
+            vc = f.get("vuln_class", "").lower()
+            caps = FINDING_CAPABILITIES.get(vc, {})
+            capabilities_by_finding[fid] = set(caps.get("gives", []))
+            needs_by_finding[fid] = set(caps.get("needs", []))
+
+        chains = []
+        for consumer in findings:
+            cid = consumer["id"]
+            needed = needs_by_finding.get(cid, set())
+            if not needed:
+                continue
+            for provider in findings:
+                pid = provider["id"]
+                if pid == cid:
+                    continue
+                provided = capabilities_by_finding.get(pid, set())
+                satisfied = needed & provided
+                if satisfied:
+                    chain = Chain(
+                        name=f"capability-chain-{provider.get('vuln_class','?')}-enables-{consumer.get('vuln_class','?')}",
+                        findings=[pid, cid],
+                        vuln_classes=[
+                            provider.get("vuln_class", ""),
+                            consumer.get("vuln_class", ""),
+                        ],
+                        description=(
+                            f"{provider.get('vuln_class','')} provides "
+                            f"{', '.join(sorted(satisfied))} needed by "
+                            f"{consumer.get('vuln_class','')}"
+                        ),
+                        combined_severity=self._escalate_severity(
+                            provider.get("severity", "info"),
+                            consumer.get("severity", "info"),
+                        ),
+                        combined_impact=f"chain via {', '.join(sorted(satisfied))}",
+                        evidence_tag="inferred",
+                    )
+                    chains.append(chain)
+                    self._chains[chain.id] = chain
+
+        self._save()
+        return chains
+
+    def suggest_next_from_capabilities(self, findings: list[dict], brain) -> list[dict]:
+        """Given current capabilities, suggest vuln classes worth hunting."""
+        from .brain import FINDING_CAPABILITIES
+
+        current_caps = {c["capability"] for c in brain.get_capabilities()}
+        already_found = {f.get("vuln_class", "").lower() for f in findings}
+        suggestions = []
+
+        for vc, caps in FINDING_CAPABILITIES.items():
+            if vc in already_found:
+                continue
+            needed = set(caps.get("needs", []))
+            if needed and needed.issubset(current_caps):
+                suggestions.append({
+                    "vuln_class": vc,
+                    "reason": f"We have {', '.join(needed)} — {vc} needs exactly that",
+                    "potential_gives": caps.get("gives", []),
+                    "priority": len(caps.get("gives", [])),
+                })
+
+        suggestions.sort(key=lambda s: s["priority"], reverse=True)
+        return suggestions
+
     @staticmethod
     def _class_matches(finding_class: str, pattern: str) -> bool:
         fc = finding_class.lower().replace("_", "-").replace(" ", "-")

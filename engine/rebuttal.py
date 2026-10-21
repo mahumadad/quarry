@@ -170,6 +170,30 @@ class RebuttalEngine:
     def pending_sessions(self) -> list[RebuttalSession]:
         return [s for s in self._sessions.values() if s.outcome == RebuttalOutcome.PENDING.value]
 
+    def start_re_exploit(self, finding_id: str, finding_data: dict) -> str:
+        """Generate a blind re-exploitation prompt.
+
+        A fresh agent receives ONLY the vulnerability class, target asset,
+        and affected parameter — no PoC, no payloads, no operator reasoning.
+        If the blind agent independently reproduces the finding, confidence
+        is CONFIRMED. If not, the finding gets STALL or KILLED.
+        """
+        return (
+            "You are a penetration tester verifying a reported vulnerability. "
+            "You have NEVER seen this engagement before. You know NOTHING about "
+            "prior findings or the operator's work.\n\n"
+            "TASK: Independently confirm or deny the following vulnerability.\n\n"
+            f"Target: {finding_data.get('target_asset', 'unknown')}\n"
+            f"Vulnerability class: {finding_data.get('vuln_class', 'unknown')}\n"
+            f"Affected parameter/endpoint: {finding_data.get('description', 'unknown')[:200]}\n\n"
+            "You must:\n"
+            "1. Craft your OWN payloads (do not ask for the original PoC)\n"
+            "2. Test against the target independently\n"
+            "3. Report: CONFIRMED (with your own PoC) or DENIED (with evidence "
+            "of why it doesn't work)\n\n"
+            "Do NOT assume the original finding is correct. Be skeptical."
+        )
+
     def summary(self) -> dict:
         by_outcome = {}
         for s in self._sessions.values():

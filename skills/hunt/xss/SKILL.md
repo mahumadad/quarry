@@ -168,6 +168,19 @@ chains_with: [csrf, open-redirect, auth-bypass]
 - WAFs often block `<script>` but miss event-handler-based or `javascript:` vectors — rotate
   payload families before declaring a field safe.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Cookie theft** — Can you steal session cookies via document.cookie exfiltration? Check the HttpOnly flag first — if set, mark this anchor not-applicable.
+2. **CSRF forgery from XSS** — Can you use the XSS execution context to forge state-changing CSRF requests, including reading tokens out of the DOM?
+3. **Admin panel escalation** — Does stored XSS fire in an admin-facing view (ticket, profile, moderation queue), escalating a low-priv finding to admin takeover?
+4. **postMessage chaining** — Can you chain with postMessage to deliver the payload cross-origin to a related application or subdomain?
+5. **Email notification survival** — Does the payload survive sanitization when the stored content is reflected into HTML email notifications?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Stored XSS in admin-visible field → session/cookie theft → **auth-bypass** (session hijack).

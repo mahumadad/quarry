@@ -111,6 +111,44 @@ class BudgetManager:
         self._save()
         return result
 
+    def record_cost(self, phase: str, input_tokens: int = 0,
+                    output_tokens: int = 0, model: str = ""):
+        """Track token cost per phase for ROI analysis."""
+        tracker = self.get_tracker(phase)
+        if not hasattr(tracker, "token_cost"):
+            tracker.token_cost = {"input": 0, "output": 0, "models": {}}
+        tracker.token_cost["input"] += input_tokens
+        tracker.token_cost["output"] += output_tokens
+        if model:
+            tracker.token_cost["models"][model] = (
+                tracker.token_cost["models"].get(model, 0) + 1
+            )
+        self._save()
+
+    def roi_summary(self) -> dict:
+        """Cost vs findings ROI summary."""
+        total_calls = sum(t.used for t in self._trackers.values())
+        total_input = sum(
+            getattr(t, "token_cost", {}).get("input", 0)
+            for t in self._trackers.values()
+        )
+        total_output = sum(
+            getattr(t, "token_cost", {}).get("output", 0)
+            for t in self._trackers.values()
+        )
+        return {
+            "total_tool_calls": total_calls,
+            "total_input_tokens": total_input,
+            "total_output_tokens": total_output,
+            "by_phase": {
+                phase: {
+                    "calls": t.used,
+                    "tokens": getattr(t, "token_cost", {}),
+                }
+                for phase, t in self._trackers.items()
+            },
+        }
+
     def summary(self) -> dict:
         return {
             phase: {"used": t.used, "limit": t.limit, "remaining": t.remaining}

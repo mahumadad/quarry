@@ -115,6 +115,18 @@ chains_with: [hunt-host-header, hunt-rate-limiting, hunt-session-management]
 - Account enumeration via response differences is often accepted as very-low/informational risk by many orgs (balances UX vs. security) — don't inflate severity without checking if it meaningfully combines with the rate-limiting gaps found in hunt-rate-limiting.
 - Mail delivery delay can make expiry testing slow — plan test timing accordingly within the project's timeout budget.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Token predictability/reuse** — Is the reset token predictable, reusable after use, or valid for an unbounded time?
+2. **Host header poisoning chain** — Can the reset link's domain be poisoned via Host header injection to redirect to an attacker-controlled domain?
+3. **Account takeover via email parameter tampering** — Can you request a reset for one account but have the token delivered to an attacker-controlled address (IDOR in the reset request)?
+4. **Rate limiting on token guessing** — Is there rate limiting on reset-token submission, enabling brute force of a short/numeric token?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Host-header-poisoned reset link + weak Referrer-Policy → full token exfiltration, chain fully with hunt-host-header.

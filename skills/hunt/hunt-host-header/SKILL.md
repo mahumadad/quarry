@@ -112,6 +112,18 @@ chains_with: [hunt-password-reset, hunt-cache-poisoning, hunt-oauth]
 - Load balancers/CDNs sometimes strip or overwrite `X-Forwarded-Host` before the origin sees it — a negative result at the edge doesn't confirm the origin app is safe if you can reach it directly (check for an exposed origin IP, in scope).
 - This overlaps with hunt-password-reset — do the Host-header-specific vector here, defer token entropy/predictability/rate-limit analysis of the reset flow itself to that skill.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Password-reset poisoning** — Can a forged Host header poison a password-reset email link to redirect victims to an attacker domain?
+2. **Cache poisoning chain** — Does the forged Host header get cached and served to other users (chain with cache-poisoning)?
+3. **SSRF via internal routing** — Does the app use the Host header to construct internal requests, enabling SSRF?
+4. **Virtual-host confusion** — Can the Host header route the request to an unintended internal vhost/backend?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Poisoned reset link + victim interaction (click, or automated link-preview fetch by mail security scanners) → full account takeover; chain fully into hunt-password-reset for the end-to-end writeup.

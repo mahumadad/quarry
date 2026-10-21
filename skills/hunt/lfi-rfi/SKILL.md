@@ -174,6 +174,19 @@ chains_with: [rce, info-disclosure, ssrf]
   configuration-sensitive — a failure on one doesn't rule out the class, cycle through the
   relevant wrappers for the confirmed backend language before declaring N/A.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Full RCE via log/wrapper poisoning** — Can LFI be escalated to RCE via log poisoning (inject code into logs, then include them) or PHP wrappers (php://filter, phar://, expect://)?
+2. **Remote file inclusion to RCE** — If RFI is possible, can you include an attacker-hosted file to achieve direct code execution?
+3. **Sensitive file read beyond the obvious** — Beyond /etc/passwd, can you read app source, config files, or credentials (.env, database config, SSH keys)?
+4. **Path traversal depth/filter bypass** — Does the filter block naive ../ but allow encoded, double-encoded, or null-byte variants to reach arbitrary depth?
+5. **Chain with SSRF** — Does the inclusion mechanism allow fetching internal URLs, effectively acting as an SSRF primitive (RFI over an HTTP wrapper)?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - LFI → **rce** via log poisoning, `php://input`, `data://`, or `zip://` wrapper chains (see

@@ -130,6 +130,18 @@ chains_with: [hunt-broken-access-control, hunt-crlf-injection]
 - Respect scope/CLAUDE.md human gates: uploading a functional webshell and then invoking it is exploitation, not hunting — pause and get operator confirmation before the invocation step if the engagement rules require it.
 - Never upload real malware samples; use clearly inert PoC payloads (`system($_GET['c'])`-style stubs are standard industry PoCs, not malware).
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Web shell execution** — Can the uploaded file be placed in, or made to execute from, a web-accessible, server-executed path (RCE)?
+2. **Bypass consistency** — Does the bypass (double extension, null byte, magic-byte spoofing) work across all upload endpoints, or just one?
+3. **Stored XSS via SVG/HTML upload** — Can an uploaded SVG or HTML file achieve stored XSS when served inline?
+4. **Path traversal in filename** — Does the filename parameter allow path traversal to overwrite arbitrary files outside the intended upload directory?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Webshell upload + predictable storage path → full RCE chain (requires operator gate before invocation).

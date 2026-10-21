@@ -211,6 +211,19 @@ chains_with: [ssti, deserialization, sqli, lfi-rfi, ssrf]
 - Blind command injection often fails silently if output redirection isn't handled — try
   appending `2>&1` or redirecting to a reachable path before concluding a vector is dead.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Persistent access** — Can you achieve persistent access (reverse shell, web shell) rather than one-shot command execution?
+2. **Sensitive file read** — Can you read /etc/shadow, database config files, or other credential material from the compromised host?
+3. **Network pivot** — Can you pivot to internal network services from the compromised host?
+4. **Execution context** — What user/service account does the RCE run as (www-data, root, a service account)? This bounds the blast radius.
+5. **Privilege escalation** — Can you escalate privileges from the RCE's execution context to root/admin on the host?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - SSTI → RCE (direct escalation — see hunt-ssti for the template-engine-specific sandbox escape

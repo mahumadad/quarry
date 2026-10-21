@@ -183,6 +183,18 @@ chains_with: [rce, info-disclosure, lfi-rfi]
   index for a usable `os`-adjacent class shifts between versions) — always enumerate the actual
   subclasses list from the target rather than hardcoding an index from a write-up.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **File read** — Can you read files from the server via the template engine's file-access primitives?
+2. **Full RCE** — Can you escalate from template expression evaluation to full OS command execution, not just an arithmetic/string proof?
+3. **Cross-engine portability** — Which template engine is it, and does the payload work across engines (Jinja2, Twig, Freemarker, Velocity) or is it engine-specific?
+4. **Stored vs reflected** — Is the injection in a user-visible stored field (profile, comment) or only a reflected, one-shot context? Stored SSTI raises severity.
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - SSTI → **rce** (direct escalation path — see hunt-rce's SSTI-to-RCE step).

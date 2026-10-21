@@ -117,6 +117,18 @@ chains_with: [hunt-rate-limiting, hunt-session-management, hunt-password-reset]
 - TOTP-based 2FA (app-generated, time-based) cannot be brute-forced the same way as a static SMS/email OTP — confirm which type is in use before choosing a technique.
 - Respect engagement budget: full brute-force space exhaustion is expensive — prove feasibility with a bounded sample and rate-limit behavior observation rather than running to completion unless scope/time explicitly allows it.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Full bypass vs friction only** — Does the bypass fully skip the 2FA step, or just reduce friction while still requiring some factor?
+2. **Session reuse** — Can a pre-2FA session token be reused to reach post-2FA authenticated endpoints directly?
+3. **Backup code/recovery abuse** — Can backup codes or account-recovery flows re-enroll 2FA without proving the original factor?
+4. **Account takeover chain** — Combined with a leaked password (credential-stuffing list, prior breach), does the bypass yield full account takeover?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Weak/no rate limiting on OTP endpoint → chain fully with hunt-rate-limiting for the bypass-the-limiter technique, then return here for the OTP-space feasibility argument.

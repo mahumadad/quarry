@@ -170,6 +170,18 @@ chains_with: [idor, auth-bypass]
   without you noticing — verify with response timestamps that requests genuinely overlapped
   server-side, not just that you fired them close together client-side.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Success rate** — What is the success rate over 10 repeated attempts? A one-off win isn't a reliable finding.
+2. **Financial double-spend** — Can you chain the race into a financial operation (balance deduction, wallet transfer) for a double-spend?
+3. **Invite/coupon abuse** — Can you chain the race into invite codes, coupons, or promo redemption for multi-use of a single-use resource?
+4. **Single-packet technique** — Does a single-packet/last-byte-sync technique improve the race's reliability over naive concurrent requests?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Race condition in coupon/discount logic → direct financial-impact finding, report with

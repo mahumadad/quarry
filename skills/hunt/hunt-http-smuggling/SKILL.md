@@ -135,6 +135,18 @@ chains_with: [hunt-cache-poisoning, hunt-session-management, hunt-host-header]
 - Respect the project's 120s/3-retry budget — raw socket desync testing can hang connections; set explicit timeouts on `nc`/`openssl s_client`.
 - This is inherently a shared-infrastructure risk — confirm scope explicitly covers the proxy/load balancer layer, not just the application, before probing.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Request queue poisoning** — Can the smuggled request poison the next legitimate user's request/response pairing?
+2. **Auth/ACL bypass** — Can smuggling bypass a front-end security control (WAF, auth proxy) that the back-end alone wouldn't allow?
+3. **Cache poisoning chain** — Can the smuggled payload end up cached and served to other users?
+4. **Response capture for data theft** — Can smuggling be used to capture another user's response (session tokens, PII) in yours?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Smuggled request reflected into another user's response → session token theft, chain with hunt-session-management.

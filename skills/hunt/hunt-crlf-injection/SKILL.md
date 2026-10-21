@@ -106,6 +106,18 @@ chains_with: [hunt-cache-poisoning, hunt-clickjacking, hunt-email-injection]
 - Double-encoding and Unicode "overlong" CRLF tricks only work on specific legacy/misconfigured decoders — test the straightforward payload first, don't jump to exotic encodings as the first move.
 - Browser-rendered testing will hide real injected headers from you (browsers strip/normalize) — always verify with curl/Burp raw view before concluding N/A.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Response splitting** — Can injected CRLF split the HTTP response into two, enabling response smuggling to the client?
+2. **Cache poisoning chain** — Can the injected headers poison a shared cache (chain with cache-poisoning)?
+3. **Session fixation via Set-Cookie injection** — Can you inject an attacker-controlled Set-Cookie header to fixate another user's session?
+4. **Log injection** — Does the CRLF reach application/server logs, enabling log forgery or log-based injection into a log viewer?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - CRLF into `Location` header + response splitting → reflected XSS even on sites with otherwise solid output encoding on the body.

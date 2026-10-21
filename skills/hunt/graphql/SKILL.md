@@ -166,6 +166,19 @@ chains_with: [hunt-idor, hunt-broken-access-control, hunt-rate-limiting]
 - Batch/alias requests can look identical to legitimate complex client queries in logs —
   document the exact query sent so the finding is unambiguous to a reviewer.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Introspection to full schema abuse** — Does introspection exposure reveal mutations/fields not used by the official client, widening the attack surface?
+2. **Batching/aliasing for auth bypass** — Can query batching or aliasing brute-force rate-limited fields (login, OTP) past per-request limits?
+3. **Nested query DoS** — Can a deeply nested or circular query cause resource exhaustion when query complexity/depth isn't limited?
+4. **IDOR via object-level auth gaps** — Do individual resolvers enforce object-level authorization, or can other users' data be fetched by ID through a different query/mutation path?
+5. **Error-based information disclosure** — Do verbose GraphQL errors leak schema internals, stack traces, or validation details useful for further attack?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Field-level authorization bypass exposing another user's data → feeds **idor** /

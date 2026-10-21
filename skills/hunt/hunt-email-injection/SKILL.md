@@ -104,6 +104,17 @@ chains_with: [hunt-crlf-injection, hunt-password-reset]
 - Respect mail-sending volume/scope limits — this skill inherently sends real emails through the target's infrastructure; don't loop large payload lists through a live mail-sending feature without checking the engagement's rate/volume expectations first.
 - Never use real third-party victim addresses for open-relay/BCC tests — use only addresses you control.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Header injection to spoofing** — Can injected CRLF in email fields add Bcc/From headers to spoof sender identity or spam third parties?
+2. **SSRF via email preview** — If the app renders link previews or fetches remote content from email bodies, does this enable SSRF?
+3. **Stored XSS in email templates** — Does injected content render unsanitized in HTML email templates viewed by staff/admins?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - SMTP header injection → covert BCC exfiltration of password-reset/notification emails, chain with hunt-password-reset for the full account-takeover narrative.

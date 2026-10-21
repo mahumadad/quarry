@@ -5,12 +5,28 @@ Status flow: DETECTED → CONFIRMED → EXPLOITED → CHAINED → VALIDATED → 
 Each finding carries evidence, CVSS, MITRE mapping, and chain references.
 """
 
+import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+
+
+HUNT_MODE_SEVERITY_GATES = {
+    "bounty": 8.0,
+    "pentest": 4.0,
+    "comprehensive": 0.0,
+}
+
+
+def severity_gate_check(mode: str, cvss_score: float) -> tuple[bool, str]:
+    """Check if a finding meets the severity gate for the engagement mode."""
+    threshold = HUNT_MODE_SEVERITY_GATES.get(mode, 0.0)
+    if cvss_score >= threshold:
+        return True, ""
+    return False, f"CVSS {cvss_score} below {mode} threshold ({threshold})"
 
 
 class FindingStatus(str, Enum):
@@ -140,10 +156,37 @@ class FindingsStore:
         f = self._findings.get(finding_id)
         if not f:
             return False
-        f.evidence.append(asdict(evidence))
+        ev_dict = asdict(evidence)
+        ev_dict["sha256"] = hashlib.sha256(
+            evidence.content.encode("utf-8")
+        ).hexdigest()
+        f.evidence.append(ev_dict)
         f.updated_at = datetime.now(timezone.utc).isoformat()
         self._save()
         return True
+
+    def verify_evidence_integrity(self, finding_id: str) -> list[dict]:
+        """Check all evidence hashes. Returns list of tampered items."""
+        f = self._findings.get(finding_id)
+        if not f:
+            return []
+        tampered = []
+        for i, ev in enumerate(f.evidence):
+            stored_hash = ev.get("sha256", "")
+            if not stored_hash:
+                tampered.append({"index": i, "reason": "no hash"})
+                continue
+            computed = hashlib.sha256(
+                ev.get("content", "").encode("utf-8")
+            ).hexdigest()
+            if computed != stored_hash:
+                tampered.append({
+                    "index": i,
+                    "reason": "hash mismatch",
+                    "expected": stored_hash,
+                    "actual": computed,
+                })
+        return tampered
 
     def list_by_status(self, status: FindingStatus | None = None) -> list[Finding]:
         if status is None:

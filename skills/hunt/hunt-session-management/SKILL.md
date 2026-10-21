@@ -128,6 +128,18 @@ chains_with: [hunt-oauth, hunt-2fa-bypass, hunt-password-reset, hunt-clickjackin
 - Don't test concurrent-session/"log out all" features in ways that lock yourself out mid-engagement without a way back in — keep a spare authenticated session.
 - `SameSite=Lax` is sufficient against most CSRF for navigational requests but not against all vectors — don't conflate cookie attribute hardening with the deeper session-lifecycle issues this skill targets.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Session fixation** — Can you fix a victim's session ID before login and gain access after they authenticate?
+2. **Session not invalidated on logout/password change** — Does the old session token remain valid after logout or password change?
+3. **Concurrent session / device binding gaps** — Can the same session token be used from multiple devices/locations without detection?
+4. **Token leakage via URL/logs** — Does the session token appear in URLs, Referer headers, or logs, enabling theft?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Session fixation + any planting vector (CRLF-injected `Set-Cookie`, XSS on a sibling subdomain, subdomain takeover) → full account takeover; chain with hunt-crlf-injection or hunt-subdomain-takeover for the planting mechanism.

@@ -116,6 +116,18 @@ chains_with: [hunt-api-abuse, hunt-broken-access-control, hunt-business-logic]
 - Some apps validate field *values* but not field *presence* (e.g. reject `role: "superadmin"` but accept `role: "admin"` because that's a technically-valid enum value just not meant to be user-settable) — test the full range of valid enum values, not just the most obviously dangerous one.
 - Don't forget PUT vs PATCH vs POST can be bound differently in the same framework — test all verbs the endpoint accepts.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Privilege field injection** — Can you set a privileged field (isAdmin, role, verified) that isn't exposed in the intended form?
+2. **Price/quantity tampering** — Can you inject fields controlling price, discount, or balance that the client-facing form doesn't expose?
+3. **Cross-object injection** — Can you set foreign-key/ownership fields (userId, orgId) to reassign a resource to another entity?
+4. **Consistency across endpoints** — Does the same unfiltered-bind pattern exist on related create/update endpoints?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Mass assignment of `role`/`isAdmin` → direct privilege escalation, chain with hunt-broken-access-control to demonstrate downstream admin-only access.

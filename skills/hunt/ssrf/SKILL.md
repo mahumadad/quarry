@@ -175,6 +175,19 @@ chains_with: [info-disclosure, rce, auth-bypass]
 - DNS rebinding attacks need a very narrow TOCTOU window and dedicated infra (rebinder service)
   — don't claim rebinding works from a blocklist bypass alone; demonstrate the actual rebind.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Cloud metadata endpoint** — Test 169.254.169.254 (AWS IMDSv1/v2), Azure IMDS, and GCP metadata for credential leakage.
+2. **Internal service access** — Probe localhost:8080/:6379 (Redis)/:9200 (Elasticsearch)/:27017 (MongoDB) for unauthenticated internal services.
+3. **file:// protocol read** — Can the SSRF primitive be redirected to file:// to read local files?
+4. **DNS rebinding bypass** — Does the allowlist check happen at resolve-time rather than connect-time? Test DNS rebinding to bypass hostname allowlists.
+5. **Internal admin pivot** — Can you reach internal admin panels or management interfaces not exposed externally?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - SSRF → cloud metadata credential theft → cloud API access (new scope — stop and escalate per

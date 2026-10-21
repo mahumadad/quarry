@@ -115,6 +115,18 @@ chains_with: [hunt-mass-assignment, hunt-api-abuse, hunt-business-logic]
 - Server-side pollution is almost always blind — resist the temptation to assume success from a lack of error; actively probe a second request for the behavior change.
 - Respect the project's human-gate rule before attempting any RCE gadget chain — pollution-to-RCE is exploitation, not hunting.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **RCE via polluted gadget** — Can the polluted prototype property reach a server-side gadget (template engine, child_process) for RCE?
+2. **Client-side XSS via DOM gadget** — Does the pollution reach a DOM sink (innerHTML, src) to achieve XSS?
+3. **Auth/permission bypass via polluted defaults** — Can you pollute a default config property (isAdmin, role) that a later check trusts?
+4. **Denial of service** — Does polluting core Object.prototype properties crash or degrade the application?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Client-side pollution of a security-relevant default (e.g. a "trusted domains" list read via prototype fallback) → DOM XSS/SSRF, chain into whatever client-side injection class applies.

@@ -132,6 +132,18 @@ chains_with: [hunt-password-reset, hunt-2fa-bypass, hunt-business-logic]
 - Respect the project's 3-retry/budget rules — brute-force-style testing can burn a lot of requests fast; cap test runs deliberately and don't actually attempt to crack a real password/OTP end-to-end without explicit scope for that impact level.
 - CAPTCHA appearing after N attempts is a valid control — note if it can itself be bypassed (reused token, client-side-only check) but that's a separate finding, not proof the rate limit is absent.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Credential stuffing feasibility** — With rate limiting absent/bypassed, can you run a realistic credential-stuffing attack against login?
+2. **Bypass via header/IP rotation** — Does rotating X-Forwarded-For, IP, or session identifiers bypass the rate limit entirely?
+3. **OTP/2FA brute force** — Does the lack of rate limiting allow brute-forcing a short OTP/2FA code within its validity window?
+4. **Resource exhaustion chain** — Can unthrottled requests be chained into a resource-exhaustion DoS on a downstream dependency?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Rate-limit bypass on login → feeds credential-stuffing/brute-force impact (quantify the space, don't exhaust a real account).

@@ -127,6 +127,18 @@ chains_with: [hunt-parameter-pollution, hunt-mass-assignment, hunt-rate-limiting
 - Never use a real payment instrument or push an actual financial transaction beyond what's explicitly authorized by the engagement scope and the "Testing the user's own application" test-mode boundaries — use sandbox/test payment credentials only.
 - Business logic findings often require deep context about the *intended* rule — confirm with the operator what the correct behavior should be before over- or under-claiming severity.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Financial impact** — Does the logic flaw let you underpay, double-claim, or extract value (discount stacking, negative quantities, currency rounding)?
+2. **Workflow step skipping** — Can you skip a required step in a multi-step workflow (approval, payment, verification) and still reach the end state?
+3. **State machine abuse** — Can you force the resource into an invalid state transition not reachable through the normal UI?
+4. **Scale of abuse** — Can the flaw be automated/scripted for repeated abuse, or is it a one-off edge case?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - HTTP Parameter Pollution duplicating `quantity`/`price` params to confuse validation vs. processing layers → chain with hunt-parameter-pollution.

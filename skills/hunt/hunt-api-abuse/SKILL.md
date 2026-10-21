@@ -127,6 +127,18 @@ chains_with: [hunt-broken-access-control, hunt-mass-assignment, hunt-rate-limiti
 - GraphQL introspection being enabled is not itself a vulnerability — it's a recon aid; don't report it as a standalone finding, fold it into the BOLA/BFLA chain it enabled.
 - Rate-limit testing from one IP can get you blocked and burn engagement budget — respect the 3-retry rule in project CLAUDE.md and pivot to hunt-rate-limiting's distributed techniques only with explicit scope.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Rate limit absence** — Is there any rate limit on the abused endpoint, or can it be hit without throttling for mass abuse?
+2. **Business logic impact** — Does the abuse pattern (resource exhaustion, enumeration, bulk action) translate into real business impact (cost, data loss, fraud)?
+3. **Auth boundary crossing** — Does the abused endpoint let you act on behalf of, or affect, other tenants/users?
+4. **Chaining to DoS** — Can the abuse be scaled into a denial-of-service against a shared backend resource (queue, DB connection pool)?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - BOLA on `/api/orders/{id}` + predictable sequential IDs → mass data exfiltration (quantify scope, don't dump real data).

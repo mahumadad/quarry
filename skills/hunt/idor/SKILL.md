@@ -159,6 +159,19 @@ chains_with: [auth-bypass, info-disclosure, csrf]
   mutation independently; a protected REST endpoint doesn't guarantee the equivalent GraphQL field
   is protected too.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Horizontal access** — Can you access OTHER users' data, not just confirm your own second test account's data is visible to itself?
+2. **Write/delete impact** — Can you modify or delete other users' resources through the same parameter, not just read them?
+3. **Pattern consistency** — Is the IDOR pattern consistent across all similar endpoints (list, detail, export, delete), or only the one tested?
+4. **ID enumerability** — Can you enumerate all valid IDs? Sequential integers are trivially enumerable; UUIDs need a separate leak path.
+5. **Rate limiting on exfiltration** — Does rate limiting or anomaly detection prevent mass exfiltration via the IDOR, or can thousands of records be pulled unthrottled?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - IDOR → **pii-exfil** when object data includes PII (feeds reporting/legal severity escalation).

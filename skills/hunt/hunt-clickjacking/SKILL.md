@@ -105,6 +105,17 @@ chains_with: [hunt-subdomain-takeover, hunt-session-management, hunt-oauth]
 - GET-based state-changing actions (delete via a link, not a form) are easiest to clickjack — but if the same action already requires a CSRF token validated server-side, framing alone won't bypass that; check both together.
 - Test on the real rendering engine your scope implies (desktop vs mobile browsers can differ in frame/sandbox enforcement).
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Sensitive action framed** — Does the vulnerable page perform a sensitive, state-changing action (not just a passive view) when framed?
+2. **X-Frame-Options/CSP gap scope** — Is the missing frame protection site-wide or limited to one page/route?
+3. **Working UI-redress PoC** — Can you build a working click-jack PoC that drags a real user interaction, not just a theoretical overlay, to the hidden action?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Clickjacking a settings page with no CSRF token → full account takeover by itself (no CSRF bypass needed since the real session cookie rides along).

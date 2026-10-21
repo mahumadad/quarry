@@ -167,6 +167,18 @@ chains_with: [xss, cors, open-redirect]
   injection vulnerability — note this as a chain, not a standalone CSRF finding, if that's the
   actual path.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Self-XSS chaining** — Can you chain with a self-XSS/reflected XSS finding to deliver the CSRF cross-user? Self-XSS alone has no cross-user impact.
+2. **Account takeover path** — Can the CSRF change email or password, giving full account takeover rather than a single state change?
+3. **OAuth state absence** — Is there a missing/predictable OAuth state parameter that compounds the CSRF into an account-linking attack?
+4. **Admin-only actions** — Does the CSRF work against admin-only actions, raising blast radius beyond a single user?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - CSRF + no `SameSite` → **account-takeover** when chained with password/email change endpoints.

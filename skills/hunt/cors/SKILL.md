@@ -173,6 +173,18 @@ chains_with: [csrf, info-disclosure, xss]
   responses (4xx/5xx) — test both success and error paths if the sensitive data could leak via
   an error body too.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Authenticated data exfiltration** — Can you exfiltrate authenticated, session-bound data, not just already-public data?
+2. **Reflected origin + credentials** — Does the server reflect an arbitrary Origin AND set Access-Control-Allow-Credentials: true? That combination is the actual vulnerability.
+3. **Trusted subdomain XSS chain** — Is there an XSS on a subdomain the CORS policy trusts, that can be chained to exploit this origin?
+4. **WebSocket bypass path** — Is there a WebSocket endpoint that skips CORS checks entirely, bypassing an HTTP-layer fix?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - CORS misconfig + credentials → direct session/data theft, feeds `session-hijack`/

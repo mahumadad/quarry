@@ -180,6 +180,19 @@ chains_with: [auth-bypass, info-disclosure, rce]
 - Second-order hits are easy to miss because the vulnerable *request* (the read trigger) looks
   completely benign — always re-test storage fields against downstream render paths.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Data exfiltration scope** — Can you read arbitrary tables, not just the one touched by the vulnerable query? Enumerate information_schema and pull from unrelated tables.
+2. **Integrity impact** — Can you write/update/delete data through the injection point, not just read it?
+3. **OS command execution** — Can you reach xp_cmdshell (MSSQL), INTO OUTFILE/LOAD_FILE (MySQL), or COPY TO/FROM PROGRAM (Postgres) to execute OS commands?
+4. **Local file read** — Can you read arbitrary local files via LOAD_FILE/UTL_FILE/pg_read_file?
+5. **Blind fallback** — If inline/error-based extraction fails, can you achieve reliable time-based blind exfiltration (SLEEP-based, with a latency control to rule out network jitter)?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - SQLi → **auth-bypass** (login bypass via boolean/NoSQL injection).

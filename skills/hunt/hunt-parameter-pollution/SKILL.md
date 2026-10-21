@@ -105,6 +105,17 @@ chains_with: [hunt-broken-access-control, hunt-oauth, hunt-business-logic]
 - Test query string AND body AND JSON separately — a framework can handle each differently even within the same app.
 - Some load balancers/CDNs de-duplicate or reject repeated params before the origin ever sees them — a clean negative at the edge doesn't prove the origin (if directly reachable, in scope) is safe.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **WAF/validation bypass** — Does duplicating the parameter bypass a validation or WAF rule that only inspects the first/last occurrence?
+2. **Backend/frontend parsing mismatch** — Do the front-end validator and back-end parser pick different values for the same duplicated parameter, creating a logic bypass?
+3. **Auth/IDOR chain** — Can parameter pollution override an ID or auth parameter set earlier in the request pipeline?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - WAF bypass via HPP → delivery mechanism for payloads under hunt-business-logic (price manipulation) or injection classes covered elsewhere.

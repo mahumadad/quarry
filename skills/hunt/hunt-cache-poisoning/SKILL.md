@@ -116,6 +116,18 @@ chains_with: [hunt-host-header, hunt-http-smuggling, hunt-clickjacking]
 - Always use a cache-buster per test case to isolate results and avoid clobbering your own evidence between tests.
 - Poisoning a shared production cache affects real users immediately — confirm scope and, once a working PoC is found, pause for operator sign-off before leaving the poisoned entry live (purge/revert if possible).
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Shared cache confirmation** — Does the poisoned response actually get served to OTHER users from a shared cache, not just reflected to you?
+2. **XSS/content injection via cache** — Can the poisoned cache key store and serve injected HTML/JS to all subsequent visitors?
+3. **Unkeyed header discovery** — Have you enumerated all unkeyed headers (X-Forwarded-Host, X-Original-URL) that influence the response but aren't part of the cache key?
+4. **Persistence window** — How long does the poisoned entry persist, and can you keep it alive via cache-probing/refresh?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Unkeyed `X-Forwarded-Host` reflected into absolute URLs/canonical links → stored XSS at scale for every visitor hitting the cache (chain with hunt-host-header for the root injection point).

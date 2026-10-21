@@ -207,6 +207,18 @@ chains_with: [auth-bypass, idor, ssrf]
   anywhere reachable (no JWKS endpoint, not embedded in client code), this variant is N/A,
   don't assume you can still pull it off without the key material in hand.
 
+## Chain Anchors
+
+Before declaring this finding complete, probe these escalation paths:
+
+1. **Alg confusion to forgery** — If alg confusion (RS256→HS256) works, can you forge a token with admin/elevated claims?
+2. **Weak key signing** — If the signing key was cracked/guessed, can you sign arbitrary claims (any user, any role)?
+3. **kid injection** — Does kid header injection achieve SQLi (key-lookup query) or path traversal (key lookup from filesystem)?
+4. **Expiration tampering** — Can you extend or remove the expiration claim and have the server still accept the token?
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.
+
 ## Chains & Compositions
 
 - Any confirmed forgery technique → direct **auth-bypass** / full account-equivalent
