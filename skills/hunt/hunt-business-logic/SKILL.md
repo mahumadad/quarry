@@ -36,6 +36,33 @@ chains_with: [hunt-parameter-pollution, hunt-mass-assignment, hunt-rate-limiting
 - A complete legitimate walkthrough of the target workflow captured in Burp, every step logged, to know the exact sequence and parameters of a normal transaction.
 - A disposable/test payment method or sandbox payment mode if the engagement scope allows (never use real financial instruments beyond what's explicitly authorized — see "Testing the user's own application" boundaries).
 
+## Executing multi-step attacks with engine/workflows.py
+
+Manual curl chains die on mechanical friction: ids that must be carried between
+steps (basket id, cart token, order nonce), CSRF headers, step ordering.
+Encode the legitimate walkthrough as a declarative flow once — then every
+attack is a one-line mutation, and the transcript (full request/response of
+every step + invariant verdict) lands in `.pentest-state/workflows/` as
+evidence automatically:
+
+```bash
+# 1. baseline: the flow as the app intends it — invariant must HOLD
+python3 -m engine.workflows run flow.json --audit-dir .
+
+# 2. attack: mutate one step — invariant VIOLATED = Demonstrated finding
+python3 -m engine.workflows run flow.json --audit-dir . \
+  --set 'set-quantity.json.quantity=-100'          # exit 0 = business rule broken
+```
+
+Flow files declare `steps` (method/url/headers/json + `extract` rules that
+feed response values into later steps as `{{vars}}`) and `invariants`
+(`json_lt/gt/eq`, wildcard `data.*.totalPrice`, `contains`, `status_is`) — the
+business rule that must never break (negative total, double coupon, skipped
+payment). Run baseline first: if the baseline already violates the invariant,
+your flow model is wrong, not the app. Proven pattern (Juice Shop "Payback
+Time"): login → extract `bid` → add item → mutate quantity to -100 → checkout
+→ `data.*.totalPrice < 0` in order history.
+
 ## Methodology
 
 1. **Map the full state machine.** From the captured normal flow, list every step, every parameter, and every status transition. Identify which step the server considers "final"/authoritative (where payment is actually charged, where stock is actually decremented).
