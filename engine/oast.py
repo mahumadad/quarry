@@ -215,3 +215,183 @@ def interactsh_poll(proc_stdout) -> list[dict]:
             "raw_request": rec.get("raw-request", ""),
         })
     return out
+
+
+# ---- CLI: session lifecycle for the hunting loop ----
+#
+#   python3 -m engine.oast start --audit-dir .     # launch client, print callback domain
+#   python3 -m engine.oast token --audit-dir . --purpose blind-ssrf \
+#       --vuln-class ssrf --target-url http://t/profile/image/url --parameter imageUrl
+#   python3 -m engine.oast poll  --audit-dir .     # correlate new callbacks
+#   python3 -m engine.oast evidence --audit-dir . --token <t>
+#   python3 -m engine.oast stop  --audit-dir .
+#
+# `start` leaves an interactsh-client process running; `stop` MUST be called
+# when the engagement (or benchmark run) ends — never leave listeners behind.
+
+import argparse
+import os
+import shutil
+import signal
+import sys
+
+_SESSION_FILE = "oast-session.json"
+
+
+def _find_binary() -> str | None:
+    return shutil.which("interactsh-client") or (
+        str(Path.home() / ".local/bin/interactsh-client")
+        if (Path.home() / ".local/bin/interactsh-client").exists() else None)
+
+
+def _session_path(audit_dir: str) -> Path:
+    return Path(audit_dir) / ".pentest-state" / _SESSION_FILE
+
+
+def _load_session(audit_dir: str) -> dict:
+    p = _session_path(audit_dir)
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def _save_session(audit_dir: str, session: dict):
+    p = _session_path(audit_dir)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(session, indent=2))
+
+
+def cli_start(audit_dir: str) -> dict:
+    """Launch interactsh-client detached; capture domain + pid in a session file."""
+    binary = _find_binary()
+    if not binary:
+        return {"ok": False, "error": "interactsh-client not found — install: "
+                "https://github.com/projectdiscovery/interactsh/releases "
+                "(expected in PATH or ~/.local/bin)"}
+    existing = _load_session(audit_dir)
+    if existing.get("pid"):
+        try:
+            os.kill(existing["pid"], 0)
+            return {"ok": True, "domain": existing.get("domain"),
+                    "pid": existing["pid"], "note": "already running"}
+        except OSError:
+            pass  # stale pid — relaunch
+    log = Path(audit_dir) / ".pentest-state" / "oast-client.jsonl"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    logf = open(log, "a")
+    proc = subprocess.Popen([binary, "-json"], stdout=logf, stderr=subprocess.STDOUT,
+                            text=True, start_new_session=True)
+    domain = None
+    deadline = time.time() + 20
+    while time.time() < deadline and not domain:
+        time.sleep(1)
+        try:
+            m = _INTERACTSH_DOMAIN_RE.search(log.read_text())
+            if m:
+                domain = m.group(1)
+        except OSError:
+            pass
+    if not domain:
+        proc.terminate()
+        return {"ok": False, "error": "interactsh-client started but no callback "
+                "domain appeared in 20s — check network / public oast.* reachability"}
+    session = {"pid": proc.pid, "domain": domain, "log": str(log),
+               "read_offset": 0,
+               "started_at": datetime.now(timezone.utc).isoformat()}
+    _save_session(audit_dir, session)
+    return {"ok": True, "domain": domain, "pid": proc.pid}
+
+
+def cli_token(audit_dir: str, purpose: str, vuln_class: str, target_url: str,
+              parameter: str = "") -> dict:
+    """Mint a correlation token bound to the running session's domain."""
+    session = _load_session(audit_dir)
+    domain = session.get("domain")
+    if not domain:
+        return {"ok": False, "error": "no active OAST session — run start first"}
+    mgr = OASTManager(audit_dir)
+    tok = mgr.new_token(purpose, vuln_class, target_url,
+                        parameter=parameter, callback_host=domain)
+    return {"ok": True, "token": tok.token, "payload_url": tok.payload_url}
+
+
+def cli_poll(audit_dir: str) -> dict:
+    """Read new client output, correlate against minted tokens, report matches."""
+    session = _load_session(audit_dir)
+    log = session.get("log")
+    if not log or not Path(log).exists():
+        return {"ok": False, "error": "no active OAST session — run start first"}
+    offset = session.get("read_offset", 0)
+    with open(log) as f:
+        f.seek(offset)
+        new_lines = f.readlines()
+        session["read_offset"] = f.tell()
+    _save_session(audit_dir, session)
+    mgr = OASTManager(audit_dir)
+    matched, noise = [], 0
+    for rec in interactsh_poll(new_lines):
+        if not rec["token"]:
+            continue  # startup banner lines
+        result = mgr.record_interaction(Interaction(**rec))
+        if result["matched"]:
+            matched.append({"token": rec["token"], "protocol": rec["protocol"],
+                            "remote_addr": rec["remote_addr"],
+                            "purpose": result["token"].purpose})
+        else:
+            noise += 1  # internet background — never evidence
+    return {"ok": True, "matched": matched, "background_noise": noise,
+            "pending_tokens": [t.token for t in mgr.pending()]}
+
+
+def cli_evidence(audit_dir: str, token: str) -> dict:
+    mgr = OASTManager(audit_dir)
+    rec = mgr.evidence_record(token)
+    return {"ok": rec is not None, "evidence": rec}
+
+
+def cli_stop(audit_dir: str) -> dict:
+    session = _load_session(audit_dir)
+    pid = session.get("pid")
+    if not pid:
+        return {"ok": True, "note": "no active session"}
+    try:
+        os.killpg(pid, signal.SIGTERM)
+        note = f"stopped pid {pid}"
+    except OSError:
+        note = "process already gone"
+    _save_session(audit_dir, {})
+    return {"ok": True, "note": note}
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="engine.oast")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    for name in ("start", "poll", "stop"):
+        p = sub.add_parser(name)
+        p.add_argument("--audit-dir", default=".")
+    p = sub.add_parser("token")
+    p.add_argument("--audit-dir", default=".")
+    p.add_argument("--purpose", required=True)
+    p.add_argument("--vuln-class", required=True)
+    p.add_argument("--target-url", required=True)
+    p.add_argument("--parameter", default="")
+    p = sub.add_parser("evidence")
+    p.add_argument("--audit-dir", default=".")
+    p.add_argument("--token", required=True)
+    args = ap.parse_args()
+
+    if args.cmd == "start":
+        r = cli_start(args.audit_dir)
+    elif args.cmd == "token":
+        r = cli_token(args.audit_dir, args.purpose, args.vuln_class,
+                      args.target_url, args.parameter)
+    elif args.cmd == "poll":
+        r = cli_poll(args.audit_dir)
+    elif args.cmd == "evidence":
+        r = cli_evidence(args.audit_dir, args.token)
+    else:
+        r = cli_stop(args.audit_dir)
+    print(json.dumps(r, indent=2, ensure_ascii=False))
+    return 0 if r.get("ok") else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
