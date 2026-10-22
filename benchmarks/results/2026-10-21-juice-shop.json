@@ -1,0 +1,44 @@
+{
+  "target": "juice-shop",
+  "scored_at": "2026-10-22T02:34:17.151255+00:00",
+  "target_version": "20.3.0",
+  "expected_total": 14,
+  "expected_required": 12,
+  "excluded": [
+    {
+      "expected_id": "js-file-upload",
+      "applies_to": "<20",
+      "target_version": "20.3.0"
+    },
+    {
+      "expected_id": "js-xxe",
+      "applies_to": "<20",
+      "target_version": "20.3.0"
+    }
+  ],
+  "found": 12,
+  "missed": [
+    {
+      "expected_id": "js-business-logic",
+      "vuln_class": "hunt-business-logic",
+      "severity": "medium",
+      "optional": false
+    },
+    {
+      "expected_id": "js-ssrf",
+      "vuln_class": "ssrf",
+      "severity": "medium",
+      "optional": true
+    }
+  ],
+  "recall": 0.857,
+  "recall_required": 0.917,
+  "precision": 1.0,
+  "reported_findings": 12,
+  "unmatched_findings": [],
+  "evidence": {
+    "total": 17,
+    "hashed": 17,
+    "integrity": 1.0
+  }
+}

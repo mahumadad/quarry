@@ -3,6 +3,13 @@ image: bkimminich/juice-shop
 port: 3000
 description: OWASP Juice Shop — SPA Angular + API Node, ground truth de retos oficiales
 
+# Detección automática de versión del target vivo (score.py --base-url).
+# Los expected con applies_to se excluyen con razón auditable cuando la
+# versión del target no los cubre — un miss por versión NO es un fallo del plugin.
+version_probe:
+  url: /rest/admin/application-version
+  regex: '"version"\s*:\s*"([0-9.]+)"'
+
 # Ground truth curada: retos documentados de Juice Shop mapeados a clases del
 # plugin. matched_by define cómo score.py reconoce el finding en el run:
 # cualquier finding cuyo vuln_class coincida Y cuyo título/descripción
@@ -55,6 +62,8 @@ expected:
     severity: high
     title: "Upload de archivo con extensión/tipo no permitido"
     keywords: [upload, archivo, file, extensión, xxe]
+    # /file-upload devuelve 410 Gone ("deprecated for security reasons") desde v20
+    applies_to: "<20"
 
   - id: js-sensitive-data
     vuln_class: info-disclosure
@@ -92,6 +101,8 @@ expected:
     severity: high
     title: "XXE vía upload de archivo XML"
     keywords: [xxe, xml, entity]
+    # XXE se servía por /file-upload, removido en v20 — verificado 410 Gone en v20.3.0
+    applies_to: "<20"
 
   - id: js-nosql
     vuln_class: sqli

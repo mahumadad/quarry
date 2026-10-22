@@ -68,6 +68,63 @@ expected:
            "evidence integrity contada")
     expect(r["missed"][0]["expected_id"] == "fix-optional", "missed = opcional")
 
+    # --- version-aware ground truth ---
+    from benchmarks.score import applies_to_version, parse_version
+    expect(parse_version("20.3.0") == (20, 3, 0), "parse_version básico")
+    expect(applies_to_version({"applies_to": "<20"}, "20.3.0") is False, "<20 excluye en v20.3")
+    expect(applies_to_version({"applies_to": "<20"}, "19.9.0") is True, "<20 incluye en v19")
+    expect(applies_to_version({"applies_to": ">=15,<20"}, "17.0.0") is True, "rango AND incluye")
+    expect(applies_to_version({"applies_to": ">=15,<20"}, "21.0") is False, "rango AND excluye alto")
+    expect(applies_to_version({}, "20.3.0") is True, "sin constraint siempre aplica")
+    expect(applies_to_version({"applies_to": "<20"}, None) is True, "sin versión todo aplica (compat)")
+
+    target_v = d / "target_versioned.yaml"
+    target_v.write_text("""name: fixture-versioned
+expected:
+  - id: fv-sqli
+    vuln_class: sqli
+    severity: high
+    keywords: [login, sql]
+  - id: fv-xxe
+    vuln_class: xxe
+    severity: high
+    keywords: [xxe]
+    applies_to: "<20"
+""")
+    rv = score(str(target_v), str(findings), target_version="20.3.0")
+    expect(rv["expected_total"] == 1, "v20.3: solo 1 expected aplicable")
+    expect(rv["excluded"] and rv["excluded"][0]["expected_id"] == "fv-xxe",
+           "xxe excluido con razón auditable")
+    expect(abs(rv["recall_required"] - 1.0) < 0.01,
+           "recall_required = 1.0 (el único requerido aplicable fue hallado)")
+    expect(rv["target_version"] == "20.3.0", "versión registrada en el resultado")
+
+    rv_none = score(str(target_v), str(findings))
+    expect(rv_none["expected_total"] == 2, "sin --target-version todo aplica (compat)")
+
+    # --- un finding no puede cubrir dos expected distintos ---
+    target_dup = d / "target_dup.yaml"
+    target_dup.write_text("""name: fixture-dup
+expected:
+  - id: fd-xss-dom
+    vuln_class: xss
+    severity: medium
+    keywords: [xss]
+  - id: fd-xss-stored
+    vuln_class: xss
+    severity: high
+    keywords: [xss, stored]
+""")
+    findings_one = d / "findings_one.json"
+    findings_one.write_text(json.dumps({"findings": [
+        {"id": "F-X", "title": "XSS reflejado", "description": "xss",
+         "vuln_class": "xss", "status": "validated", "evidence": []},
+    ]}))
+    rd = score(str(target_dup), str(findings_one))
+    expect(rd["found"] == 1, "un solo expected satisfecho por un solo finding")
+    expect(abs(rd["recall_required"] - 0.5) < 0.01,
+           "recall_required = 0.5 (el segundo expected queda miss honesto)")
+
     print(f"\nRESULTS: {len(failures)} failures")
     return 1 if failures else 0
 

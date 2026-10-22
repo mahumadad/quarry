@@ -242,7 +242,7 @@ def check_skills():
             "chain-graph-walk", "chain-multi-app"
         ],
         "validate": ["finding-validation", "triage-gate", "evidence-hygiene", "dedup",
-                     "triage-brocards"],
+                     "triage-brocards", "browser-verify"],
         "report": ["report-writing", "framework-mapping", "executive-brief",
                    "detection-opportunities", "report-qc"],
         "sast": ["code-review", "supply-chain-audit", "variant-analysis",
