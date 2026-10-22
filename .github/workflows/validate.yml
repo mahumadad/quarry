@@ -1,0 +1,44 @@
+name: validate-plugin
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  structural-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate plugin structure
+        run: python3 tests/validate_plugin.py
+
+      - name: Engine modules import + smoke tests
+        run: python3 tests/test_engine.py
+
+      - name: Benchmark scorer self-test (synthetic fixture)
+        run: python3 tests/test_benchmark_score.py
+
+  # El benchmark completo contra targets Docker NO corre en cada push
+  # (minutos + contenedores). Se dispara manual o semanal:
+  benchmark:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Start DVWA
+        run: docker run -d --name dvwa -p 80:80 vulnerables/web-dvwa
+      - name: Placeholder — engagement run
+        run: |
+          echo "El engagement contra el target lo ejecuta un operador/agente."
+          echo "Este job valida que score.py corre y mantiene el gate de recall."
+      - name: Score gate
+        run: python3 tests/test_benchmark_score.py
