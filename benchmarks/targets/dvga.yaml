@@ -1,0 +1,150 @@
+name: dvga
+image: dolevf/dvga
+port: 5013
+description: >
+  DVGA (Damn Vulnerable GraphQL Application) — GraphQL-only target.
+  Ejercita introspection, DoS por query depth/batching, injection via GraphQL,
+  command execution, JWT forge y bypasses de protección GraphQL.
+  Modo: Beginner (sin protecciones). Header: X-DVGA-MODE: Beginner.
+
+# DVGA expone /graphql como endpoint principal.
+# GraphiQL IDE en la raíz (/) cuando está habilitado.
+# Requiere WEB_HOST=0.0.0.0 para acceso desde fuera del contenedor.
+# Reset: GET /start_over
+
+expected:
+  # --- Information Disclosure ---
+
+  - id: dvga-introspection
+    vuln_class: info-disclosure
+    severity: medium
+    title: "GraphQL introspection habilitada — schema completo expuesto"
+    keywords: [introspection, schema, __schema, types, fields]
+
+  - id: dvga-graphiql
+    vuln_class: info-disclosure
+    severity: medium
+    title: "GraphiQL IDE expuesto en producción"
+    keywords: [graphiql, ide, interfaz, playground]
+
+  - id: dvga-field-suggestions
+    vuln_class: info-disclosure
+    severity: low
+    title: "Field suggestions en errores filtran nombres de campos"
+    keywords: [suggestion, field, error, did you mean]
+
+  - id: dvga-stack-traces
+    vuln_class: info-disclosure
+    severity: low
+    title: "Stack traces verbosos en respuestas de error"
+    keywords: [stack, trace, error, verbose, debug]
+
+  - id: dvga-ssrf
+    vuln_class: ssrf
+    severity: high
+    title: "SSRF via mutation/query que acepta URL arbitraria"
+    keywords: [ssrf, url, fetch, request, server-side]
+
+  # --- Denial of Service (GraphQL-specific) ---
+
+  - id: dvga-dos-batch
+    vuln_class: hunt-dos
+    severity: medium
+    title: "Batch query attack — múltiples operaciones en un request"
+    keywords: [batch, query, multiple, operaciones]
+
+  - id: dvga-dos-deep-recursion
+    vuln_class: hunt-dos
+    severity: medium
+    title: "Deep recursion query — anidamiento sin límite de profundidad"
+    keywords: [deep, recursion, depth, nested, anidamiento]
+
+  - id: dvga-dos-resource-intensive
+    vuln_class: hunt-dos
+    severity: medium
+    title: "Resource intensive query — consultas costosas sin throttling"
+    keywords: [resource, intensive, expensive, costly]
+    optional: true
+
+  - id: dvga-dos-aliases
+    vuln_class: hunt-dos
+    severity: medium
+    title: "Alias-based attack — multiplicación de trabajo via aliases"
+    keywords: [alias, aliases, multiplicación, duplication]
+    optional: true
+
+  # --- Code Execution ---
+
+  - id: dvga-cmdi-1
+    vuln_class: rce
+    severity: critical
+    title: "OS command injection #1 via input de mutation"
+    keywords: [command, injection, os, exec, shell, rce]
+
+  - id: dvga-cmdi-2
+    vuln_class: rce
+    severity: critical
+    title: "OS command injection #2 via segundo vector de mutation"
+    keywords: [command, injection, os, exec, shell, rce, mutation]
+
+  # --- Injection ---
+
+  - id: dvga-sqli
+    vuln_class: sqli
+    severity: high
+    title: "SQL injection en query/mutation GraphQL"
+    keywords: [sql, injection, sqli, query]
+
+  - id: dvga-xss-stored
+    vuln_class: xss
+    severity: high
+    title: "Stored XSS via mutation — payload persiste y se renderiza"
+    keywords: [xss, stored, persistente, script]
+
+  - id: dvga-html-injection
+    vuln_class: xss
+    severity: medium
+    title: "HTML injection en campos renderizados"
+    keywords: [html, injection, render]
+    optional: true
+
+  - id: dvga-log-injection
+    vuln_class: info-disclosure
+    severity: low
+    title: "Log injection / log spoofing via input"
+    keywords: [log, injection, spoofing, forge]
+    optional: true
+
+  # --- Authorization Bypass ---
+
+  - id: dvga-jwt-forge
+    vuln_class: jwt
+    severity: high
+    title: "JWT token forge — firma débil o alg none"
+    keywords: [jwt, token, forge, alg, firma, none]
+
+  - id: dvga-interface-bypass
+    vuln_class: auth-bypass
+    severity: medium
+    title: "GraphQL interface protection bypass"
+    keywords: [interface, protection, bypass, graphiql]
+
+  - id: dvga-denylist-bypass
+    vuln_class: auth-bypass
+    severity: medium
+    title: "GraphQL query deny list bypass"
+    keywords: [deny, list, blocklist, bypass, denylist]
+
+  # --- Miscellaneous ---
+
+  - id: dvga-weak-password
+    vuln_class: hunt-rate-limiting
+    severity: medium
+    title: "Weak password protection — brute force viable"
+    keywords: [password, brute, weak, force]
+
+  - id: dvga-path-traversal
+    vuln_class: lfi-rfi
+    severity: high
+    title: "Arbitrary file write / path traversal"
+    keywords: [file, write, path, traversal, arbitrary]

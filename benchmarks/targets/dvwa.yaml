@@ -149,3 +149,16 @@ expected:
     severity: low
     title: "Cookies de sesión sin HttpOnly/Secure/SameSite"
     keywords: [httponly, cookie, samesite, secure flag]
+
+  - id: dvwa-git-exposed
+    vuln_class: info-disclosure
+    severity: medium
+    title: "Repositorio .git expuesto en el docroot"
+    keywords: [git, exposed, vcs, repositorio, config]
+    optional: true   # artefacto de despliegue (clon git servido directo), no bug de DVWA
+
+  - id: dvwa-cors-wildcard
+    vuln_class: cors
+    severity: low
+    title: "CORS wildcard en el API (ACAO: *)"
+    keywords: [cors, wildcard, origin, access-control]

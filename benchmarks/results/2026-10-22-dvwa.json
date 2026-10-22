@@ -1,26 +1,17 @@
 {
   "target": "dvwa",
-  "scored_at": "2026-10-22T06:15:31.462537+00:00",
+  "scored_at": "2026-10-22T18:12:51.990984+00:00",
   "target_version": null,
-  "expected_total": 23,
-  "expected_required": 22,
+  "expected_total": 25,
+  "expected_required": 23,
   "excluded": [],
-  "found": 23,
+  "found": 25,
   "missed": [],
   "recall": 1.0,
   "recall_required": 1.0,
-  "precision": 0.92,
+  "precision": 1.0,
   "reported_findings": 25,
-  "unmatched_findings": [
-    {
-      "id": "F-A3AB6D3C",
-      "title": "Repositorio .git expuesto en el docroot (artefacto de despliegue)"
-    },
-    {
-      "id": "F-9AA0CB06",
-      "title": "CORS wildcard en el API (Access-Control-Allow-Origin: *)"
-    }
-  ],
+  "unmatched_findings": [],
   "evidence": {
     "total": 30,
     "hashed": 30,
