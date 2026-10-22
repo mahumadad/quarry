@@ -58,6 +58,60 @@ El runner envuelve cada comando en `docker run --rm --network host {image}`.
 Montar el directorio del engagement como volumen si las herramientas deben
 escribir outputs: extender `_run_local` según necesidad.
 
+## Backend `anonlab` (Docker+Tor anonymous lab)
+
+Para engagements que requieren anonimato del operador: red team con
+evasión, bug bounty donde no se quiere exponer la IP, o targets que
+bloquean rangos residenciales/cloud. El tráfico fluye:
+
+```
+kali container → SOCKS Tor (torgw) → host → Mullvad VPN → internet
+```
+
+### Arquitectura
+
+Dos contenedores Docker con network namespace compartido:
+
+- **torgw**: gateway Tor con iptables fail-closed — solo el proceso `tor`
+  puede salir directo; cualquier otro tráfico es rechazado (sin fuga).
+  Corre Tor (SocksPort 9050) + privoxy (HTTP proxy 8118 → Tor).
+- **kali**: toolset completo (nmap, nuclei, sqlmap, ffuf, hydra, etc.)
+  en `network_mode: service:torgw`. Todo su tráfico pasa por el netns de
+  torgw y sale por Tor.
+
+Ver `references/anon-lab.md` para el detalle completo de la arquitectura.
+
+### Setup
+
+1. Levantar el lab: `cd ~/Dev/personal/pentest-vm/docker && ./anonlab.sh up`
+   (o `./up.sh` para solo Docker sin Mullvad).
+2. Verificar: el script comprueba automáticamente `IsTor: true` y
+   fail-closed (curl directo debe fallar).
+3. Configurar el engagement:
+   ```json
+   {"backend": "anonlab", "anonlab_container": "kali"}
+   ```
+
+### Cómo rutean las herramientas
+
+| Herramienta | Ruta |
+|---|---|
+| curl, wget, pip, httpx | Env vars `ALL_PROXY` / `HTTP_PROXY` (auto) |
+| nmap | `tscan <host>` o `ptor nmap -sT -Pn <target>` |
+| nuclei, subfinder, katana | `HTTP_PROXY` (auto) o `ptor` si falla |
+| sqlmap, ffuf, gobuster | `--proxy socks5h://127.0.0.1:9050` o env vars |
+| cualquier otro TCP | `ptor <tool> [args]` (proxychains4 wrapper) |
+
+### Notas
+
+- `tscan` resuelve DNS por Tor antes del scan — nunca DNS directo.
+- El UA por defecto es Chrome/Windows (mezclarse en el tráfico).
+- Los outputs se guardan en `/loot` dentro del contenedor (volumen montado
+  en `~/Dev/personal/pentest-vm/docker/../loot`).
+- Mullvad VPN es la capa externa (conectar manualmente antes de `anonlab up`).
+- El runner verifica Tor activo con `check.torproject.org/api/ip` antes
+  de aceptar el backend como disponible.
+
 ## Reglas transversales
 
 - El backend se declara al inicio del engagement y queda en el custody log.

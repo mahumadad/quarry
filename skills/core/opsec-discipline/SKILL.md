@@ -73,6 +73,37 @@ feeds_into: [active-recon, port-scan, service-enumeration, web-crawling]
    at 22:00 <<< "nmap -sS -p- -T3 -oA fullscan target"
    ```
 
+### Anonymous lab (Docker+Tor+VPN)
+6. Cuando el engagement requiere anonimato (red team evasivo, bug bounty sin
+   exponer IP, targets que bloquean rangos conocidos):
+   ```bash
+   # Levantar el lab anónimo (Mullvad debe estar conectado primero)
+   cd ~/Dev/personal/pentest-vm/docker && ./anonlab.sh up
+
+   # Verificar la cadena: debe mostrar IP de exit Tor, IsTor: true
+   ./anonlab.sh status
+
+   # Shell interactivo en kali (todo el tráfico va por Tor)
+   ./anonlab.sh shell
+
+   # Configurar el engagement para usar el backend anonlab
+   # en .pentest-state/toolrunner.json: {"backend": "anonlab"}
+   ```
+7. Dentro del lab, las herramientas rutean automáticamente por Tor vía env
+   vars (`ALL_PROXY`, `HTTP_PROXY`). Para herramientas que no respetan env
+   vars, usar los wrappers:
+   ```bash
+   tscan target.com              # nmap connect-scan vía Tor (resuelve DNS por Tor)
+   ptor <tool> [args]            # proxychains4 wrapper para cualquier tool TCP
+   web whatweb <url>             # whatweb/nikto con UA de Windows, vía Tor
+   ```
+8. La cadena de red es fail-closed: el contenedor kali no puede hacer
+   conexiones directas a internet — solo a través de Tor. Si Tor cae,
+   las conexiones fallan (no hay fallback a clearnet).
+9. No usar el lab anónimo para engagements donde el cliente espera tráfico
+   atribuible — si el RoE pide UA identificable o IP whitelisteda, usar
+   backend `local` o `kali`.
+
 ### Data handling
 7. Store all engagement artifacts (scan output, screenshots, credentials found) only in the
    client's designated secure channel/repo — never in a personal/unencrypted location, never
@@ -96,6 +127,8 @@ feeds_into: [active-recon, port-scan, service-enumeration, web-crawling]
       (attributable vs. evasion-testing).
 - [ ] Testing window matches the RoE schedule.
 - [ ] No engagement data stored or transmitted outside the client's designated channel.
+- [ ] If anonlab backend: Tor circuit verified (`anonlab status`), Mullvad connected,
+      fail-closed confirmado (curl directo falla).
 
 ## Gotchas
 

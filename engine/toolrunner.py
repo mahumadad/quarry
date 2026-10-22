@@ -8,6 +8,8 @@ reproducible instead of assuming whatever happens to be on local $PATH:
   kali    — remote Kali Linux REST API (MCP-Kali-Server style):
             tools run on a dedicated attack box; results return over HTTP
   docker  — pinned container image with declared tool versions
+  anonlab — Docker+Tor anonymous lab (kali container sharing torgw netns,
+            all traffic routed through Tor; see references/anon-lab.md)
 
 It also enforces the CLI anti-hallucination rules mechanically:
   - verify_tool() runs `--help` before first use in an engagement
@@ -34,6 +36,8 @@ HARD_LIMIT = 20 * 60           # 20 minutes — matches CLAUDE.md
 MAX_IDENTICAL_RETRIES = 3      # matches CLAUDE.md
 
 DOCKER_IMAGE = "pentest-plugin/toolkit:1.0"   # see references/tool-backends.md
+ANONLAB_CONTAINER = "kali"                     # see references/anon-lab.md
+TOR_CHECK_URL = "https://check.torproject.org/api/ip"
 
 
 @dataclass
@@ -60,6 +64,7 @@ class ToolRunner:
         self.backend = "local"
         self.kali_url = ""           # e.g. http://kali-box:5000  (MCP-Kali-Server)
         self.docker_image = DOCKER_IMAGE
+        self.anonlab_container = ANONLAB_CONTAINER
         self._verified: set[str] = set()     # tools whose --help ran this engagement
         self._cmd_counts: dict[str, int] = {}
         self._available: dict[str, bool] = {}
@@ -71,6 +76,7 @@ class ToolRunner:
             self.backend = cfg.get("backend", "local")
             self.kali_url = cfg.get("kali_url", "")
             self.docker_image = cfg.get("docker_image", DOCKER_IMAGE)
+            self.anonlab_container = cfg.get("anonlab_container", ANONLAB_CONTAINER)
             self._verified = set(cfg.get("verified_tools", []))
 
     def _save(self):
@@ -79,6 +85,7 @@ class ToolRunner:
             "backend": self.backend,
             "kali_url": self.kali_url,
             "docker_image": self.docker_image,
+            "anonlab_container": self.anonlab_container,
             "verified_tools": sorted(self._verified),
         }, indent=2))
 
@@ -94,6 +101,8 @@ class ToolRunner:
             ok = shutil.which("docker") is not None  # image assumed to carry the tool
         elif self.backend == "kali":
             ok = self._kali_health() is not None
+        elif self.backend == "anonlab":
+            ok = self._anonlab_health() is not None
         self._available[tool] = ok
         return ok
 
@@ -131,6 +140,8 @@ class ToolRunner:
 
         if self.backend == "kali":
             return self._run_kali(argv, timeout)
+        if self.backend == "anonlab":
+            return self._run_anonlab(argv, timeout)
         if self.backend == "docker":
             argv = ["docker", "run", "--rm", "--network", "host",
                     self.docker_image] + argv
@@ -182,10 +193,69 @@ class ToolRunner:
         res.duration_s = round(time.time() - start, 2)
         return res
 
+    # ---- anonlab backend (Docker+Tor anonymous lab) ----
+
+    def _anonlab_health(self) -> dict | None:
+        """Check kali container is running and Tor circuit is active."""
+        try:
+            proc = subprocess.run(
+                ["docker", "inspect", "-f", "{{.State.Running}}",
+                 self.anonlab_container],
+                capture_output=True, text=True, timeout=10)
+            if proc.returncode != 0 or "true" not in proc.stdout.lower():
+                return None
+            proc = subprocess.run(
+                ["docker", "exec", self.anonlab_container,
+                 "curl", "-s", "--max-time", "15", TOR_CHECK_URL],
+                capture_output=True, text=True, timeout=20)
+            if proc.returncode != 0:
+                return None
+            data = json.loads(proc.stdout)
+            if not data.get("IsTor"):
+                return None
+            return {"status": "ok", "tor_exit_ip": data.get("IP", "unknown"),
+                    "is_tor": True}
+        except Exception:
+            return None
+
+    def _run_anonlab(self, argv: list[str], timeout: int) -> ToolResult:
+        """Run inside the kali container (shared netns with torgw, all traffic via Tor).
+        See references/anon-lab.md for the architecture."""
+        tool = argv[0]
+        res = ToolResult(tool=tool, argv=argv, backend="anonlab")
+        docker_argv = ["docker", "exec", self.anonlab_container] + argv
+        start = time.time()
+        try:
+            proc = subprocess.run(
+                docker_argv, capture_output=True, text=True, timeout=timeout)
+            res.exit_code = proc.returncode
+            res.stdout = proc.stdout
+            res.stderr = proc.stderr
+        except subprocess.TimeoutExpired as e:
+            res.timed_out = True
+            res.stdout = (e.stdout or "") if isinstance(e.stdout, str) else ""
+            res.stderr = f"timeout after {timeout}s"
+        except FileNotFoundError:
+            res.stderr = "docker not found on host"
+            res.exit_code = 127
+        res.duration_s = round(time.time() - start, 2)
+        return res
+
+    def anonlab_status(self) -> dict:
+        """Public health check for UI/status display."""
+        health = self._anonlab_health()
+        if health is None:
+            return {"running": False, "tor": False}
+        return {"running": True, "tor": True,
+                "exit_ip": health.get("tor_exit_ip", "unknown")}
+
     def summary(self) -> dict:
-        return {
+        base = {
             "backend": self.backend,
             "verified_tools": sorted(self._verified),
             "unique_commands": len(self._cmd_counts),
             "availability_cache": dict(self._available),
         }
+        if self.backend == "anonlab":
+            base["anonlab"] = self.anonlab_status()
+        return base
