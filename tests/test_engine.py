@@ -128,6 +128,53 @@ def test_exporters():
     assert to_json(store)["count"] == 1
 
 
+def test_timeguard():
+    from engine.timeguard import TimeWindowGuard
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    d = tempfile.mkdtemp()
+    g = TimeWindowGuard(d)
+    ok, reason = g.is_allowed()
+    assert ok and "no window configured" in reason  # fail-open sin config
+    g.configure(
+        windows=[{"days": ["mon"], "start": "09:00", "end": "18:00"}],
+        timezone="UTC",
+        expires_at="2027-01-01T00:00:00+00:00",
+    )
+    monday_noon = datetime(2026, 10, 26, 12, 0, tzinfo=ZoneInfo("UTC"))  # lunes
+    monday_3am = datetime(2026, 10, 26, 3, 0, tzinfo=ZoneInfo("UTC"))
+    tuesday_noon = datetime(2026, 10, 27, 12, 0, tzinfo=ZoneInfo("UTC"))
+    assert g.is_allowed(monday_noon)[0]
+    assert not g.is_allowed(monday_3am)[0]
+    assert not g.is_allowed(tuesday_noon)[0]
+    ok, reason = g.override("emergency")
+    assert not ok  # allow_override=false por defecto
+    # expiración
+    after = datetime(2027, 6, 1, 12, 0, tzinfo=ZoneInfo("UTC"))
+    allowed, reason = g.is_allowed(after)
+    assert not allowed and "expired" in reason
+
+
+def test_deliver():
+    from engine.deliver import build_manifest, verify_manifest, bundle
+    d = Path(tempfile.mkdtemp())
+    (d / "report.md").write_text("# Reporte\n")
+    (d / "evidence.txt").write_text("request/response raw\n")
+    m = build_manifest(str(d))
+    assert m["file_count"] == 2
+    v = verify_manifest(str(d))
+    assert v["intact"]
+    # alteración detectada
+    (d / "evidence.txt").write_text("tampered\n")
+    v2 = verify_manifest(str(d))
+    assert not v2["intact"] and "evidence.txt" in v2["altered"]
+    # bundle
+    (d / "evidence.txt").write_text("request/response raw\n")
+    out = Path(tempfile.mkdtemp()) / "bundle.tar.gz"
+    r = bundle(str(d), str(out))
+    assert Path(r["bundle"]).exists() and r["bundle_sha256"]
+
+
 def main() -> int:
     print("=" * 60)
     print("ENGINE SMOKE TESTS")
@@ -138,6 +185,8 @@ def main() -> int:
     check("custody", test_custody)
     check("toolrunner", test_toolrunner)
     check("exporters", test_exporters)
+    check("timeguard", test_timeguard)
+    check("deliver", test_deliver)
     print(f"\nRESULTS: {len(FAILURES)} failures")
     return 1 if FAILURES else 0
 

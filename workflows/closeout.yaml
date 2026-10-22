@@ -1,0 +1,57 @@
+name: closeout
+description: Cierre de engagement — limpieza de artefactos, rotación de credenciales, sello de custodia y debrief
+
+# La fase que distingue un pentest profesional: irse sin dejar rastro
+# operacional y con la evidencia sellada. Saltarse el closeout deja
+# webshells olvidados, cuentas de prueba vivas y datos del cliente sin
+# destino definido.
+
+phases:
+  - name: artifact-cleanup
+    gate: human_review
+    notes: >
+      Inventario de TODO lo que el engagement dejó en el target, y su
+      remoción verificada:
+      - archivos subidos (PoC uploads, test files con marcadores únicos)
+      - cuentas de prueba creadas (o confirmar con el cliente si las
+        deshabilitan ellos)
+      - webhooks/callbacks configurados (OAST listeners propios en el target)
+      - cambios de estado deliberados (datos modificados en pruebas de
+        escritura autorizadas) — revertir o documentar como irreversibles
+      Cada ítem: removido / cliente-remueve / irreversible-documentado.
+      Un webshell de prueba olvidado es un incidente de seguridad real.
+
+  - name: credential-hygiene
+    notes: >
+      - Rotar/deshabilitar credenciales de test del vault (engine/vault.py)
+      - Revocar tokens API emitidos para el engagement
+      - Confirmar que ninguna credencial quedó en archivos del engagement
+        fuera del vault
+
+  - name: evidence-seal
+    notes: >
+      - CustodyLog.verify() final — la cadena debe estar ÍNTEGRA
+      - Evento de cierre en custody (actor: operator)
+      - engine/deliver.py: manifest SHA-256 + bundle (+ cifrado gpg si el
+        contrato lo exige)
+      - Verificar el bundle contra su manifest antes de entregar
+
+  - name: data-retention
+    gate: human_approval
+    notes: >
+      Destino de los datos del engagement según contrato:
+      - retención acordada (días, ubicación, cifrado)
+      - destrucción: qué se borra, cuándo, con qué método — registrar el
+        acto de destrucción en custody como último evento
+      - knowledge.py se queda SOLO con técnicas anonimizadas (verificar que
+        ningún registro lleve identificadores del cliente)
+
+  - name: debrief
+    skills: [executive-brief]
+    notes: >
+      Sesión de cierre con el cliente:
+      - walkthrough de findings críticos/altos con PoC en vivo (opcional)
+      - revisión de gaps de cobertura (qué NO se probó — ver engagement report)
+      - preguntas abiertas del cliente
+      - próximos pasos acordados: fix + /pt:retest, surface-watch,
+        purple-team session

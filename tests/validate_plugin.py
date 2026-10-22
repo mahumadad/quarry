@@ -78,7 +78,7 @@ def check_engine():
         "app_profile.py", "brain.py", "vault.py", "router.py",
         "checkpoint.py", "cost_estimator.py", "target_diff.py",
         "oast.py", "sessions.py", "knowledge.py", "custody.py",
-        "toolrunner.py", "exporters.py"
+        "toolrunner.py", "exporters.py", "timeguard.py", "deliver.py"
     ]
     engine_dir = ROOT / "engine"
     for f in expected:
@@ -125,6 +125,10 @@ def check_engine_imports():
         ok("engine.toolrunner imports OK")
         from engine.exporters import to_sarif, to_json, to_csv, export
         ok("engine.exporters imports OK")
+        from engine.timeguard import TimeWindowGuard, Window
+        ok("engine.timeguard imports OK")
+        from engine.deliver import build_manifest, verify_manifest, bundle
+        ok("engine.deliver imports OK")
     except Exception as e:
         error(f"Engine import failed: {e}")
 
@@ -150,7 +154,7 @@ def check_commands():
     expected = [
         "engage.md", "recon.md", "map.md", "hunt.md", "chain.md",
         "validate.md", "report.md", "scope.md", "status.md", "findings.md",
-        "export.md", "retest.md"
+        "export.md", "retest.md", "closeout.md", "notify.md", "deliver.md"
     ]
     cmd_dir = ROOT / "commands"
     for f in expected:
@@ -167,7 +171,9 @@ def check_workflows():
         "full-pentest.yaml", "web-app-pentest.yaml", "api-pentest.yaml",
         "cloud-pentest.yaml", "ad-pentest.yaml", "mobile-pentest.yaml",
         "ai-agent-pentest.yaml", "recon-only.yaml",
-        "retest.yaml", "pr-scan.yaml"
+        "retest.yaml", "pr-scan.yaml",
+        "closeout.yaml", "cve-response.yaml", "surface-watch.yaml",
+        "purple-team.yaml"
     ]
     wf_dir = ROOT / "workflows"
     for f in expected:
@@ -194,7 +200,8 @@ def check_templates():
     print("\n=== Templates ===")
     expected = [
         "finding-template.md", "target-card.md", "chain-report.md",
-        "engagement-report.md", "executive-summary.md"
+        "engagement-report.md", "executive-summary.md",
+        "critical-alert.md", "closeout-checklist.md"
     ]
     tpl_dir = ROOT / "templates"
     for f in expected:
@@ -237,7 +244,7 @@ def check_skills():
         "validate": ["finding-validation", "triage-gate", "evidence-hygiene", "dedup",
                      "triage-brocards"],
         "report": ["report-writing", "framework-mapping", "executive-brief",
-                   "detection-opportunities"],
+                   "detection-opportunities", "report-qc"],
         "sast": ["code-review", "supply-chain-audit", "variant-analysis",
                  "static-analysis-toolkit"],
         "platform": [
