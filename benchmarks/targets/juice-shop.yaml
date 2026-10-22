@@ -1,0 +1,107 @@
+name: juice-shop
+image: bkimminich/juice-shop
+port: 3000
+description: OWASP Juice Shop — SPA Angular + API Node, ground truth de retos oficiales
+
+# Ground truth curada: retos documentados de Juice Shop mapeados a clases del
+# plugin. matched_by define cómo score.py reconoce el finding en el run:
+# cualquier finding cuyo vuln_class coincida Y cuyo título/descripción
+# contenga alguna keyword cuenta como encontrado.
+expected:
+  - id: js-sqli-login
+    vuln_class: sqli
+    severity: high
+    title: "SQLi en login (bypass auth como admin)"
+    keywords: [login, sql, injection, admin, bypass]
+
+  - id: js-xss-dom
+    vuln_class: xss
+    severity: medium
+    title: "DOM XSS en búsqueda"
+    keywords: [xss, dom, search, reflejado, reflected]
+
+  - id: js-xss-stored
+    vuln_class: xss
+    severity: high
+    title: "Stored XSS en registro/perfil"
+    keywords: [stored, xss, persist]
+
+  - id: js-idor-basket
+    vuln_class: idor
+    severity: high
+    title: "IDOR: ver/editar baskets de otros usuarios"
+    keywords: [basket, idor, bola, otro usuario, other user]
+
+  - id: js-jwt-forge
+    vuln_class: jwt
+    severity: high
+    title: "JWT con firma débil / alg confusion"
+    keywords: [jwt, token, firma, signature, alg]
+
+  - id: js-admin-section
+    vuln_class: auth-bypass
+    severity: medium
+    title: "Acceso a /#/administration sin rol admin"
+    keywords: [admin, administration, role]
+
+  - id: js-forged-feedback
+    vuln_class: hunt-broken-access-control
+    severity: medium
+    title: "Feedback/review en nombre de otro usuario (roken access control)"
+    keywords: [feedback, review, otro usuario, forged]
+
+  - id: js-file-upload
+    vuln_class: hunt-file-upload
+    severity: high
+    title: "Upload de archivo con extensión/tipo no permitido"
+    keywords: [upload, archivo, file, extensión, xxe]
+
+  - id: js-sensitive-data
+    vuln_class: info-disclosure
+    severity: medium
+    title: "Exposición de datos sensibles (API leaks, score-board, metrics)"
+    keywords: [exposure, leak, sensitive, metrics, directory]
+
+  - id: js-business-logic
+    vuln_class: hunt-business-logic
+    severity: medium
+    title: "Business logic: cupones infinitos / precios negativos"
+    keywords: [coupon, cupón, negative, logic, lógica]
+
+  - id: js-rate-limit
+    vuln_class: hunt-rate-limiting
+    severity: low
+    title: "Sin rate limiting en login (brute force)"
+    keywords: [rate, brute, fuerza bruta, lockout]
+
+  - id: js-password-reset
+    vuln_class: hunt-password-reset
+    severity: medium
+    title: "Reset de password con respuesta de seguridad débil"
+    keywords: [reset, security answer, pregunta]
+
+  - id: js-ssrf
+    vuln_class: ssrf
+    severity: medium
+    title: "SSRF (profile image URL)"
+    keywords: [ssrf, url, fetch]
+    optional: true    # depende de versión del target
+
+  - id: js-xxe
+    vuln_class: xxe
+    severity: high
+    title: "XXE vía upload de archivo XML"
+    keywords: [xxe, xml, entity]
+
+  - id: js-nosql
+    vuln_class: sqli
+    severity: medium
+    title: "NoSQL injection en reviews (Mongo)"
+    keywords: [nosql, mongo, review]
+
+  - id: js-crypto
+    vuln_class: info-disclosure
+    severity: low
+    title: "Cripto débil / tokens predecibles"
+    keywords: [crypto, hash, md5, predictable, predecible]
+    optional: true

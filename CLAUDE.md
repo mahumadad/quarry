@@ -56,8 +56,15 @@ Cada finding DEBE incluir:
 - Request/response reproducible O output de herramienta con timestamp
 - Steps to reproduce numerados
 - Impacto demostrado (no teórico)
-- CVSS 3.1 con vector string, justificando cada métrica con lo verificado
+- CVSS 4.0 con vector string, justificando cada métrica con lo verificado
+  (ver `references/cvss4-epss-kev.md`; incluir 3.1 además si la
+  plataforma/cliente lo exige)
+- EPSS score + CISA KEV membership cuando el finding tiene CVE asociado
 - Mapeo MITRE ATT&CK (tactic + technique ID)
+- Findings blind: callback OOB correlacionado por token único
+  (`engine/oast.py`, skill oob-interactions) — sin callback, cap en Inferred
+- Toda evidencia registrada en el custody log (`engine/custody.py`) —
+  append-only, hash-chained, attestable
 
 ## Cobertura
 

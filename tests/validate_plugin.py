@@ -74,7 +74,11 @@ def check_engine():
     expected = [
         "__init__.py", "state.py", "scope.py", "findings.py",
         "chain_engine.py", "rebuttal.py", "budget.py",
-        "loop_detector.py", "coverage.py", "guard.py"
+        "loop_detector.py", "coverage.py", "guard.py",
+        "app_profile.py", "brain.py", "vault.py", "router.py",
+        "checkpoint.py", "cost_estimator.py", "target_diff.py",
+        "oast.py", "sessions.py", "knowledge.py", "custody.py",
+        "toolrunner.py", "exporters.py"
     ]
     engine_dir = ROOT / "engine"
     for f in expected:
@@ -109,6 +113,18 @@ def check_engine_imports():
         ok("engine.loop_detector imports OK")
         from engine.coverage import CoverageTracker, ALL_VULN_CLASSES
         ok(f"engine.coverage imports OK ({len(ALL_VULN_CLASSES)} vuln classes)")
+        from engine.oast import OASTManager, OASTToken, Interaction
+        ok("engine.oast imports OK")
+        from engine.sessions import SessionManager, Session, DiffResult
+        ok("engine.sessions imports OK")
+        from engine.knowledge import KnowledgeBase, TechniqueRecord
+        ok("engine.knowledge imports OK")
+        from engine.custody import CustodyLog, CustodyEntry
+        ok("engine.custody imports OK")
+        from engine.toolrunner import ToolRunner, ToolResult
+        ok("engine.toolrunner imports OK")
+        from engine.exporters import to_sarif, to_json, to_csv, export
+        ok("engine.exporters imports OK")
     except Exception as e:
         error(f"Engine import failed: {e}")
 
@@ -133,7 +149,8 @@ def check_commands():
     print("\n=== Commands ===")
     expected = [
         "engage.md", "recon.md", "map.md", "hunt.md", "chain.md",
-        "validate.md", "report.md", "scope.md", "status.md", "findings.md"
+        "validate.md", "report.md", "scope.md", "status.md", "findings.md",
+        "export.md", "retest.md"
     ]
     cmd_dir = ROOT / "commands"
     for f in expected:
@@ -149,7 +166,8 @@ def check_workflows():
     expected = [
         "full-pentest.yaml", "web-app-pentest.yaml", "api-pentest.yaml",
         "cloud-pentest.yaml", "ad-pentest.yaml", "mobile-pentest.yaml",
-        "ai-agent-pentest.yaml", "recon-only.yaml"
+        "ai-agent-pentest.yaml", "recon-only.yaml",
+        "retest.yaml", "pr-scan.yaml"
     ]
     wf_dir = ROOT / "workflows"
     for f in expected:
@@ -162,7 +180,7 @@ def check_workflows():
 
 def check_presets():
     print("\n=== Presets ===")
-    expected = ["full-audit.yaml", "bug-bounty.yaml", "quick-recon.yaml"]
+    expected = ["full-audit.yaml", "bug-bounty.yaml", "quick-recon.yaml", "ci-scan.yaml"]
     pre_dir = ROOT / "presets"
     for f in expected:
         p = pre_dir / f
@@ -190,7 +208,8 @@ def check_templates():
 def check_skills():
     print("\n=== Skills ===")
     expected_categories = {
-        "core": ["engagement-flow", "scope-discipline", "finding-discipline", "opsec-discipline"],
+        "core": ["engagement-flow", "scope-discipline", "finding-discipline", "opsec-discipline",
+                 "oob-interactions", "session-context"],
         "recon": [
             "passive-recon", "active-recon", "dns-enumeration", "subdomain-discovery",
             "port-scan", "service-enumeration", "web-crawling", "js-analysis",
@@ -202,6 +221,7 @@ def check_skills():
             "sqli", "xss", "ssrf", "idor", "csrf", "rce", "ssti", "xxe",
             "lfi-rfi", "auth-bypass", "race-condition", "cors", "open-redirect",
             "info-disclosure", "deserialization", "graphql", "websocket", "jwt",
+            "fuzzing", "grpc",
             "hunt-oauth", "hunt-api-abuse", "hunt-file-upload", "hunt-cache-poisoning",
             "hunt-http-smuggling", "hunt-subdomain-takeover", "hunt-crlf-injection",
             "hunt-clickjacking", "hunt-host-header", "hunt-parameter-pollution",
@@ -214,8 +234,12 @@ def check_skills():
             "chain-info-to-exploit", "chain-ssrf-to-cloud", "chain-custom",
             "chain-graph-walk", "chain-multi-app"
         ],
-        "validate": ["finding-validation", "triage-gate", "evidence-hygiene", "dedup"],
-        "report": ["report-writing", "framework-mapping", "executive-brief"],
+        "validate": ["finding-validation", "triage-gate", "evidence-hygiene", "dedup",
+                     "triage-brocards"],
+        "report": ["report-writing", "framework-mapping", "executive-brief",
+                   "detection-opportunities"],
+        "sast": ["code-review", "supply-chain-audit", "variant-analysis",
+                 "static-analysis-toolkit"],
         "platform": [
             "aws-attack", "azure-attack", "gcp-attack", "active-directory",
             "kubernetes-attack", "docker-attack", "mobile-android", "mobile-ios",
@@ -224,7 +248,8 @@ def check_skills():
         ],
         "ai-security": [
             "ai-agent-recon", "prompt-injection", "indirect-injection",
-            "rag-poisoning", "tool-abuse", "exfiltration-via-ai", "ai-supply-chain"
+            "rag-poisoning", "tool-abuse", "exfiltration-via-ai", "ai-supply-chain",
+            "llm-fuzzing"
         ],
     }
 
@@ -249,7 +274,8 @@ def check_skills():
 def check_references():
     print("\n=== References ===")
     expected_root = [
-        "cli-rules.md", "anti-fabrication-rules.md", "finding-evidence-standards.md"
+        "cli-rules.md", "anti-fabrication-rules.md", "finding-evidence-standards.md",
+        "triage-brocards.md", "tool-backends.md", "cvss4-epss-kev.md"
     ]
     expected_chains = ["chain-matrix.md", "chain-patterns.md", "pivot-graph.md"]
     expected_frameworks = [
@@ -285,6 +311,45 @@ def check_references():
     else:
         warn("Missing references/gotchas/ directory")
 
+    payloads_dir = ref_dir / "payloads"
+    if payloads_dir.exists():
+        payloads = list(payloads_dir.glob("*.md"))
+        if len(payloads) >= 5:
+            ok(f"references/payloads/: {len(payloads)} files")
+        else:
+            warn(f"references/payloads/ has only {len(payloads)} files")
+    else:
+        warn("Missing references/payloads/ directory")
+
+
+def check_benchmarks():
+    print("\n=== Benchmarks ===")
+    bench = ROOT / "benchmarks"
+    if not (bench / "score.py").exists():
+        error("Missing benchmarks/score.py")
+    else:
+        ok("benchmarks/score.py")
+    targets = list((bench / "targets").glob("*.yaml")) if (bench / "targets").exists() else []
+    if len(targets) >= 2:
+        ok(f"benchmarks/targets/: {len(targets)} targets")
+    else:
+        warn(f"benchmarks/targets/ has only {len(targets)} targets")
+
+
+def check_tests():
+    print("\n=== Tests ===")
+    for f in ["validate_plugin.py", "test_engine.py", "test_benchmark_score.py"]:
+        p = ROOT / "tests" / f
+        if p.exists():
+            ok(f"tests/{f}")
+        else:
+            warn(f"Missing tests/{f}")
+    ci = ROOT / ".github" / "workflows" / "validate.yml"
+    if ci.exists():
+        ok(".github/workflows/validate.yml")
+    else:
+        warn("Missing .github/workflows/validate.yml (CI)")
+
 
 def main():
     print("=" * 60)
@@ -303,6 +368,8 @@ def main():
     check_templates()
     check_skills()
     check_references()
+    check_benchmarks()
+    check_tests()
 
     print("\n" + "=" * 60)
     print(f"RESULTS: {len(ERRORS)} errors, {len(WARNINGS)} warnings")

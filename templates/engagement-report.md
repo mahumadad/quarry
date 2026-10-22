@@ -127,6 +127,26 @@ sobre un finding crítico que requiere condiciones improbables).
 
 {{structural_recommendations}}
 
+## Detection Coverage (purple team — engagements contratados)
+
+> Ver `skills/report/detection-opportunities`. Omitir esta sección en modo
+> bug bounty (las plataformas no consumen consejo de detección).
+
+Tabla finding × data source × estado de detección — funciona como snapshot
+de madurez de logging del cliente:
+
+| Finding | ATT&CK Data Source | Telemetría esperada | Estado |
+|---|---|---|---|
+| {{finding_id_1}} | {{ds_1}} | {{telemetry_1}} | {{detected_status_1}} |
+| {{finding_id_2}} | {{ds_2}} | {{telemetry_2}} | {{detected_status_2}} |
+
+Convención de estado: `Detectado`, `Esperado-ausente`, `No verificado`
+(nunca afirmar ausencia sin haber visto la telemetría del cliente).
+
+**Gaps estructurales de visibilidad:** {{detection_structural_gaps}}
+(un solo gap —ej. sin monitoreo de egreso— suele explicar el sigilo de N
+findings; ese gap es una recomendación headline del executive summary)
+
 ## MITRE ATT&CK Heatmap
 
 Técnicas observadas durante el engagement, mapeadas a tactics.
@@ -154,6 +174,26 @@ Técnicas observadas durante el engagement, mapeadas a tactics.
 Incluir: outputs crudos de herramientas (nmap -oX, nuclei -json, etc.),
 capturas de tráfico relevantes, listados completos de endpoints
 descubiertos, logs de la sesión de testing con timestamps.
+
+### Cadena de custodia
+
+> Generado desde `engine/custody.py` → `CustodyLog.attestation_block()`.
+
+- Eventos registrados: {{custody_entries}}
+- Integridad de la cadena: {{custody_integrity}} (ÍNTEGRA / ROTA — verificar
+  con `CustodyLog.verify()` antes de emitir el reporte)
+- Hash cabeza (SHA-256): `{{custody_head_hash}}`
+- Log: `.pentest-state/custody.jsonl` (append-only, hash-chained)
+- Exports emitidos: {{custody_exports}} (formato, ruta, fecha — qué se
+  entregó al cliente y cuándo)
+
+### Artefactos machine-readable
+
+| Formato | Ruta | Uso |
+|---|---|---|
+| SARIF | {{sarif_path}} | GitHub/GitLab code scanning (`/pt:export sarif`) |
+| JSON | {{json_path}} | Ticketing / automatización |
+| CSV | {{csv_path}} | Triage en spreadsheet |
 
 ---
 

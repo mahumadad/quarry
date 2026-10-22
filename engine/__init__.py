@@ -18,4 +18,10 @@ Modules:
   checkpoint      Checkpoint/resume for interrupted engagements
   cost_estimator  Pre-engagement cost and token estimation
   target_diff     Target change detection between scans
+  oast            Out-of-band interaction tracking for blind vuln confirmation
+  sessions        Multi-account session management (IDOR / access-control testing)
+  knowledge       Cross-engagement technique effectiveness memory (anonymized)
+  custody         Chain-of-custody: append-only hash-chained evidence log
+  toolrunner      Tool execution backends (local / Kali REST / Docker) + CLI rules
+  exporters       Machine-readable exports: SARIF 2.1.0, JSON (ticketing), CSV
 """

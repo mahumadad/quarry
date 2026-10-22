@@ -1,0 +1,38 @@
+name: pr-scan
+description: Escaneo ligero de seguridad para CI — corre en pull requests, sin engagement completo
+
+# Modo de uso continuo, NO un pentest. Filosofía: minutos, no días; señal
+# alta, cero ruido. Todo lo que encuentra es LEAD hasta que un engagement
+# real lo valide (B3: el scanner es testigo, no juez).
+
+phases:
+  - name: diff-scope
+    skills: [scope-discipline]
+    notes: >
+      Scope automático = archivos/rutas tocadas por el PR. Nada fuera del
+      diff salvo configuración de seguridad global (middleware, CORS, auth).
+
+  - name: static-checks
+    skills: [static-analysis-toolkit, supply-chain-audit]
+    budget: 30
+    notes: >
+      - semgrep con packs del stack + reglas custom del repo (si existen)
+      - osv-scanner solo si el PR toca manifests/lockfiles
+      - detección de secretos en el diff (api keys, tokens)
+      Solo severidad alta con confianza alta — el resto se loguea.
+
+  - name: route-checks
+    skills: [api-discovery]
+    budget: 20
+    condition: pr_touches_routes
+    notes: >
+      Si el PR agrega/modifica endpoints: verificar que heredan los
+      middlewares de auth del router (comparación estructural, no tráfico).
+
+  - name: output
+    notes: >
+      - findings.sarif → anotaciones en el PR (engine/exporters.py to_sarif)
+      - comentario en PR: tabla lead × archivo × por-qué
+      - exit code: falla el check SOLO en leads críticos/altos confirmables
+        estáticamente (secretos, inyección con taint claro)
+      - NUNCA tráfico activo contra entornos en este modo — es estático.

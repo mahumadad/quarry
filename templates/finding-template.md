@@ -6,8 +6,14 @@
 
 ## Severity
 
-**CVSS 3.1 Vector:** `{{cvss_vector}}`
-**CVSS 3.1 Score:** {{cvss_score}} ({{cvss_rating}})
+**CVSS 4.0 Vector:** `{{cvss_vector_4}}`
+**CVSS 4.0 Score:** {{cvss_score}} ({{cvss_rating}})
+**CVSS 3.1 Vector (si el cliente/plataforma lo exige):** `{{cvss_vector_31}}`
+**EPSS:** {{epss_score}} (percentil {{epss_percentile}}, consultado {{epss_date}}) — solo si hay CVE
+**CISA KEV:** {{cisa_kev}} (true/false + due-date si aplica) — solo si hay CVE
+
+Ver `references/cvss4-epss-kev.md` para las reglas de composición. EPSS/KEV
+modulan prioridad de remediación, NO el score CVSS.
 
 Justificación por métrica (cada una debe trazarse a lo observado, no a lo
 teóricamente posible):
@@ -16,12 +22,11 @@ teóricamente posible):
 |---|---|---|
 | AV (Attack Vector) | {{av}} | {{av_justification}} |
 | AC (Attack Complexity) | {{ac}} | {{ac_justification}} |
+| AT (Attack Requirements) | {{at}} | {{at_justification}} (condiciones fuera del control del atacante — solo si se demostraron) |
 | PR (Privileges Required) | {{pr}} | {{pr_justification}} |
-| UI (User Interaction) | {{ui}} | {{ui_justification}} |
-| S (Scope) | {{scope}} | {{scope_justification}} |
-| C (Confidentiality) | {{c}} | {{c_justification}} |
-| I (Integrity) | {{i}} | {{i_justification}} |
-| A (Availability) | {{a}} | {{a_justification}} |
+| UI (User Interaction) | {{ui}} | {{ui_justification}} (N / P passive / A active) |
+| VC/VI/VA (Vulnerable system) | {{vc_vi_va}} | {{vulnerable_impact_justification}} |
+| SC/SI/SA (Subsequent system) | {{sc_si_sa}} | {{subsequent_impact_justification}} |
 
 ## CWE
 
@@ -100,6 +105,19 @@ como chain aparte en `chain-report.md`.
 - **Fix estructural:** {{remediation_structural}}
 - **Prioridad sugerida:** {{remediation_priority}} (justificada por severity + explotabilidad, no solo por CVSS score)
 
+## Detection Opportunities (engagements contratados, no bounty)
+
+> Ver `skills/report/detection-opportunities`. Un bloque corto; si no se
+> conoce el stack defensivo del cliente, escribir tool-agnostic y marcar la
+> implementación como client-specific. Nunca afirmar "no hay detección" sin
+> haber visto la telemetría del cliente.
+
+- **Data sources (ATT&CK):** {{detection_data_sources}}
+- **Telemetría esperada:** {{detection_expected_telemetry}} (qué sistema, qué campos, qué umbral/firma)
+- **Observado:** {{detection_observed}} (fired / not fired / no verificado — con nota)
+- **Idea de detección:** {{detection_idea}} (regla/consulta concreta o lógica tool-agnostic)
+- **Replay test:** {{detection_replay}} (Atomic Red Team test ID por técnica, o pasos mínimos de replay)
+
 ## References
 
 - {{reference_1}}
@@ -113,3 +131,4 @@ como chain aparte en `chain-report.md`.
 **Descubierto por:** {{discovered_by}}
 **Fecha:** {{date}}
 **Chains relacionadas:** {{chain_refs}}
+**Custodia:** evidencia registrada en custody log (eventos: {{custody_event_ids}})

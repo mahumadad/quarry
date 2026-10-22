@@ -1,0 +1,13 @@
+name: ci-scan
+description: Preset ligero para modo CI/pr-scan — estático, rápido, solo alta señal
+
+mode: comprehensive
+budget: 50
+severity_gate: 7.0
+workflow: pr-scan
+oast: false
+active_testing: false
+notes: >
+  Sin tráfico activo, sin OAST, sin hunting. Estático sobre el diff del PR.
+  Los leads críticos (secretos, taint claro) fallan el check; el resto se
+  reporta como comentario.

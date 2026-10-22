@@ -1,0 +1,50 @@
+name: retest
+description: Verificación de remediación — confirmar que cada finding reportado murió tras el fix del cliente
+
+phases:
+  - name: scope
+    skills: [engagement-flow, scope-discipline]
+    gate: human_approval
+    notes: >
+      Scope = los findings del engagement original + los assets tocados por
+      los fixes. NO es un engagement nuevo; no abrir superficie nueva sin
+      autorización explícita.
+
+  - name: baseline
+    skills: [target-diff]
+    agent: monitor-agent
+    notes: >
+      Diff del target contra el snapshot del engagement original
+      (engine/target_diff.py): qué cambió, qué endpoints desaparecieron o
+      aparecieron. Cambios inesperados se reportan antes de re-testear.
+
+  - name: re-exploitation
+    skills: [finding-validation, evidence-hygiene]
+    agent: re-exploit-agent
+    budget: 100
+    notes: >
+      Para CADA finding del reporte original, en sesión fría (cookie jar
+      nuevo): ejecutar el PoC exacto de los steps-to-reproduce.
+      Resultados posibles por finding:
+        FIXED     — el PoC falla; documentar el comportamiento observado
+                    (control nuevo visible: 403, validación, parámetro rechazado)
+        PARTIAL   — el PoC original falla pero una variante menor funciona
+                    (mismo root cause) → reabrir con evidencia nueva
+        NOT_FIXED — el PoC funciona igual → reabrir, misma severidad mínima
+        REGRESSED — el fix rompió otra cosa (nuevo finding separado)
+
+  - name: variant-sweep
+    skills: [variant-analysis]
+    notes: >
+      Por cada finding FIXED cuyo patrón tenía siblings (variant-analysis del
+      engagement original): re-correr el barrido de variantes contra las
+      ubicaciones no reportadas. Un fix de instancia sin fix de patrón es
+      el resultado más común — verificar.
+
+  - name: reporting
+    skills: [report-writing]
+    gate: human_approval
+    notes: >
+      Retest report: tabla finding-original × estado (FIXED/PARTIAL/NOT_FIXED/
+      REGRESSED) × evidencia del re-test. Sin hallazgos nuevos de hunting —
+      eso corresponde a un engagement nuevo.

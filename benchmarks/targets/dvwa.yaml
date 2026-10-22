@@ -1,0 +1,61 @@
+name: dvwa
+image: vulnerables/web-dvwa
+port: 80
+description: Damn Vulnerable Web Application — clásico PHP, clases básicas, run rápido
+
+# DVWA requiere setup post-arranque (click en "Create/Reset Database") y
+# security level configurable — fijar en "low" para baseline reproducible.
+expected:
+  - id: dvwa-sqli
+    vuln_class: sqli
+    severity: high
+    title: "SQLi en /vulnerabilities/sqli"
+    keywords: [sql, sqli]
+
+  - id: dvwa-sqli-blind
+    vuln_class: sqli
+    severity: high
+    title: "Blind SQLi"
+    keywords: [blind, sqli, sleep]
+
+  - id: dvwa-xss-reflected
+    vuln_class: xss
+    severity: medium
+    title: "Reflected XSS"
+    keywords: [xss, reflected, reflejado]
+
+  - id: dvwa-xss-stored
+    vuln_class: xss
+    severity: high
+    title: "Stored XSS (guestbook)"
+    keywords: [stored, xss, guestbook]
+
+  - id: dvwa-cmdi
+    vuln_class: rce
+    severity: critical
+    title: "Command injection en /vulnerabilities/exec"
+    keywords: [command, exec, inyección, cmd]
+
+  - id: dvwa-file-upload
+    vuln_class: hunt-file-upload
+    severity: high
+    title: "Upload de webshell sin validación"
+    keywords: [upload, shell, archivo]
+
+  - id: dvwa-lfi
+    vuln_class: lfi-rfi
+    severity: high
+    title: "File inclusion (LFI)"
+    keywords: [include, lfi, traversal]
+
+  - id: dvwa-csrf
+    vuln_class: csrf
+    severity: medium
+    title: "CSRF en cambio de password"
+    keywords: [csrf]
+
+  - id: dvwa-brute
+    vuln_class: hunt-rate-limiting
+    severity: low
+    title: "Brute force sin lockout en login"
+    keywords: [brute, fuerza, lockout]

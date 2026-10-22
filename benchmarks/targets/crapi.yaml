@@ -1,0 +1,67 @@
+name: crapi
+image: crapi/crapi-identity:latest   # orquestar con docker-compose oficial de crAPI
+port: 8888
+description: crAPI (Completely Ridiculous API) — API-first, diseñado para BOLA/JWT/rate-limit
+
+# crAPI se despliega con su docker-compose completo (varios servicios).
+# Ground truth basada en los challenges documentados del proyecto.
+expected:
+  - id: crapi-bola-vehicle
+    vuln_class: idor
+    severity: high
+    title: "BOLA: ubicación/datos de vehículos de otros usuarios"
+    keywords: [vehicle, vehículo, location, bola, idor]
+
+  - id: crapi-bola-video
+    vuln_class: idor
+    severity: high
+    title: "BOLA: videos/profile de otros usuarios"
+    keywords: [video, profile, idor, bola]
+
+  - id: crapi-jwt
+    vuln_class: jwt
+    severity: high
+    title: "JWT: alg confusion / secret débil / claim tampering"
+    keywords: [jwt, token, alg]
+
+  - id: crapi-rate-limit
+    vuln_class: hunt-rate-limiting
+    severity: medium
+    title: "Sin rate limiting en OTP/login"
+    keywords: [otp, rate, brute]
+
+  - id: crapi-mass-assignment
+    vuln_class: hunt-mass-assignment
+    severity: high
+    title: "Mass assignment en profile/order"
+    keywords: [mass, assignment, role, campo]
+
+  - id: crapi-ssrf
+    vuln_class: ssrf
+    severity: high
+    title: "SSRF en mechanic/contact endpoint"
+    keywords: [ssrf, mechanic, url, fetch]
+
+  - id: crapi-sqli
+    vuln_class: sqli
+    severity: high
+    title: "SQLi/NoSQLi en endpoints de búsqueda"
+    keywords: [sql, injection, nosql]
+
+  - id: crapi-info-leak
+    vuln_class: info-disclosure
+    severity: medium
+    title: "Leaks de datos sensibles en respuestas API"
+    keywords: [leak, sensitive, exposure]
+
+  - id: crapi-admin
+    vuln_class: auth-bypass
+    severity: high
+    title: "Funciones admin accesibles sin rol"
+    keywords: [admin, role, function]
+
+  - id: crapi-reset
+    vuln_class: hunt-password-reset
+    severity: medium
+    title: "Password reset predecible / OTP débil"
+    keywords: [reset, otp, password]
