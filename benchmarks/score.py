@@ -18,7 +18,8 @@ from pathlib import Path
 
 def load_yaml(path: str) -> dict:
     """Minimal YAML load — use PyYAML if present, else a tiny fallback parser
-    sufficient for the targets/*.yaml shape (flat keys + list of dicts)."""
+    sufficient for the targets/*.yaml shape (top-level keys + indented
+    `expected` list of flat dicts)."""
     try:
         import yaml  # type: ignore
         return yaml.safe_load(Path(path).read_text())
@@ -27,23 +28,27 @@ def load_yaml(path: str) -> dict:
     data: dict = {"expected": []}
     current: dict | None = None
     for raw in Path(path).read_text().splitlines():
-        line = raw.rstrip()
-        if not line.strip() or line.strip().startswith("#"):
+        line = raw.strip()
+        if not line or line.startswith("#"):
             continue
+        indented = raw.startswith((" ", "\t"))
         if line.startswith("- id:"):
             current = {"id": line.split(":", 1)[1].strip()}
             data["expected"].append(current)
-        elif current is not None and line.strip().endswith(":") is False and ":" in line.strip():
-            key, _, val = line.strip().partition(":")
-            val = val.strip().strip('"')
-            if val.startswith("[") and val.endswith("]"):
-                val = [v.strip() for v in val[1:-1].split(",") if v.strip()]
-            elif val == "true":
-                val = True
-            current[key.strip()] = val
-        elif ":" in line and current is None:
-            key, _, val = line.partition(":")
-            data[key.strip()] = val.strip()
+            continue
+        key, _, val = line.partition(":")
+        key, val = key.strip().lstrip("- ").strip(), val.strip()
+        if not val:
+            continue  # section header: expected:, version_probe:, etc.
+        if not indented:
+            current = None  # top-level key — leave the expected list
+        target = current if (current is not None and indented) else data
+        val = val.strip('"').strip("'")
+        if val.startswith("[") and val.endswith("]"):
+            val = [v.strip() for v in val[1:-1].split(",") if v.strip()]
+        elif val == "true":
+            val = True
+        target[key] = val
     return data
 
 
