@@ -1,0 +1,20 @@
+{
+  "target": "dvwa",
+  "scored_at": "2026-10-22T03:57:21.849883+00:00",
+  "target_version": null,
+  "expected_total": 9,
+  "expected_required": 9,
+  "excluded": [],
+  "found": 9,
+  "missed": [],
+  "recall": 1.0,
+  "recall_required": 1.0,
+  "precision": 1.0,
+  "reported_findings": 9,
+  "unmatched_findings": [],
+  "evidence": {
+    "total": 10,
+    "hashed": 10,
+    "integrity": 1.0
+  }
+}
