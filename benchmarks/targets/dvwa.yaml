@@ -59,3 +59,93 @@ expected:
     severity: low
     title: "Brute force sin lockout en login"
     keywords: [brute, fuerza, lockout]
+
+  # --- Módulos oficiales del repo master no cubiertos por el subset rápido ---
+  # (lista verificada contra github.com/digininja/DVWA/contents/vulnerabilities)
+
+  - id: dvwa-xss-dom
+    vuln_class: xss
+    severity: medium
+    title: "DOM XSS en /vulnerabilities/xss_d"
+    keywords: [dom, xss, client-side]
+
+  - id: dvwa-weak-session
+    vuln_class: hunt-session-management
+    severity: medium
+    title: "Weak session IDs (dvwaSession incremental predecible)"
+    keywords: [session, predecible, incremental, weak]
+
+  - id: dvwa-captcha
+    vuln_class: auth-bypass
+    severity: medium
+    title: "Insecure CAPTCHA (bypass por parámetro oculto)"
+    keywords: [captcha, bypass]
+
+  - id: dvwa-csp-bypass
+    vuln_class: xss
+    severity: medium
+    title: "CSP bypass (policy con fuente insegura)"
+    keywords: [csp, content-security-policy, bypass]
+    optional: true   # puede requerir origen externo permitido por la policy
+
+  - id: dvwa-javascript
+    vuln_class: hunt-business-logic
+    severity: low
+    title: "JavaScript challenge (token generado en cliente)"
+    keywords: [javascript, token, cliente]
+
+  - id: dvwa-open-redirect
+    vuln_class: open-redirect
+    severity: low
+    title: "Open redirect en /vulnerabilities/open_redirect"
+    keywords: [redirect, open, location]
+
+  - id: dvwa-authbypass
+    vuln_class: auth-bypass
+    severity: high
+    title: "Authorisation bypass (acceso a función admin como usuario)"
+    keywords: [authorisation, authorization, admin, usuario]
+
+  - id: dvwa-bac
+    vuln_class: hunt-broken-access-control
+    severity: high
+    title: "Broken access control"
+    keywords: [access control, bac, idor, ajeno]
+
+  - id: dvwa-crypto
+    vuln_class: info-disclosure
+    severity: medium
+    title: "Cryptography débil (módulo crypto)"
+    keywords: [cryptography, cifrado, decode, xor]
+
+  - id: dvwa-api
+    vuln_class: hunt-api-abuse
+    severity: medium
+    title: "API sin autorización robusta"
+    keywords: [api, rest, json]
+
+  # --- Hallazgos de plataforma (no son módulos, un pentest real los reporta) ---
+
+  - id: dvwa-default-creds
+    vuln_class: auth-bypass
+    severity: high
+    title: "Credenciales por defecto (admin/password)"
+    keywords: [default, credenciales, defecto]
+
+  - id: dvwa-phpinfo
+    vuln_class: info-disclosure
+    severity: low
+    title: "phpinfo expuesto"
+    keywords: [phpinfo, versión, exposición]
+
+  - id: dvwa-md5-passwords
+    vuln_class: info-disclosure
+    severity: medium
+    title: "Passwords en MD5 sin salt en la base"
+    keywords: [md5, unsalted, rainbow]
+
+  - id: dvwa-cookie-flags
+    vuln_class: hunt-session-management
+    severity: low
+    title: "Cookies de sesión sin HttpOnly/Secure/SameSite"
+    keywords: [httponly, cookie, samesite, secure flag]

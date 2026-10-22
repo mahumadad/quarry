@@ -109,7 +109,23 @@ def _finish(result: ProbeResult, page, out_dir: Path, name: str) -> ProbeResult:
     return result
 
 
+def _add_cookies(ctx, cookie_string: str, url: str):
+    """Attach 'k1=v1; k2=v2' session cookies for the target origin — needed for
+    authenticated probes against classic session-cookie apps (PHPSESSID & co)."""
+    if not cookie_string:
+        return
+    from urllib.parse import urlparse
+    host = urlparse(url).hostname or "localhost"
+    cookies = []
+    for pair in cookie_string.split(";"):
+        name, _, value = pair.strip().partition("=")
+        if name:
+            cookies.append({"name": name, "value": value, "domain": host, "path": "/"})
+    ctx.add_cookies(cookies)
+
+
 def reflected_xss(url: str, payload: str = "", out_dir: str = ".",
+                  cookies: str = "",
                   timeout_ms: int = DEFAULT_TIMEOUT_MS) -> ProbeResult:
     """Load `url` (payload already placed by the caller in query/route) and
     report whether script execution was observed."""
@@ -124,6 +140,7 @@ def reflected_xss(url: str, payload: str = "", out_dir: str = ".",
     try:
         with sp() as pw:
             browser, ctx = _new_context(pw, out)
+            _add_cookies(ctx, cookies, url)
             page = ctx.new_page()
             _observe_page(page, result, marker="")
             page.goto(url, timeout=timeout_ms, wait_until="networkidle")
@@ -228,6 +245,8 @@ def main() -> int:
         p = sub.add_parser(name)
         p.add_argument("url")
         p.add_argument("--payload", default="")
+        p.add_argument("--cookies", default="",
+                       help="'k1=v1; k2=v2' de sesión para probes autenticados")
         p.add_argument("--out-dir", default=".")
     p = sub.add_parser("stored-xss")
     p.add_argument("url")
@@ -237,7 +256,8 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.cmd == "reflected-xss":
-        r = reflected_xss(args.url, args.payload, args.out_dir)
+        r = reflected_xss(args.url, args.payload, args.out_dir,
+                          cookies=getattr(args, "cookies", ""))
     elif args.cmd == "stored-xss":
         r = stored_xss(args.url, args.marker, args.out_dir, token=args.token)
     else:
