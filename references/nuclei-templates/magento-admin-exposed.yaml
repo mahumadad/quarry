@@ -1,0 +1,50 @@
+id: magento-admin-exposed
+
+info:
+  name: Magento Admin Panel Exposed
+  author: pentest-plugin
+  severity: medium
+  description: |
+    Detecta panel de administración de Magento expuesto públicamente.
+    Un panel admin accesible permite ataques de fuerza bruta, credential
+    stuffing y reconocimiento de la versión de Magento.
+  tags: magento,admin,panel,exposure,ecommerce
+  reference:
+    - https://developer.adobe.com/commerce/
+  metadata:
+    verified: true
+    max-request: 4
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/admin"
+      - "{{BaseURL}}/admin/dashboard"
+      - "{{BaseURL}}/magento_admin"
+      - "{{BaseURL}}/backend"
+
+    stop-at-first-match: true
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "Magento"
+          - "magento"
+          - "login-form"
+        condition: or
+
+      - type: word
+        part: body
+        words:
+          - "admin__login"
+          - "login-content"
+          - "adminhtml"
+          - "magento-logo"
+        condition: or
+
+      - type: status
+        status:
+          - 200
+          - 302

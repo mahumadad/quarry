@@ -1,0 +1,48 @@
+id: vtex-api-exposed
+
+info:
+  name: VTEX Public API Endpoints Exposed
+  author: pentest-plugin
+  severity: medium
+  description: |
+    Detecta APIs de la plataforma VTEX accesibles públicamente. Incluye
+    catálogo, checkout, Master Data (dataentities) y GraphQL. Algunas de
+    estas APIs pueden exponer datos de clientes, precios internos o
+    configuración de la tienda.
+  tags: vtex,api,exposure,ecommerce,graphql
+  reference:
+    - https://developers.vtex.com/docs/api-reference
+  metadata:
+    verified: true
+    max-request: 6
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/catalog_system/pub/products/search"
+      - "{{BaseURL}}/api/checkout/pub/orderForm/simulation"
+      - "{{BaseURL}}/api/dataentities/CL/search?_fields=email,firstName&_schema=v1"
+      - "{{BaseURL}}/api/sessions"
+      - "{{BaseURL}}/_v/segment/routing/vtex.store@2.x/product/1"
+      - "{{BaseURL}}/api/io/_v/apps"
+
+    stop-at-first-match: false
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+
+      - type: word
+        part: header
+        words:
+          - "application/json"
+          - "x-vtex"
+        condition: or
+
+    extractors:
+      - type: regex
+        part: header
+        regex:
+          - 'x-vtex-[a-z-]+:\s*[^\r\n]+'

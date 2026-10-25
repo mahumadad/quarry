@@ -1,0 +1,42 @@
+id: vtex-admin-panel
+
+info:
+  name: VTEX Admin Panel Exposed
+  author: pentest-plugin
+  severity: low
+  description: |
+    Detecta panel de administración de VTEX accesible. En VTEX el /admin
+    redirige al login de VTEX ID. La presencia confirma que es una tienda
+    VTEX y permite intentar acceso con credenciales filtradas.
+  tags: vtex,admin,panel,exposure,ecommerce
+  reference:
+    - https://developers.vtex.com/
+  metadata:
+    verified: true
+    max-request: 2
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/admin"
+      - "{{BaseURL}}/admin/Site/FullCleanUp.aspx"
+
+    stop-at-first-match: true
+    redirects: true
+    max-redirects: 3
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "vtex"
+          - "VTEX"
+          - "vtexid"
+          - "vtex-id"
+        condition: or
+
+      - type: status
+        status:
+          - 200
+          - 302

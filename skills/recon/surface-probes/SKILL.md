@@ -14,7 +14,7 @@ metadata:
   phase: recon
   tools: [curl, httpx]
   mandatory: true
-depends_on: [active-recon, port-scan, web-crawling]
+depends_on: [recon/port-scan, recon/api-discovery, web-crawling]
 feeds_into: [hunt-*]
 chains_with: []
 ---

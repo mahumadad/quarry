@@ -10,8 +10,8 @@ metadata:
   type: recon
   phase: recon
   tools: [nmap, masscan]
-depends_on: [scope-discipline, opsec-discipline, active-recon]
-feeds_into: [service-enumeration]
+depends_on: [scope-discipline, opsec-discipline, recon/subdomain-enum]
+feeds_into: [recon/tech-fingerprint, service-enumeration]
 ---
 
 ## Signals

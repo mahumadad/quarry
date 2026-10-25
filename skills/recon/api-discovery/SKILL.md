@@ -10,8 +10,8 @@ metadata:
   type: recon
   phase: mapped
   tools: [curl, ffuf, kiterunner, graphql-cop, postman]
-depends_on: [web-crawling, js-analysis]
-feeds_into: []
+depends_on: [web-crawling, recon/js-analysis]
+feeds_into: [recon/surface-probes, hunt/*]
 ---
 
 ## Signals

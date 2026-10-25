@@ -1,0 +1,55 @@
+id: graphql-introspection
+
+info:
+  name: GraphQL Introspection Enabled
+  author: pentest-plugin
+  severity: medium
+  description: |
+    Detecta endpoints GraphQL con introspection habilitada. Permite obtener
+    el schema completo (tipos, queries, mutations, campos) lo cual facilita
+    la enumeración y explotación de la API.
+  tags: graphql,introspection,api,info-disclosure
+  reference:
+    - https://graphql.org/learn/introspection/
+  metadata:
+    verified: true
+    max-request: 3
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/graphql"
+      - "{{BaseURL}}/api/graphql"
+      - "{{BaseURL}}/_v/graphql"
+
+    headers:
+      Content-Type: application/json
+
+    body: '{"query":"{__schema{types{name}}}"}'
+
+    stop-at-first-match: true
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+
+      - type: word
+        part: body
+        words:
+          - "__schema"
+          - '"types"'
+        condition: and
+
+      - type: word
+        part: body
+        words:
+          - '"name"'
+
+    extractors:
+      - type: regex
+        part: body
+        regex:
+          - '"name"\s*:\s*"(Query|Mutation|Subscription)"'
+        group: 1

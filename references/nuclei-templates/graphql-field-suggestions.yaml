@@ -1,0 +1,53 @@
+id: graphql-field-suggestions
+
+info:
+  name: GraphQL Field Suggestions Enabled
+  author: pentest-plugin
+  severity: low
+  description: |
+    Detecta endpoints GraphQL que retornan sugerencias de campos en mensajes
+    de error ("Did you mean ...?"). Esto permite enumerar campos válidos sin
+    necesidad de introspection, útil cuando introspection está deshabilitada.
+  tags: graphql,enumeration,info-disclosure,api
+  reference:
+    - https://graphql.org/learn/validation/
+    - https://github.com/nikitastupin/clairvoyance
+  metadata:
+    verified: true
+    max-request: 3
+
+http:
+  - method: POST
+    path:
+      - "{{BaseURL}}/graphql"
+      - "{{BaseURL}}/api/graphql"
+      - "{{BaseURL}}/_v/graphql"
+
+    headers:
+      Content-Type: application/json
+
+    body: '{"query":"{__typ}"}'
+
+    stop-at-first-match: true
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+          - 400
+
+      - type: word
+        part: body
+        words:
+          - "Did you mean"
+          - "did you mean"
+          - "suggestions"
+        condition: or
+
+    extractors:
+      - type: regex
+        part: body
+        regex:
+          - '"Did you mean[^"]*"'
+          - '"message"\s*:\s*"[^"]*Did you mean[^"]*"'
