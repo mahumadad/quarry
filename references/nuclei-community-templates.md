@@ -92,23 +92,28 @@ En `references/nuclei-templates/` del plugin:
 
 ## Gaps sin cobertura dedicada
 
-Estas tecnologías **no tienen repos de nuclei templates dedicados**:
+Estas tecnologías no tienen repos community dedicados, pero ahora tienen
+**templates custom** en `references/nuclei-templates/`:
 
-- **Ruby on Rails**: solo templates genéricos en el repo oficial
-- **Node.js / Express**: parcial (Next.js en coffinxp)
-- **Python / FastAPI**: parcial (Django secret key en geeknik)
-- **Payment gateways** (Stripe, MercadoPago, Transbank): ninguno
+- **Ruby on Rails**: `rails-misconfig.yaml` (debug, rutas, Sidekiq, config)
+- **Node.js / Express**: `node-express-misconfig.yaml` (source maps, .env,
+  package.json, GraphQL playground). Next.js parcial en coffinxp
+- **Python / FastAPI / Django**: `python-fastapi-misconfig.yaml` (auto-docs,
+  debug mode, Werkzeug, Celery Flower)
+- **Fintech / APIs financieras**: `fintech-api-exposed.yaml` (accounts,
+  transactions, portfolios, swagger)
+- **Payment gateways** (Stripe, MercadoPago, Transbank):
+  `payment-gateway-misconfig.yaml` (keys en JS, webhooks sin firma)
 - **E-commerce** más allá de nuestros custom: WooCommerce parcial via
-  wordfence, Shopify ninguno
+  wordfence, Shopify sin cobertura
 - **Latin American platforms** (VTEX deep, Jumpseller, Tiendanube): solo
   nuestros custom
 
-Para estos gaps, el approach es:
-1. Escribir templates custom en `references/nuclei-templates/` según el
-   engagement lo requiera
+Para gaps restantes, el approach es:
+1. Escribir templates custom adicionales según el engagement lo requiera
 2. Usar `clairvoyance` + `graphw00f` para GraphQL en vez de nuclei
-3. Para frameworks (Rails, Express), combinar fingerprinting genérico
-   (nuclei official) + checks manuales del skill correspondiente
+3. Para Shopify/Jumpseller, combinar fingerprinting genérico (nuclei
+   official) + checks manuales del skill correspondiente
 
 ## Cómo agregar un repo a cent
 

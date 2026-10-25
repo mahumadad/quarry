@@ -1,0 +1,71 @@
+id: fintech-api-exposed
+
+info:
+  name: Fintech API Endpoints Exposed
+  author: pentest-plugin
+  severity: medium
+  description: |
+    Detects exposed API endpoints common in fintech platforms (investment,
+    banking, payment processing). Targets Plaid, Stripe, MercadoPago,
+    Fintual-style APIs, and generic financial REST patterns.
+  tags: fintech,api,exposure,payment
+
+http:
+  - method: GET
+    path:
+      # Generic fintech API patterns
+      - "{{BaseURL}}/api/v1/accounts"
+      - "{{BaseURL}}/api/v1/transactions"
+      - "{{BaseURL}}/api/v1/balances"
+      - "{{BaseURL}}/api/v1/investments"
+      - "{{BaseURL}}/api/v1/portfolios"
+      - "{{BaseURL}}/api/v1/funds"
+      - "{{BaseURL}}/api/v1/movements"
+      - "{{BaseURL}}/api/v2/accounts"
+      - "{{BaseURL}}/api/v2/transactions"
+
+      # Swagger/OpenAPI docs
+      - "{{BaseURL}}/api/docs"
+      - "{{BaseURL}}/api/swagger"
+      - "{{BaseURL}}/api/swagger.json"
+      - "{{BaseURL}}/api/openapi.json"
+      - "{{BaseURL}}/api/v1/docs"
+      - "{{BaseURL}}/docs"
+      - "{{BaseURL}}/swagger-ui/"
+      - "{{BaseURL}}/swagger-ui/index.html"
+      - "{{BaseURL}}/redoc"
+
+      # Health/status endpoints
+      - "{{BaseURL}}/api/health"
+      - "{{BaseURL}}/api/status"
+      - "{{BaseURL}}/api/v1/health"
+      - "{{BaseURL}}/healthz"
+      - "{{BaseURL}}/_health"
+
+    stop-at-first-match: false
+    matchers-condition: or
+    matchers:
+      - type: word
+        words:
+          - "swagger"
+          - "openapi"
+          - "\"paths\""
+          - "\"info\""
+        condition: or
+        part: body
+
+      - type: word
+        words:
+          - "account_id"
+          - "balance"
+          - "portfolio"
+          - "investment"
+          - "fund_id"
+          - "transactions"
+          - "movements"
+        condition: or
+        part: body
+
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,94 @@
+id: rails-misconfig
+
+info:
+  name: Ruby on Rails Misconfiguration Detection
+  author: pentest-plugin
+  severity: medium
+  description: |
+    Detects common Ruby on Rails misconfigurations: debug mode, exposed
+    routes, secret key base leaks, Active Storage direct uploads,
+    Action Cable endpoints, and development-mode error pages.
+  tags: rails,ruby,misconfig,framework
+
+http:
+  - method: GET
+    path:
+      # Debug/development mode indicators
+      - "{{BaseURL}}/rails/info/properties"
+      - "{{BaseURL}}/rails/info/routes"
+      - "{{BaseURL}}/rails/info"
+      - "{{BaseURL}}/rails/mailers"
+
+      # Active Storage
+      - "{{BaseURL}}/rails/active_storage/blobs"
+      - "{{BaseURL}}/rails/active_storage/disk"
+
+      # Action Cable
+      - "{{BaseURL}}/cable"
+
+      # Common development endpoints
+      - "{{BaseURL}}/sidekiq"
+      - "{{BaseURL}}/sidekiq/stats"
+      - "{{BaseURL}}/letter_opener"
+      - "{{BaseURL}}/admin"
+      - "{{BaseURL}}/rails/db"
+      - "{{BaseURL}}/rails/conductor/action_mailbox/inbound_emails"
+
+      # Environment/config leaks
+      - "{{BaseURL}}/.env"
+      - "{{BaseURL}}/config/database.yml"
+      - "{{BaseURL}}/config/secrets.yml"
+      - "{{BaseURL}}/config/master.key"
+      - "{{BaseURL}}/config/credentials.yml.enc"
+
+      # Error page (development mode)
+      - "{{BaseURL}}/nonexistent_route_12345"
+
+    stop-at-first-match: false
+    matchers-condition: or
+    matchers:
+      - type: word
+        words:
+          - "Rails version"
+          - "Ruby version"
+          - "Application root"
+          - "rails/info"
+          - "Active Record"
+        condition: or
+        part: body
+
+      - type: word
+        words:
+          - "Routes match in priority"
+          - "Prefix Verb"
+          - "Helper HTTP Verb"
+        condition: or
+        part: body
+
+      - type: word
+        words:
+          - "ActionController::RoutingError"
+          - "ActiveRecord::RecordNotFound"
+          - "RAILS_ENV"
+          - "Rails.application.config"
+          - "Action Controller: Exception caught"
+        condition: or
+        part: body
+
+      - type: word
+        words:
+          - "SECRET_KEY_BASE"
+          - "secret_key_base"
+          - "master_key"
+          - "database_password"
+        condition: or
+        part: body
+
+      - type: word
+        words:
+          - "Sidekiq"
+          - "sidekiq_version"
+          - "processed"
+          - "failed"
+        condition: and
+        part: body

@@ -1,0 +1,136 @@
+id: python-fastapi-misconfig
+
+info:
+  name: Python / FastAPI / Django REST Misconfiguration
+  author: pentest-plugin
+  severity: medium
+  description: |
+    Detects common Python web framework misconfigurations: FastAPI auto-docs,
+    Django debug mode, Flask debugger, exposed admin panels, Celery Flower,
+    environment variable leaks, and Sentry DSN exposure.
+  tags: python,fastapi,django,flask,misconfig,framework
+
+http:
+  - method: GET
+    path:
+      # FastAPI auto-docs
+      - "{{BaseURL}}/docs"
+      - "{{BaseURL}}/redoc"
+      - "{{BaseURL}}/openapi.json"
+      - "{{BaseURL}}/api/docs"
+      - "{{BaseURL}}/api/redoc"
+      - "{{BaseURL}}/api/openapi.json"
+      - "{{BaseURL}}/api/v1/docs"
+      - "{{BaseURL}}/api/v1/openapi.json"
+
+      # Django
+      - "{{BaseURL}}/admin/"
+      - "{{BaseURL}}/admin/login/"
+      - "{{BaseURL}}/__debug__/"
+      - "{{BaseURL}}/__debug__/sql/"
+      - "{{BaseURL}}/api-auth/"
+      - "{{BaseURL}}/silk/"
+      - "{{BaseURL}}/silk/requests/"
+
+      # Flask
+      - "{{BaseURL}}/console"
+
+      # Environment/config
+      - "{{BaseURL}}/.env"
+      - "{{BaseURL}}/settings.py"
+      - "{{BaseURL}}/config.py"
+      - "{{BaseURL}}/requirements.txt"
+      - "{{BaseURL}}/Pipfile"
+      - "{{BaseURL}}/pyproject.toml"
+
+      # Celery Flower (task queue monitor)
+      - "{{BaseURL}}/flower/"
+      - "{{BaseURL}}/flower/api/workers"
+      - "{{BaseURL}}:5555/"
+
+      # Sentry
+      - "{{BaseURL}}/sentry"
+
+      # Prometheus metrics
+      - "{{BaseURL}}/metrics"
+
+    stop-at-first-match: false
+    matchers-condition: or
+    matchers:
+      # FastAPI/OpenAPI docs
+      - type: word
+        words:
+          - "\"openapi\":"
+          - "Swagger UI"
+          - "FastAPI"
+          - "ReDoc"
+        condition: or
+        part: body
+
+      # Django debug mode
+      - type: word
+        words:
+          - "Django Debug Toolbar"
+          - "djdt"
+          - "You're seeing this error because you have"
+          - "DEBUG = True"
+        condition: or
+        part: body
+
+      # Django admin
+      - type: word
+        words:
+          - "Django administration"
+          - "Log in | Django"
+          - "django-admin"
+        condition: or
+        part: body
+
+      # Flask Werkzeug debugger
+      - type: word
+        words:
+          - "Werkzeug Debugger"
+          - "The debugger caught an exception"
+          - "Traceback (most recent call last)"
+          - "werkzeug"
+        condition: or
+        part: body
+
+      # Celery Flower
+      - type: word
+        words:
+          - "Celery Flower"
+          - "celery@"
+          - "active_queues"
+        condition: or
+        part: body
+
+      # Requirements/dependencies
+      - type: regex
+        regex:
+          - "Django[>=<~]"
+          - "fastapi[>=<~]"
+          - "flask[>=<~]"
+          - "sqlalchemy[>=<~]"
+        part: body
+
+      # Environment variables
+      - type: word
+        words:
+          - "SECRET_KEY"
+          - "DATABASE_URL"
+          - "SENTRY_DSN"
+          - "DJANGO_SECRET"
+          - "CELERY_BROKER"
+        condition: or
+        part: body
+
+      # Django Silk profiler
+      - type: word
+        words:
+          - "silk"
+          - "Silk Requests"
+          - "Total time"
+          - "Num. queries"
+        condition: and
+        part: body

@@ -46,6 +46,14 @@ KNOWN_CHAINS: list[dict] = [
     {"a": "http-smuggling", "b": "auth-bypass", "result": "request-smuggling-bypass", "severity": "critical"},
     {"a": "subdomain-takeover", "b": "cookie-scope", "result": "session-hijack-via-subdomain", "severity": "critical"},
     {"a": "clickjacking", "b": "sensitive-action", "result": "action-hijacking", "severity": "medium"},
+    {"a": "csrf", "b": "xss-stored", "result": "persistent-xss-via-csrf", "severity": "critical"},
+    {"a": "csrf", "b": "email-change", "result": "account-takeover-via-email-reset-chain", "severity": "critical"},
+    {"a": "info-disclosure", "b": "uuid-leak", "result": "idor-via-leaked-identifiers", "severity": "high"},
+    {"a": "open-redirect", "b": "oauth-callback", "result": "oauth-token-theft-via-redirect", "severity": "critical"},
+    {"a": "file-upload", "b": "imagemagick", "result": "ssrf-rce-via-image-processing", "severity": "critical"},
+    {"a": "lfi", "b": "log-poisoning", "result": "rce-via-log-inclusion", "severity": "critical"},
+    {"a": "idor", "b": "payment-endpoint", "result": "financial-data-theft", "severity": "critical"},
+    {"a": "api-key-leak", "b": "payment-gateway", "result": "payment-fraud-via-leaked-keys", "severity": "critical"},
 ]
 
 ENABLES_MAP: dict[str, list[str]] = {
@@ -63,6 +71,12 @@ ENABLES_MAP: dict[str, list[str]] = {
     "ssti": ["rce", "file-read"],
     "xxe": ["file-read", "ssrf", "dos"],
     "deserialization": ["rce", "file-operations"],
+    "csrf": ["stored-xss", "email-change", "password-change", "account-settings-change"],
+    "lfi": ["credential-file-read", "rce-via-log-poisoning", "source-code-read"],
+    "file-upload": ["rce-via-webshell", "xss-via-svg", "ssrf-via-imagemagick", "path-traversal"],
+    "open-redirect": ["oauth-token-theft", "phishing", "ssrf"],
+    "cors-misconfiguration": ["cross-origin-data-theft", "session-token-theft"],
+    "api-key-leak": ["payment-fraud", "cloud-resource-abuse", "data-exfiltration"],
 }
 
 

@@ -1,7 +1,6 @@
 # Custom Nuclei Templates
 
-Templates propios para plataformas que **no tienen cobertura** en los repos community
-(Magento, VTEX, GraphQL).
+Templates propios para plataformas que **no tienen cobertura** en los repos community.
 
 ## Inventario
 
@@ -14,6 +13,11 @@ Templates propios para plataformas que **no tienen cobertura** en los repos comm
 | `graphql-introspection.yaml` | GraphQL | medium | Introspection habilitada → schema completo |
 | `graphql-batch-query.yaml` | GraphQL | medium | Batch queries aceptadas → DoS / brute force / rate-limit bypass |
 | `graphql-field-suggestions.yaml` | GraphQL | low | Sugerencias de campos en errores → enum sin introspection |
+| `fintech-api-exposed.yaml` | Fintech | medium | APIs financieras expuestas (accounts, transactions, portfolios, docs) |
+| `payment-gateway-misconfig.yaml` | Payment | high | Keys de Stripe/MercadoPago/Transbank en JS, webhooks sin firma |
+| `rails-misconfig.yaml` | Rails | medium | Debug mode, rutas expuestas, Sidekiq, config leaks |
+| `node-express-misconfig.yaml` | Node/Express | medium | Source maps, package.json, .env, GraphQL playground |
+| `python-fastapi-misconfig.yaml` | Python | medium | FastAPI docs, Django debug, Flask Werkzeug, Celery Flower |
 
 ## Uso
 
@@ -50,6 +54,11 @@ nuclei -u https://target.com -t /path/to/templates/ -severity medium,high
 - `graphql` — templates de GraphQL
 - `api` — detección de APIs expuestas
 - `ecommerce` — todas las de e-commerce (magento + vtex)
+- `fintech` — APIs y endpoints financieros
+- `payment` — payment gateways (Stripe, MercadoPago, Transbank)
+- `rails` — Ruby on Rails
+- `nodejs` / `express` — Node.js / Express
+- `python` / `fastapi` / `django` / `flask` — Python frameworks
 
 ## Repos community (vía cent)
 
