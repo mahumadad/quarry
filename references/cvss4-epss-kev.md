@@ -67,3 +67,92 @@ Reglas:
   igual score (evidencia > teoría).
 - Los gates de severidad por modo (findings.py HUNT_MODE_SEVERITY_GATES)
   se aplican sobre CVSS; EPSS/KEV no mueven el gate, mueven el orden.
+
+## CVE Triage Tiers (fire / smoke / ice)
+
+Metodología de priorización rápida para CVEs en inventario, complementaria
+a CVSS+EPSS+KEV. Basada en el modelo de CVEngine: cada CVE se clasifica en
+un tier según señales de explotabilidad, y el tier determina la acción.
+
+### Definición de tiers
+
+| Tier | Criterio (cualquier condición basta) | Acción |
+|------|--------------------------------------|--------|
+| **Fire** | CVE en CISA KEV; O exploit público verificado (módulo Metasploit, PoC funcional en ExploitDB); O EPSS > 0.7 | Inmediata: validar en el target, reportar como prioridad P1 |
+| **Smoke** | CVSS ≥ 7.0 + EPSS > 0.1; O PoC no verificado (advisory sin PoC público reproducible); O listado en ENISA EUVD como explotado; O match exacto producto+versión en el inventario | Investigar pronto: confirmar afectación, intentar PoC, reportar si se confirma |
+| **Ice** | CVSS < 7.0, EPSS < 0.1, sin exploit conocido, sin evidencia de explotación activa | Backlog: registrar, monitorear, re-evaluar si aparecen señales nuevas |
+
+### Fuentes de datos por tier
+
+| Fuente | Fire | Smoke | Ice |
+|--------|------|-------|-----|
+| CISA KEV | ✓ (presencia = Fire) | — | — |
+| ENISA EUVD | — | ✓ (explotado = Smoke) | — |
+| Metasploit modules | ✓ (módulo funcional) | — | — |
+| ExploitDB | ✓ (PoC verificado) | ✓ (PoC sin verificar) | — |
+| VulnCheck KEV | ✓ (equivalente a CISA KEV) | — | — |
+| EPSS | ✓ (> 0.7) | ✓ (> 0.1 + CVSS ≥ 7) | referencia |
+| CVSS 4.0 | referencia | ✓ (≥ 7.0 + EPSS) | referencia |
+
+### Mapeo a severidad del plugin
+
+El tier no reemplaza CVSS — modula la prioridad de acción:
+
+| Tier | Efecto en prioridad |
+|------|-------------------|
+| Fire | Finding sube a P1 independientemente del CVSS. Si CVSS < 7.0 pero está en KEV, la prioridad de remediación sigue siendo urgente (explotación activa > score teórico) |
+| Smoke | Finding se investiga en la fase actual. Si se confirma explotabilidad, escala a Fire |
+| Ice | Se reporta como informativo o medium según CVSS. Puede escalar si durante el engagement se descubre un vector de explotación |
+
+### Backport awareness
+
+Muchas distribuciones parchean CVEs sin cambiar el número de versión del
+paquete upstream. Un match de versión NO es prueba de vulnerabilidad:
+
+- **OSV** (osv.dev): base de datos unificada de vulnerabilidades por
+  ecosistema con rangos de versiones afectadas por distro.
+- **Debian Security Tracker** (security-tracker.debian.org): estado de
+  parche por paquete Debian/Ubuntu, con versión fija por release.
+- **Red Hat CVE Database**: similar para RHEL/CentOS/Fedora.
+
+Regla: si el target corre una distro que backportea, verificar contra el
+tracker de la distro antes de clasificar como vulnerable. Un finding
+basado solo en banner/versión sin verificación de backport se queda en
+**Inferred**, no Demonstrated.
+
+### Ejemplo de clasificación
+
+CVE-2024-21762 (Fortinet FortiOS — out-of-bounds write, pre-auth RCE):
+
+```
+CVSS 4.0:  9.8 (AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N)
+EPSS:      0.91 (percentil 99)
+CISA KEV:  sí (fecha: 2024-02-09)
+Metasploit: módulo disponible
+ExploitDB:  PoC verificado
+
+→ Tier: FIRE (3 señales independientes)
+→ Prioridad: P1 — validar inmediatamente contra el inventario FortiOS
+→ Si producto+versión match y no hay backport: Demonstrated tras PoC exitoso
+```
+
+CVE-2024-3400 (Palo Alto PAN-OS — command injection, pre-auth):
+
+```
+CVSS 4.0:  10.0
+EPSS:      0.95
+CISA KEV:  sí
+Metasploit: no (al momento de evaluación)
+ExploitDB:  PoC público funcional
+
+→ Tier: FIRE
+→ Prioridad: P1
+```
+
+CVE hipotético en librería interna, CVSS 5.3, EPSS 0.02, sin KEV,
+sin PoC público:
+
+```
+→ Tier: ICE
+→ Prioridad: backlog, registrar en inventario, re-evaluar mensualmente
+```
