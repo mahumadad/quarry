@@ -1,0 +1,32 @@
+id: celery-flower-exposed
+info:
+  name: Celery Flower Interface Exposed
+  author: pentest-plugin
+  severity: medium
+  description: Detects an unauthenticated Flower response on the supplied origin without changing ports.
+  tags: python,celery,flower,worker,exposure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: python,celery
+    protocols: http
+    architectures: microservices,monolith
+    coverage: worker-exposure,attack-surface
+    fixture: celery-flower
+    max-request: 3
+http:
+  - method: GET
+    path: ["{{BaseURL}}/flower/", "{{BaseURL}}/flower/api/workers", "{{BaseURL}}/flower/api/tasks"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Celery Flower", "celery@", "active_queues"]
+        condition: or
+      - type: word
+        part: body
+        words: ["workers", "tasks", "queues", "Flower"]
+        condition: or

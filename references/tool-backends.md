@@ -119,3 +119,15 @@ Ver `references/anon-lab.md` para el detalle completo de la arquitectura.
   afecta reproducibilidad de la evidencia.
 - Ningún backend ejecuta nada fuera de scope: `guard.py` valida targets
   contra `engine/scope.py` antes de cualquier ejecución.
+
+## Capacidades y wordlists reproducibles
+
+`engine/tool_registry.py` mantiene una lista curada de capacidades y fallbacks, no un instalador
+ni una colección indiscriminada de herramientas. `ToolRegistry.select("web-crawl")` elige el primer
+backend disponible en orden declarado y registra versión/backend; `snapshot()` deja gaps explícitos
+para doctor y cobertura. La ejecución sigue pasando por `ToolRunner`, policy y artefactos.
+
+`engine/wordlists.py` indexa únicamente listas locales indicadas por el operador. Antes de usar una,
+`scan([...])` guarda hash/tamaño/fecha/tags y `select(...)` persiste criterios y elección por run/task.
+Si no hay lista compatible, el resultado es un gap; no se sustituye silenciosamente por otra lista ni
+se afirma que no existen rutas. Las listas de terceros no se descargan ni ejecutan automáticamente.

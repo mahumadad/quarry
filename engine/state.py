@@ -11,6 +11,11 @@ from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
+try:
+    from .storage import atomic_write_json, read_json
+except ImportError:
+    from storage import atomic_write_json, read_json
+
 
 class Phase(str, Enum):
     INIT = "init"
@@ -46,7 +51,7 @@ class EngagementState:
 
     def _load(self) -> dict:
         if self.state_file.exists():
-            return json.loads(self.state_file.read_text())
+            return read_json(self.state_file)
         return {
             "engagement_id": None,
             "target": None,
@@ -60,7 +65,7 @@ class EngagementState:
     def _save(self):
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self._data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        self.state_file.write_text(json.dumps(self._data, indent=2))
+        atomic_write_json(self.state_file, self._data)
 
     @property
     def phase(self) -> Phase:

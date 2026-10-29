@@ -8,6 +8,11 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from .storage import atomic_write_json
+except ImportError:
+    from storage import atomic_write_json
+
 
 DEFAULT_LIMITS = {
     "recon": 150,
@@ -95,10 +100,10 @@ class BudgetManager:
 
     def _save(self):
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        self.budget_file.write_text(json.dumps({
+        atomic_write_json(self.budget_file, {
             "trackers": {k: asdict(v) for k, v in self._trackers.items()},
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, indent=2))
+        })
 
     def get_tracker(self, phase: str) -> BudgetTracker:
         if phase not in self._trackers:

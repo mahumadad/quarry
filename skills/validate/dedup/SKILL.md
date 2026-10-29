@@ -86,6 +86,16 @@ feeds_into: [finding-validation]
    longer findings list. If the root-cause match is uncertain, keep both and note the suspicion
    in each record for a human to resolve, rather than deciding unilaterally.
 
+8. **Converge on self-duplicates before repeating validation or reporting.** Search current and
+   imported findings by program/asset, root cause and remediation, not only title. When the same
+   issue is rediscovered, link the new candidate to the original finding ID in `metadata` as
+   `duplicate_kind=self`, `duplicate_of=<id>` and retain the new evidence as another instance;
+   do not restart the full validation/report pipeline as if it were new. For an externally known
+   or previously reported program issue, record `duplicate_kind=program` plus the program report
+   or triage reference, and exclude it from new-report exports. Never infer program duplicates
+   from a title match: preserve the reference and human rationale. A link is not deletion, and
+   uncertain matches remain separate for review.
+
 ## Validation gate
 
 - [ ] Every merge decision states explicitly which of the three conditions (CWE, root cause,
@@ -94,6 +104,8 @@ feeds_into: [finding-validation]
       an additional reproduction, not just a count.
 - [ ] Every non-primary duplicate is marked `KILLED` with `reason="duplicate of <primary_id>"`
       and preserved in the record, never silently deleted.
+- [ ] Self/program duplicate checks record the linked ID/reference and rationale before repeat
+      validation; duplicate candidates cannot enter new-report exports as independent findings.
 - [ ] Chain candidates are checked for duplication by their component-findings set, not just
       by name/description similarity.
 

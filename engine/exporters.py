@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .findings import FindingsStore, FindingStatus
+from .redaction import redact, redact_text
+from .storage import atomic_write_bytes
 
 
 SEVERITY_TO_SARIF = {
@@ -81,7 +83,7 @@ def to_sarif(store: FindingsStore, tool_name: str = "pentest-plugin",
                 "remediation": f.remediation,
             },
         })
-    return {
+    return redact({
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "version": "2.1.0",
         "runs": [{
@@ -94,13 +96,13 @@ def to_sarif(store: FindingsStore, tool_name: str = "pentest-plugin",
             },
             "results": results,
         }],
-    }
+    })
 
 
 def to_json(store: FindingsStore, include_all: bool = False) -> dict:
     """Ticket-ready JSON: one object per finding, flat, automation-friendly."""
     findings = _exportable(store, include_all)
-    return {
+    return redact({
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "count": len(findings),
         "findings": [{
@@ -122,7 +124,7 @@ def to_json(store: FindingsStore, include_all: bool = False) -> dict:
             "epss_score": f.metadata.get("epss_score"),
             "cisa_kev": f.metadata.get("cisa_kev", False),
         } for f in findings],
-    }
+    })
 
 
 def to_csv(store: FindingsStore, include_all: bool = False) -> str:
@@ -134,7 +136,7 @@ def to_csv(store: FindingsStore, include_all: bool = False) -> str:
     for f in findings:
         writer.writerow([f.id, f.title, f.severity, f.cvss_score, f.vuln_class,
                          ";".join(f.cwe), f.target_asset, f.status, f.evidence_tag])
-    return buf.getvalue()
+    return redact_text(buf.getvalue())
 
 
 def export(store: FindingsStore, fmt: str, out_path: str,
@@ -152,7 +154,7 @@ def export(store: FindingsStore, fmt: str, out_path: str,
 
     path = Path(out_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    atomic_write_bytes(path, content.encode("utf-8"))
 
     if custody is not None:
         custody.export(fmt=fmt, path=str(path),

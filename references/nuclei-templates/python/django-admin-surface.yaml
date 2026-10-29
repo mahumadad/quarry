@@ -1,0 +1,32 @@
+id: django-admin-login-surface
+info:
+  name: Django Admin Login Surface
+  author: pentest-plugin
+  severity: info
+  description: Identifies Django admin login; does not attempt credentials or claim a vulnerability.
+  tags: python,django,admin,attack-surface
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: python,django
+    protocols: http
+    architectures: monolith
+    coverage: attack-surface,admin-panel
+    fixture: django-admin
+    max-request: 2
+http:
+  - method: GET
+    path: ["{{BaseURL}}/admin/", "{{BaseURL}}/admin/login/"]
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Django administration", "Log in | Django"]
+        condition: or
+      - type: word
+        part: body
+        words: ["csrfmiddlewaretoken", "django-admin"]
+        condition: or

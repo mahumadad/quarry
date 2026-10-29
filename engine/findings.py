@@ -13,6 +13,13 @@ from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
+try:
+    from .custody import CustodyLog
+    from .storage import atomic_write_json, engagement_lock, read_json
+except ImportError:
+    from custody import CustodyLog
+    from storage import atomic_write_json, engagement_lock, read_json
+
 
 HUNT_MODE_SEVERITY_GATES = {
     "bounty": 8.0,
@@ -112,57 +119,67 @@ class FindingsStore:
         self._load()
 
     def _load(self):
+        self._findings = {}
         if self.findings_file.exists():
-            data = json.loads(self.findings_file.read_text())
+            data = read_json(self.findings_file)
             for fd in data.get("findings", []):
                 f = Finding(**fd)
                 self._findings[f.id] = f
 
     def _save(self):
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        self.findings_file.write_text(json.dumps({
+        atomic_write_json(self.findings_file, {
             "findings": [asdict(f) for f in self._findings.values()],
             "count": len(self._findings),
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, indent=2))
+        })
 
     def add(self, finding: Finding) -> Finding:
-        self._findings[finding.id] = finding
-        self._save()
+        with engagement_lock(self.state_dir.parent):
+            self._load()
+            self._findings[finding.id] = finding
+            self._save()
+            CustodyLog(self.state_dir.parent).append("finding_created", {
+                "finding_id": finding.id, "vuln_class": finding.vuln_class,
+                "target_asset": finding.target_asset})
         return finding
 
     def get(self, finding_id: str) -> Finding | None:
         return self._findings.get(finding_id)
 
     def update_status(self, finding_id: str, new_status: FindingStatus, reason: str = "") -> bool:
-        f = self._findings.get(finding_id)
-        if not f:
-            return False
-        current = FindingStatus(f.status)
-        if new_status not in STATUS_TRANSITIONS.get(current, []):
-            return False
-        f.status_history.append({
-            "from": f.status,
-            "to": new_status.value,
-            "reason": reason,
-            "at": datetime.now(timezone.utc).isoformat(),
-        })
-        f.status = new_status.value
-        f.updated_at = datetime.now(timezone.utc).isoformat()
-        self._save()
+        with engagement_lock(self.state_dir.parent):
+            self._load()
+            f = self._findings.get(finding_id)
+            if not f:
+                return False
+            current = FindingStatus(f.status)
+            if new_status not in STATUS_TRANSITIONS.get(current, []):
+                return False
+            previous = f.status
+            f.status_history.append({"from": previous, "to": new_status.value,
+                "reason": reason, "at": datetime.now(timezone.utc).isoformat()})
+            f.status = new_status.value
+            f.updated_at = datetime.now(timezone.utc).isoformat()
+            self._save()
+            CustodyLog(self.state_dir.parent).append("status_change", {
+                "finding_id": finding_id, "from": previous, "to": new_status.value,
+                "reason": reason})
         return True
 
     def add_evidence(self, finding_id: str, evidence: Evidence) -> bool:
-        f = self._findings.get(finding_id)
-        if not f:
-            return False
-        ev_dict = asdict(evidence)
-        ev_dict["sha256"] = hashlib.sha256(
-            evidence.content.encode("utf-8")
-        ).hexdigest()
-        f.evidence.append(ev_dict)
-        f.updated_at = datetime.now(timezone.utc).isoformat()
-        self._save()
+        with engagement_lock(self.state_dir.parent):
+            self._load()
+            f = self._findings.get(finding_id)
+            if not f:
+                return False
+            ev_dict = asdict(evidence)
+            ev_dict["sha256"] = hashlib.sha256(evidence.content.encode("utf-8")).hexdigest()
+            f.evidence.append(ev_dict)
+            f.updated_at = datetime.now(timezone.utc).isoformat()
+            self._save()
+            CustodyLog(self.state_dir.parent).evidence_captured(
+                finding_id, ev_dict["sha256"], evidence.tool or evidence.type)
         return True
 
     def verify_evidence_integrity(self, finding_id: str) -> list[dict]:

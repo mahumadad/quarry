@@ -1,18 +1,21 @@
-id: payment-gateway-misconfig
-
+id: payment-live-credentials-exposed
 info:
-  name: Payment Gateway Misconfiguration Detection
+  name: Live Payment Credentials in Public JavaScript
   author: pentest-plugin
   severity: high
-  description: |
-    Detects exposed payment gateway credentials, test/sandbox mode in
-    production, leaked API keys in JS bundles, and webhook endpoints
-    without signature verification. Covers Stripe, MercadoPago, Transbank,
-    PayPal, and generic payment patterns.
-  tags: fintech,payment,stripe,mercadopago,transbank,keys
-
+  description: Detects likely live payment secrets in fixed public bundles; redact and validate ownership without using credentials.
+  tags: payment,stripe,mercadopago,paypal,secret-exposure
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: payment,fintech
+    protocols: http
+    architectures: spa,ssr,monolith
+    coverage: secret-exposure,payment-security
+    fixture: payment-live-secret
+    max-request: 6
 http:
-  # Check for leaked keys in JavaScript bundles
   - method: GET
     path:
       - "{{BaseURL}}/static/js/main.js"
@@ -21,81 +24,15 @@ http:
       - "{{BaseURL}}/bundle.js"
       - "{{BaseURL}}/dist/main.js"
       - "{{BaseURL}}/build/static/js/main.chunk.js"
-
     stop-at-first-match: false
-    matchers-condition: or
-    matchers:
-      # Stripe secret key (sk_live should NEVER be client-side)
-      - type: regex
-        regex:
-          - "sk_live_[a-zA-Z0-9]{24,}"
-        part: body
-
-      # Stripe test key in production (indicates misconfiguration)
-      - type: regex
-        regex:
-          - "sk_test_[a-zA-Z0-9]{24,}"
-        part: body
-
-      # MercadoPago credentials
-      - type: regex
-        regex:
-          - "APP_USR-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"
-          - "TEST-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"
-        part: body
-
-      # Transbank credentials
-      - type: word
-        words:
-          - "597055555532"  # Transbank test commerce code
-          - "webpay_commerce_code"
-          - "tbk_api_key"
-        condition: or
-        part: body
-
-      # PayPal
-      - type: regex
-        regex:
-          - "PAYPAL_CLIENT_SECRET"
-          - "paypal_secret"
-          - "AY[a-zA-Z0-9_-]{70,}"
-        part: body
-
-      # Generic payment secrets
-      - type: regex
-        regex:
-          - "payment_secret[\"']?\\s*[:=]\\s*[\"'][a-zA-Z0-9_-]{16,}"
-          - "merchant_key[\"']?\\s*[:=]\\s*[\"'][a-zA-Z0-9_-]{16,}"
-        part: body
-
-  # Check webhook endpoints
-  - method: POST
-    path:
-      - "{{BaseURL}}/webhooks/stripe"
-      - "{{BaseURL}}/webhooks/payment"
-      - "{{BaseURL}}/api/webhooks/stripe"
-      - "{{BaseURL}}/api/webhooks/mercadopago"
-      - "{{BaseURL}}/api/v1/webhooks/payment"
-      - "{{BaseURL}}/ipn"
-      - "{{BaseURL}}/api/ipn"
-
-    headers:
-      Content-Type: application/json
-    body: '{"type":"test","data":{}}'
-
     matchers-condition: and
     matchers:
       - type: status
-        status:
-          - 200
-          - 201
-          - 204
-
-      - type: word
-        words:
-          - "received"
-          - "ok"
-          - "success"
-          - "processed"
-        condition: or
+        status: [200]
+      - type: regex
         part: body
+        regex:
+          - 'sk_live_[a-zA-Z0-9]{24,}'
+          - 'APP_USR-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+          - 'PAYPAL_CLIENT_SECRET["\x27]?\s*[:=]\s*["\x27][^"\x27\s]{12,}'
+        condition: or

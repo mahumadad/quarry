@@ -1,20 +1,19 @@
 id: magento-admin-exposed
-
 info:
-  name: Magento Admin Panel Exposed
+  name: Magento Admin Login Surface
   author: pentest-plugin
-  severity: medium
-  description: |
-    Detecta panel de administración de Magento expuesto públicamente.
-    Un panel admin accesible permite ataques de fuerza bruta, credential
-    stuffing y reconocimiento de la versión de Magento.
-  tags: magento,admin,panel,exposure,ecommerce
-  reference:
-    - https://developer.adobe.com/commerce/
+  severity: info
+  description: Identifies a Magento admin login surface; public routing alone is not a vulnerability.
+  tags: magento,admin,panel,fingerprint,ecommerce
   metadata:
-    verified: true
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: magento
+    protocols: http
+    coverage: attack-surface,admin-panel
+    fixture: magento-admin
     max-request: 4
-
 http:
   - method: GET
     path:
@@ -22,29 +21,16 @@ http:
       - "{{BaseURL}}/admin/dashboard"
       - "{{BaseURL}}/magento_admin"
       - "{{BaseURL}}/backend"
-
     stop-at-first-match: true
-
     matchers-condition: and
     matchers:
-      - type: word
-        part: body
-        words:
-          - "Magento"
-          - "magento"
-          - "login-form"
-        condition: or
-
-      - type: word
-        part: body
-        words:
-          - "admin__login"
-          - "login-content"
-          - "adminhtml"
-          - "magento-logo"
-        condition: or
-
       - type: status
-        status:
-          - 200
-          - 302
+        status: [200]
+      - type: word
+        part: body
+        words: ["Magento", "magento"]
+        condition: or
+      - type: word
+        part: body
+        words: ["admin__login", "adminhtml", "magento-logo"]
+        condition: or

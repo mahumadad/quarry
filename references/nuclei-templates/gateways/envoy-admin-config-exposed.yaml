@@ -1,0 +1,31 @@
+id: envoy-admin-config-exposed
+info:
+  name: Envoy Admin Configuration Exposed
+  author: pentest-plugin
+  severity: high
+  description: Gated read-only check for Envoy admin configuration and cluster internals.
+  tags: envoy,api-gateway,sensitive-data,microservices
+  metadata:
+    reviewed: true
+    risk: sensitive-data
+    stacks: envoy
+    protocols: http
+    architectures: api-gateway,microservices,kubernetes
+    coverage: gateway-exposure,sensitive-data-exposure
+    fixture: envoy-admin
+    max-request: 3
+http:
+  - method: GET
+    path: ["{{BaseURL}}/config_dump", "{{BaseURL}}/clusters", "{{BaseURL}}/server_info"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["configs", "cluster", "server_info", "envoy"]
+        condition: or
+      - type: regex
+        part: body
+        regex: ['(?i)(dynamic_active_clusters|static_resources|listener|upstream|version_info)']

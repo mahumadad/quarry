@@ -78,42 +78,29 @@
 
 ## Nuestros templates custom
 
-En `references/nuclei-templates/` del plugin:
+El catálogo revisado contiene 40 checks atómicos para Python, Node, Rails,
+GraphQL, Magento, VTEX, fintech/pagos, Spring, Laravel, ASP.NET y gateways.
+El inventario operativo y la matriz de cobertura viven en
+`references/nuclei-templates/README.md`; los hashes y selectores viven en
+`references/nuclei-manifest.json`.
 
-| Template | Target |
-|---|---|
-| `magento-admin-exposed.yaml` | Panel admin Magento 2 |
-| `magento-api-exposed.yaml` | REST/GraphQL API Magento 2 |
-| `vtex-admin-panel.yaml` | Admin panel VTEX |
-| `vtex-api-exposed.yaml` | APIs VTEX (checkout, catalog, OMS) |
-| `graphql-introspection.yaml` | Introspección GraphQL habilitada |
-| `graphql-batch-query.yaml` | Batching de queries GraphQL |
-| `graphql-field-suggestions.yaml` | Field suggestions activas |
+No se ejecutan por carpeta ni se mezclan automáticamente con community.
+`NucleiRunner` selecciona desde `AppProfile`, aplica riesgo/scope y guarda
+JSONL. Los datos financieros y configuraciones sensibles requieren aprobación;
+los POST genéricos a webhooks y la consulta VTEX de clientes fueron retirados.
 
 ## Gaps sin cobertura dedicada
 
-Estas tecnologías no tienen repos community dedicados, pero ahora tienen
-**templates custom** en `references/nuclei-templates/`:
+- Shopify, Jumpseller y Tiendanube no tienen custom local específico.
+- gRPC, WebSocket y serverless interno no tienen un check HTTP genérico.
+- IDOR, lógica de negocio, race conditions y autorización entre roles son
+  cobertura manual/browser, no templates simulados.
 
-- **Ruby on Rails**: `rails-misconfig.yaml` (debug, rutas, Sidekiq, config)
-- **Node.js / Express**: `node-express-misconfig.yaml` (source maps, .env,
-  package.json, GraphQL playground). Next.js parcial en coffinxp
-- **Python / FastAPI / Django**: `python-fastapi-misconfig.yaml` (auto-docs,
-  debug mode, Werkzeug, Celery Flower)
-- **Fintech / APIs financieras**: `fintech-api-exposed.yaml` (accounts,
-  transactions, portfolios, swagger)
-- **Payment gateways** (Stripe, MercadoPago, Transbank):
-  `payment-gateway-misconfig.yaml` (keys en JS, webhooks sin firma)
-- **E-commerce** más allá de nuestros custom: WooCommerce parcial via
-  wordfence, Shopify sin cobertura
-- **Latin American platforms** (VTEX deep, Jumpseller, Tiendanube): solo
-  nuestros custom
-
-Para gaps restantes, el approach es:
-1. Escribir templates custom adicionales según el engagement lo requiera
-2. Usar `clairvoyance` + `graphw00f` para GraphQL en vez de nuclei
-3. Para Shopify/Jumpseller, combinar fingerprinting genérico (nuclei
-   official) + checks manuales del skill correspondiente
+Para gaps restantes:
+1. Escribir y probar un template atómico según evidencia del engagement.
+2. Revisar `clairvoyance` + `graphw00f` para GraphQL cuando corresponda.
+3. Usar templates community solo tras revisión puntual, versión fijada y
+   validación de scope; catalogado no significa integrado ni ejecutado.
 
 ## Cómo agregar un repo a cent
 

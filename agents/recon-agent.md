@@ -72,10 +72,12 @@ are still untouched — breadth before depth is the explicit coverage rule for t
      introspection if exposed), and client-side routes.
 
 5. **Baseline vulnerability signal (not exploitation)**
-   - `nuclei` with curated, non-destructive templates (CVE/misconfig/exposure templates
-     appropriate for RoE) to get a fast, broad signal of known-vulnerable
-     versions/misconfigurations. This is *signal for `exploit-researcher`*, not a finding —
-     do not write up nuclei hits as findings yourself.
+   - Run the `nuclei-reviewed` skill after fingerprinting. `NucleiRunner` selects
+     hash-locked custom checks from `AppProfile`, applies scope/risk limits and
+     persists JSONL. Community templates require separate review and version pinning.
+   - This is *signal for `exploit-researcher`*, not a finding — do not write up
+     nuclei hits as findings yourself. Record selected/skipped/gaps; zero matches
+     never proves absence.
 
 6. **Coverage checklist before declaring complete**
    You must explicitly confirm (or explicitly mark "not applicable / blocked, with reason")

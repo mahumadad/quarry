@@ -1,0 +1,32 @@
+id: nuxt-devtools-exposed
+info:
+  name: Nuxt DevTools Client Exposed
+  author: pentest-plugin
+  severity: medium
+  description: Detects the Nuxt DevTools client using devtools-specific markers.
+  tags: nodejs,nuxtjs,vue,development,exposure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: nodejs,nuxtjs,vue
+    protocols: http
+    architectures: ssr,spa
+    coverage: development-exposure,attack-surface
+    fixture: nuxt-devtools
+    max-request: 2
+http:
+  - method: GET
+    path: ["{{BaseURL}}/__nuxt_devtools__/client/", "{{BaseURL}}/__nuxt_devtools__/"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Nuxt DevTools", "__NUXT_DEVTOOLS__", "nuxt-devtools"]
+        condition: or
+      - type: word
+        part: body
+        words: ["devtools", "client"]
+        condition: or

@@ -54,6 +54,10 @@ KNOWN_CHAINS: list[dict] = [
     {"a": "lfi", "b": "log-poisoning", "result": "rce-via-log-inclusion", "severity": "critical"},
     {"a": "idor", "b": "payment-endpoint", "result": "financial-data-theft", "severity": "critical"},
     {"a": "api-key-leak", "b": "payment-gateway", "result": "payment-fraud-via-leaked-keys", "severity": "critical"},
+    {"a": "mass-assignment", "b": "mfa-bypass-alt-flow", "result": "superadmin-escalation-mfa-bypass", "severity": "critical"},
+    {"a": "mfa-bypass-alt-flow", "b": "broken-tenant-isolation", "result": "platform-wide-data-access", "severity": "critical"},
+    {"a": "mass-assignment", "b": "sequential-ids", "result": "mass-privilege-escalation-enumerable", "severity": "critical"},
+    {"a": "pre-auth-credential", "b": "security-boundary-upgrade", "result": "credential-reuse-post-mfa", "severity": "critical"},
 ]
 
 ENABLES_MAP: dict[str, list[str]] = {
@@ -63,10 +67,7 @@ ENABLES_MAP: dict[str, list[str]] = {
     "xss-reflected": ["open-redirect", "session-hijack"],
     "sqli": ["data-exfiltration", "auth-bypass", "rce"],
     "auth-bypass": ["privilege-escalation", "idor", "admin-access"],
-    "file-upload": ["rce", "path-traversal", "deserialization"],
     "idor": ["data-exfiltration", "privilege-escalation"],
-    "open-redirect": ["oauth-token-theft", "phishing"],
-    "lfi": ["credential-file-read", "rce-via-log-poisoning"],
     "rce": ["pivot-internal", "persistence", "data-exfiltration"],
     "ssti": ["rce", "file-read"],
     "xxe": ["file-read", "ssrf", "dos"],
@@ -77,6 +78,10 @@ ENABLES_MAP: dict[str, list[str]] = {
     "open-redirect": ["oauth-token-theft", "phishing", "ssrf"],
     "cors-misconfiguration": ["cross-origin-data-theft", "session-token-theft"],
     "api-key-leak": ["payment-fraud", "cloud-resource-abuse", "data-exfiltration"],
+    "mass-assignment": ["privilege-escalation", "role-change", "mfa-bypass-via-field-overwrite"],
+    "mfa-bypass-alt-flow": ["full-account-access", "tenant-isolation-bypass", "session-upgrade"],
+    "pre-auth-credential": ["post-boundary-reuse", "mfa-bypass", "session-takeover"],
+    "broken-tenant-isolation": ["cross-tenant-data-access", "platform-wide-escalation"],
 }
 
 

@@ -44,12 +44,15 @@
 
 ### nuclei
 
-- Siempre `-json` o `-jsonl` para output parseable.
-- Verificar la versión de templates (`-update-templates`) antes de un run
-  que determine cobertura — templates desactualizados generan falsos
-  negativos silenciosos.
-- `-severity` para filtrar ruido solo después de un primer pase sin filtro
-  (para no perder lows que en una chain importan).
+- Para custom, usar `NucleiRunner`: selección desde `AppProfile`, templates
+  explícitos, `-jsonl`, `-dr`, `-ni`, `-duc`, límites y evidencia persistida.
+- Validar sintaxis y hashes antes del run. No ejecutar directorios custom +
+  community en bulk ni convertir un match en finding sin validación.
+- Community se fija por versión y se revisa puntualmente. No correr
+  `-update-templates` automáticamente antes de un run: una actualización no
+  revisada cambia la cobertura y puede introducir requests no autorizadas.
+- No filtrar `info`/`low` al evaluar cobertura; documentación y paneles son
+  señales de superficie, no vulnerabilidades por defecto.
 
 ### ffuf
 

@@ -23,6 +23,7 @@ phases:
       - github-dorking
       - waf-fingerprint
       - tech-stack-fingerprint
+      - nuclei-reviewed
     agent: recon-agent
     strategy: exhaustive
     gate: coverage_check

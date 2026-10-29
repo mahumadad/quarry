@@ -19,6 +19,11 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from .storage import append_jsonl, read_json
+except ImportError:
+    from storage import append_jsonl, read_json
+
 
 GENESIS = "0" * 64
 
@@ -64,12 +69,16 @@ class CustodyLog:
         return last
 
     def append(self, event: str, detail: dict, actor: str = "agent") -> CustodyEntry:
-        entry = CustodyEntry(event=event, detail=detail, actor=actor,
-                             prev_hash=self._last_hash())
-        entry.entry_hash = entry.compute_hash()
+        # A dedicated lock also works when the caller already holds .lock.
+        import fcntl
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        with self.log_file.open("a") as fh:
-            fh.write(json.dumps(asdict(entry)) + "\n")
+        with (self.state_dir / ".custody.lock").open("a+") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            entry = CustodyEntry(event=event, detail=detail, actor=actor,
+                                 prev_hash=self._last_hash())
+            entry.entry_hash = entry.compute_hash()
+            append_jsonl(self.log_file, asdict(entry))
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
         return entry
 
     # Convenience wrappers for the standard events ----

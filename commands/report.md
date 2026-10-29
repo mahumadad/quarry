@@ -52,8 +52,8 @@ Usar `templates/engagement-report.md` si existe; si no, esta estructura
 3. **Findings, ordenados por severidad** (critical → high → medium →
    low → info), cada uno con:
    - ID, título, clase (CWE), asset afectado
-   - Severidad + CVSS 3.1 vector string, con cada métrica justificada
-     por lo verificado (no copiar un vector genérico de la clase)
+   - Severidad + CVSS 4.0 vector string, con cada métrica justificada por
+     lo verificado; añadir CVSS 3.1 si la plataforma/cliente lo exige
    - Descripción y root cause
    - Steps to reproduce, numerados
    - Evidencia (referenciar o embeber el request/response, con datos

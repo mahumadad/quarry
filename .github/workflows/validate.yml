@@ -15,14 +15,52 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install pinned dependency ranges
+        run: python3 -m pip install -r requirements.txt
+
       - name: Validate plugin structure
         run: python3 tests/validate_plugin.py
 
       - name: Engine modules import + smoke tests
         run: python3 tests/test_engine.py
 
+      - name: Resilience, policy, custody and secret-hygiene tests
+        run: python3 tests/test_resilience.py
+
+      - name: Recon capabilities, reproducibility and retention tests
+        run: python3 tests/test_recon_capabilities.py
+
+      - name: Nuclei catalog, selector, scope and evidence tests
+        run: python3 tests/test_nuclei_capabilities.py
+
       - name: Benchmark scorer self-test (synthetic fixture)
         run: python3 tests/test_benchmark_score.py
+
+  nuclei-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Install pinned Nuclei engine
+        run: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.10.0
+      - name: Install pinned dependency ranges
+        run: python3 -m pip install -r requirements.txt
+      - name: Validate all templates against positive and negative local fixtures
+        run: python3 tests/test_nuclei_live_fixtures.py
+      - name: Exercise real scoped runner against loopback fixture
+        run: python3 tests/test_nuclei_runner_live.py
+      - name: Build and start vulnerable/secure multistack lab
+        run: docker compose -f lab/nuclei-multistack/docker-compose.yml up -d --build
+      - name: Measure real-stack recall, specificity and evidence integrity
+        run: python3 lab/nuclei-multistack/run_lab.py
+      - name: Stop multistack lab
+        if: always()
+        run: docker compose -f lab/nuclei-multistack/docker-compose.yml down
 
   # El benchmark completo contra targets Docker NO corre en cada push
   # (minutos + contenedores). Se dispara manual o semanal:

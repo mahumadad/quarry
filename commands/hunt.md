@@ -24,7 +24,7 @@ asset sobre todas las clases (o la clase dada, si ambos se combinan).
 
 ## Mapeo clase → skill
 
-`engine/coverage.py` define `ALL_VULN_CLASSES` (38 clases). Cada clase
+`engine/coverage.py` define `ALL_VULN_CLASSES` (40 clases). Cada clase
 mapea a una skill en `skills/hunt/`; varias clases comparten una skill
 cuando son variantes de la misma técnica:
 
@@ -74,28 +74,27 @@ listar las clases válidas y pedir que se repita el comando.
 
 ## Pasos exactos
 
-1. Resolver el set de (asset × clase) a cubrir en esta corrida:
-   - Sin argumentos: producto cartesiano completo de assets registrados
-     en `coverage.json` × las 38 clases.
-   - Con `[class]`: todos los assets × esa clase (y sus variantes de la
-     tabla, si la skill cubre varias).
-   - Con `--asset`: ese asset × (clase dada o las 38).
-2. Filtrar el set contra `coverage.get_gaps()` si se quiere evitar
-   reproceso; si el operador pide re-test explícito, ignorar el filtro
-   para esas celdas puntuales.
-3. Para cada celda, leer `skills/hunt/<skill>/SKILL.md` (si existe) antes
-   de probar esa clase en ese asset — ahí están los comandos, gotchas y
-   validation gate específicos. Si la skill no está escrita aún,
-   aplicar la metodología OWASP estándar de esa clase y marcarlo como
-   gap de contenido.
+1. Resolver el set granular de celdas: `asset × clase × endpoint × método ×
+   parámetro × identidad × técnica`. Sin argumentos se cubren todas las celdas
+   registradas en `coverage.json`; los filtros `[class]` y `--asset` acotan ese
+   conjunto sin borrar la granularidad.
+2. Filtrar contra `coverage.get_gaps()` salvo re-test explícito. Una celda
+   `partial`, `inconclusive`, `blocked`, `tool_unavailable` o `deferred` sigue
+   siendo un gap; no equivale a cobertura concluyente.
+3. Para cada celda, leer su skill y usar `ToolRunner` o `ProtectedHTTPClient`.
+   Guardar primero los artefactos crudos con `ArtifactStore`; incluir sus IDs en
+   el resultado. Si falta la skill, registrar `blocked` con gap de contenido, no
+   improvisar y marcar cobertura concluyente.
 4. Ejecutar la prueba. Resultado posible:
-   - **Sin hallazgo** → `coverage.mark_tested(asset, vuln_class, status="tested_clean", skill_used=...)`.
-   - **Hallazgo candidato** → crear `Finding` en `engine/findings.py`
-     (`FindingsStore.add`) con `status=DETECTED`, evidencia inicial, y
-     `coverage.mark_tested(..., status="finding_detected", ...)`.
-   - **Bloqueado/no aplicable** (fuera de scope, requiere exploit
-     destructivo sin gate humano, o el asset no soporta la técnica) →
-     `coverage.mark_skipped(asset, vuln_class, reason=...)`.
+   - **Sin hallazgo, evidencia completa** → `mark_tested(...,
+     status="tested_clean", evidence_artifacts=[...], evidence_complete=True)`.
+   - **Hallazgo candidato** → crear `Finding` en `DETECTED` y marcar
+     `finding_detected` solo con referencias de evidencia completas.
+   - **Timeout, respuesta incompleta o resultado ambiguo** → `inconclusive`.
+   - **Herramienta ausente** → `tool_unavailable`.
+   - **No soportado por la tecnología** → `not_applicable` con evidencia de por qué.
+   - **Fuera de scope** → `out_of_scope`; **gate pendiente** → `blocked`;
+     **pospuesto** → `deferred`. Nunca usar `skipped` como cajón genérico.
 5. Un finding en `DETECTED` no es definitivo — no reportarlo como
    confirmado todavía. Intentar reproducirlo manualmente una vez (no en
    loop) para subirlo a `CONFIRMED` vía

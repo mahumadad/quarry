@@ -1,0 +1,32 @@
+id: flask-werkzeug-debugger-exposed
+info:
+  name: Flask Werkzeug Debugger Exposed
+  author: pentest-plugin
+  severity: high
+  description: Detects the Werkzeug debugger interface using specific debugger markers.
+  tags: python,flask,werkzeug,debug
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: python,flask
+    protocols: http
+    architectures: monolith
+    coverage: debug-exposure,rce-prerequisite
+    fixture: flask-debugger
+    max-request: 2
+http:
+  - method: GET
+    path: ["{{BaseURL}}/console", "{{BaseURL}}/nonexistent_route_12345"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200, 500]
+      - type: word
+        part: body
+        words: ["Werkzeug Debugger", "The debugger caught an exception"]
+        condition: or
+      - type: word
+        part: body
+        words: ["SECRET", "console", "Traceback (most recent call last)"]
+        condition: or

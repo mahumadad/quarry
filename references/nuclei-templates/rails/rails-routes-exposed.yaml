@@ -1,0 +1,30 @@
+id: rails-route-list-exposed
+info:
+  name: Rails Route List Exposed
+  author: pentest-plugin
+  severity: medium
+  description: Detects the Rails development route inspector with route-table specific markers.
+  tags: rails,routes,info-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: rails
+    protocols: http
+    architectures: monolith
+    coverage: route-disclosure,attack-surface
+    fixture: rails-routes
+    max-request: 1
+http:
+  - method: GET
+    path: ["{{BaseURL}}/rails/info/routes"]
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Routes match in priority", "Prefix Verb"]
+      - type: word
+        part: body
+        words: ["URI Pattern", "Controller#Action"]

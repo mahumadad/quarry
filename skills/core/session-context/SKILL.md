@@ -30,8 +30,17 @@ makes identities first-class: one `Session` per test account in
 
 ## Setup protocol (before hunting starts)
 
+0. **Run an authenticated browser walk before any sweep.** For every role × tenant × plan
+   (free/paid) in scope, log in with the correct isolated profile and manually visit the sensitive
+   workflows: account/org settings, billing, import/export, uploads, sharing, notifications,
+   webhooks, integrations, API tokens, legacy routes and administrative functions. Capture the
+   requests, roles, object IDs and state transitions into `identity-map`/`state-map`. Do not inject
+   payloads into every registration/profile field by default: active probes require the ROE gate,
+   unique markers and reversible fixtures. Missing roles or an incomplete walk are explicit
+   coverage gaps, not evidence that authenticated surface was tested.
 1. **Inventory identities** from `identity-map`: every role the app has
-   (user, premium, org-admin, support, API client...) × every tenant in scope.
+   (user, premium, org-admin, support, API client...) × every tenant in scope. Record unavailable
+   accounts and plan differences instead of silently reducing the matrix.
 2. **Minimum viable pair: two same-role accounts in different data scopes**
    (user_a, user_b). Without a pair, NO horizontal access-control finding can
    be demonstrated — `SessionManager.has_pair()` returns False and hunting in

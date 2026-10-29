@@ -1,123 +1,37 @@
-id: node-express-misconfig
-
+id: express-stack-trace-exposed
 info:
-  name: Node.js / Express Misconfiguration Detection
+  name: Express Server Stack Trace Exposed
   author: pentest-plugin
   severity: medium
-  description: |
-    Detects common Node.js and Express.js misconfigurations: debug mode,
-    exposed stack traces, npm metadata, environment variables, GraphQL
-    playground, and common admin/monitoring endpoints.
-  tags: nodejs,express,misconfig,framework
-
+  description: Detects server-side Express stack traces, excluding ordinary Cannot GET responses.
+  tags: nodejs,express,debug,info-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: nodejs,express
+    protocols: http
+    coverage: debug-exposure,info-disclosure
+    fixture: express-error
+    max-request: 3
 http:
   - method: GET
     path:
-      # Express debug/dev indicators
       - "{{BaseURL}}/debug"
       - "{{BaseURL}}/__express"
-      - "{{BaseURL}}/debug/pprof"
-
-      # Package metadata
-      - "{{BaseURL}}/package.json"
-      - "{{BaseURL}}/package-lock.json"
-      - "{{BaseURL}}/yarn.lock"
-      - "{{BaseURL}}/node_modules/.package-lock.json"
-
-      # Environment leaks
-      - "{{BaseURL}}/.env"
-      - "{{BaseURL}}/.env.local"
-      - "{{BaseURL}}/.env.production"
-      - "{{BaseURL}}/.env.development"
-      - "{{BaseURL}}/env"
-      - "{{BaseURL}}/config.json"
-      - "{{BaseURL}}/config/default.json"
-      - "{{BaseURL}}/config/production.json"
-
-      # Source maps
-      - "{{BaseURL}}/main.js.map"
-      - "{{BaseURL}}/app.js.map"
-      - "{{BaseURL}}/bundle.js.map"
-      - "{{BaseURL}}/static/js/main.chunk.js.map"
-
-      # GraphQL playground/IDE
-      - "{{BaseURL}}/graphql"
-      - "{{BaseURL}}/graphiql"
-      - "{{BaseURL}}/playground"
-      - "{{BaseURL}}/altair"
-      - "{{BaseURL}}/voyager"
-
-      # Monitoring/admin
-      - "{{BaseURL}}/metrics"
-      - "{{BaseURL}}/prometheus"
-      - "{{BaseURL}}/health"
-      - "{{BaseURL}}/healthcheck"
-      - "{{BaseURL}}/status"
-      - "{{BaseURL}}/info"
-      - "{{BaseURL}}/bull-board"
-      - "{{BaseURL}}/queues"
-
-      # PM2 / process manager
-      - "{{BaseURL}}/pm2"
-      - "{{BaseURL}}/keymetrics"
-
+      - "{{BaseURL}}/nonexistent_route_12345"
     stop-at-first-match: false
-    matchers-condition: or
+    matchers-condition: and
     matchers:
-      - type: word
-        words:
-          - "\"name\":"
-          - "\"dependencies\":"
-          - "\"devDependencies\":"
-          - "\"scripts\":"
-        condition: and
+      - type: status
+        status: [500]
+      - type: regex
         part: body
-
-      - type: word
-        words:
-          - "DB_PASSWORD"
-          - "DATABASE_URL"
-          - "JWT_SECRET"
-          - "SESSION_SECRET"
-          - "REDIS_URL"
-          - "MONGO_URI"
-          - "API_KEY"
+        regex:
+          - '(SyntaxError|ReferenceError|TypeError):[^\r\n]+'
+          - 'at (Object|Module)\.[^(]+\([^)]+node_modules[^)]+\)'
         condition: or
-        part: body
-
       - type: word
-        words:
-          - "\"mappings\""
-          - "\"sources\""
-          - "\"sourcesContent\""
-        condition: and
         part: body
-
-      - type: word
-        words:
-          - "GraphQL Playground"
-          - "GraphiQL"
-          - "__schema"
-          - "type Query"
-          - "Voyager"
+        words: ["node_modules", "Express", "express"]
         condition: or
-        part: body
-
-      - type: word
-        words:
-          - "Express"
-          - "Cannot GET"
-          - "SyntaxError"
-          - "ReferenceError"
-          - "at Object."
-          - "at Module."
-        condition: or
-        part: body
-
-      - type: word
-        words:
-          - "stack"
-          - "message"
-          - "Error"
-        condition: and
-        part: body

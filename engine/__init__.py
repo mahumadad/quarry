@@ -24,4 +24,12 @@ Modules:
   custody         Chain-of-custody: append-only hash-chained evidence log
   toolrunner      Tool execution backends (local / Kali REST / Docker) + CLI rules
   exporters       Machine-readable exports: SARIF 2.1.0, JSON (ticketing), CSV
+  storage         Atomic writes, engagement locks and corruption detection
+  artifacts       Complete raw evidence, provenance, hashes and redacted views
+  policy          Shared fail-closed scope/time/approval enforcement
+  http_client     Policy-enforcing HTTP client with redirect blocking
+  orchestrator    Canonical runs, journal, gates, recovery and resume
+  redaction       Central secret redaction for logs, views and exports
+  nuclei_templates Hash-locked custom template policy and AppProfile selection
+  nuclei_runner   Scoped, risk-gated Nuclei execution and JSONL evidence
 """

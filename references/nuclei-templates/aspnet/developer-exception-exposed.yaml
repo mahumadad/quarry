@@ -1,0 +1,32 @@
+id: aspnet-developer-exception-exposed
+info:
+  name: ASP.NET Developer Exception Page Exposed
+  author: pentest-plugin
+  severity: high
+  description: Detects the ASP.NET Core developer exception page with runtime-specific markers.
+  tags: aspnet,dotnet,debug,info-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: aspnet,dotnet
+    protocols: http
+    architectures: monolith,microservices
+    coverage: debug-exposure,info-disclosure
+    fixture: aspnet-debug
+    max-request: 1
+http:
+  - method: GET
+    path: ["{{BaseURL}}/nonexistent_route_12345"]
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [500]
+      - type: word
+        part: body
+        words: ["Developer Exception Page", "An unhandled exception occurred"]
+        condition: or
+      - type: word
+        part: body
+        words: ["Stack Query Cookies Headers Routing", "Microsoft.AspNetCore", "System."]
+        condition: or

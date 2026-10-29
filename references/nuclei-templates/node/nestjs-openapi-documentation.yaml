@@ -1,0 +1,32 @@
+id: nestjs-openapi-documentation
+info:
+  name: NestJS OpenAPI Documentation Surface
+  author: pentest-plugin
+  severity: info
+  description: Identifies NestJS Swagger and OpenAPI surfaces without asserting sensitive access.
+  tags: nodejs,nestjs,openapi,attack-surface
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: nodejs,nestjs
+    protocols: http,rest
+    architectures: monolith,microservices
+    coverage: api-discovery,documentation-exposure
+    fixture: nestjs-docs
+    max-request: 5
+http:
+  - method: GET
+    path: ["{{BaseURL}}/docs", "{{BaseURL}}/api-docs", "{{BaseURL}}/swagger", "{{BaseURL}}/swagger-json", "{{BaseURL}}/api-json"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Swagger UI", "SwaggerModule", '"openapi"', '"swagger"']
+        condition: or
+      - type: word
+        part: body
+        words: ["swagger-ui", '"paths"', '"info"']
+        condition: or

@@ -7,3 +7,12 @@ __pycache__/
 *~
 .DS_Store
 benchmarks/runs/
+lab/nuclei-multistack/.runtime/
+engagements/
+raw/
+evidence/
+exports/
+*.bundle.tar.gz
+*.gpg
+*.pem
+*.key

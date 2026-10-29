@@ -1,47 +1,33 @@
 id: graphql-batch-query
-
 info:
-  name: GraphQL Batch Query Accepted
+  name: GraphQL Read-Only Batch Accepted
   author: pentest-plugin
-  severity: medium
-  description: |
-    Detecta endpoints GraphQL que aceptan batch queries (array de operaciones
-    en un solo request). Esto permite ataques DoS por multiplicación de
-    trabajo, brute force de credenciales en un solo request, y bypass de
-    rate limiting por-request.
-  tags: graphql,batch,dos,api,rate-limiting
-  reference:
-    - https://lab.wallarm.com/graphql-batching-attack/
+  severity: info
+  description: Confirms two read-only operations in one request; does not claim DoS or rate-limit bypass.
+  tags: graphql,batch,api,attack-surface
   metadata:
-    verified: true
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: graphql
+    protocols: http,graphql
+    coverage: api-behavior,batch-support
+    fixture: graphql-batch
     max-request: 3
-
 http:
   - method: POST
-    path:
-      - "{{BaseURL}}/graphql"
-      - "{{BaseURL}}/api/graphql"
-      - "{{BaseURL}}/_v/graphql"
-
+    path: ["{{BaseURL}}/graphql", "{{BaseURL}}/api/graphql", "{{BaseURL}}/_v/graphql"]
     headers:
       Content-Type: application/json
-
     body: '[{"query":"{__typename}"},{"query":"{__typename}"}]'
-
     stop-at-first-match: true
-
     matchers-condition: and
     matchers:
       - type: status
-        status:
-          - 200
-
+        status: [200]
       - type: word
         part: body
-        words:
-          - "__typename"
-
+        words: ["__typename"]
       - type: regex
         part: body
-        regex:
-          - '\[\s*\{.*"data".*\}.*,.*\{.*"data".*\}\s*\]'
+        regex: ['\[\s*\{[^\r\n]*"data"[^\r\n]*\}\s*,\s*\{[^\r\n]*"data"[^\r\n]*\}\s*\]']

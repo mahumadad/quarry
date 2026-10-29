@@ -51,6 +51,16 @@ class AppProfile:
     })
     auth: AuthInfo = field(default_factory=AuthInfo)
     api: APIInfo = field(default_factory=APIInfo)
+    architecture: dict = field(default_factory=lambda: {
+        "style": "",  # monolith, microservices, modular-monolith, unknown
+        "deployment": [],  # traditional, containers, kubernetes, serverless, edge
+        "frontend_rendering": "",  # spa, ssr, ssg, mpa, hybrid
+        "api_gateway": "",
+        "async_workers": [],
+        "multi_tenant": False,
+        "serverless": False,
+        "mobile_backend": False,
+    })
     user_roles: list[str] = field(default_factory=list)
     features: list[str] = field(default_factory=list)
     ai_features: list[str] = field(default_factory=list)

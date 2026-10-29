@@ -1,0 +1,967 @@
+{
+  "schema_version": 1,
+  "templates": [
+    {
+      "id": "aspnet-connection-string-exposed",
+      "path": "aspnet/connection-string-exposed.yaml",
+      "sha256": "fe7ce01703702460728e8e766ee0f8ed02544bc87c9b17ec3f3de09f633df118",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "aspnet"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "configuration-exposure",
+        "secret-exposure"
+      ],
+      "fixture": "aspnet-config",
+      "requests": 4
+    },
+    {
+      "id": "aspnet-developer-exception-exposed",
+      "path": "aspnet/developer-exception-exposed.yaml",
+      "sha256": "9151c4dc5815dfa3fd6c2e0f12efea141d8b233f83fb2c03bb5b12ceeaba7f1b",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "aspnet"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "debug-exposure",
+        "info-disclosure"
+      ],
+      "fixture": "aspnet-debug",
+      "requests": 1
+    },
+    {
+      "id": "fintech-customer-data-exposure",
+      "path": "fintech/customer-data-exposure.yaml",
+      "sha256": "ae0fc4582dce3d7193fef3e71a1d92de8a22a058dde43de0ec4b785efaa10004",
+      "severity": "high",
+      "risk": "sensitive-data",
+      "auth": "none",
+      "stacks": [
+        "fintech"
+      ],
+      "protocols": [
+        "http",
+        "rest"
+      ],
+      "architectures": [],
+      "coverage": [
+        "authorization",
+        "sensitive-data-exposure"
+      ],
+      "fixture": "fintech-records",
+      "requests": 4
+    },
+    {
+      "id": "fintech-openapi-documentation",
+      "path": "fintech-api-exposed.yaml",
+      "sha256": "9b98e91ebe5e3a753343a385a97bf81327f8899c26fc1667eddbdf0daefb3ab1",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "fintech",
+        "payment"
+      ],
+      "protocols": [
+        "http",
+        "rest"
+      ],
+      "architectures": [],
+      "coverage": [
+        "api-discovery",
+        "documentation-exposure"
+      ],
+      "fixture": "openapi-docs",
+      "requests": 8
+    },
+    {
+      "id": "envoy-admin-config-exposed",
+      "path": "gateways/envoy-admin-config-exposed.yaml",
+      "sha256": "f334c6f20ce28cfa22b361e3136a14b30ebc64f416b775530987dda191a67f72",
+      "severity": "high",
+      "risk": "sensitive-data",
+      "auth": "none",
+      "stacks": [
+        "envoy"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "api-gateway",
+        "kubernetes",
+        "microservices"
+      ],
+      "coverage": [
+        "gateway-exposure",
+        "sensitive-data-exposure"
+      ],
+      "fixture": "envoy-admin",
+      "requests": 3
+    },
+    {
+      "id": "kong-admin-api-exposed",
+      "path": "gateways/kong-admin-api-exposed.yaml",
+      "sha256": "21b43f1e2ffc522fecbdeec9895e3cc38a217d2adbcf6656c29b1bd4c33f8df4",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "kong"
+      ],
+      "protocols": [
+        "http",
+        "rest"
+      ],
+      "architectures": [
+        "api-gateway",
+        "microservices"
+      ],
+      "coverage": [
+        "configuration-exposure",
+        "gateway-exposure"
+      ],
+      "fixture": "kong-admin",
+      "requests": 3
+    },
+    {
+      "id": "traefik-api-exposed",
+      "path": "gateways/traefik-api-exposed.yaml",
+      "sha256": "334e4193c8e9ecbcdb8fc8cc414cb12449ee3c56f39a5adf6085826f477c7b7a",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "traefik"
+      ],
+      "protocols": [
+        "http",
+        "rest"
+      ],
+      "architectures": [
+        "api-gateway",
+        "kubernetes",
+        "microservices"
+      ],
+      "coverage": [
+        "configuration-exposure",
+        "gateway-exposure"
+      ],
+      "fixture": "traefik-api",
+      "requests": 3
+    },
+    {
+      "id": "graphql-batch-query",
+      "path": "graphql-batch-query.yaml",
+      "sha256": "4e9c1919daa1425129797d0708e06821ae5abe34d31933a8af2ab9822187e558",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "graphql"
+      ],
+      "protocols": [
+        "graphql",
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "api-behavior",
+        "batch-support"
+      ],
+      "fixture": "graphql-batch",
+      "requests": 3
+    },
+    {
+      "id": "graphql-field-suggestions",
+      "path": "graphql-field-suggestions.yaml",
+      "sha256": "cead228d7aea21aed0021b8c243951a8b5d17667cadce19cdab1f02f77d753a0",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "graphql"
+      ],
+      "protocols": [
+        "graphql",
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "api-discovery",
+        "field-enumeration"
+      ],
+      "fixture": "graphql-suggestions",
+      "requests": 3
+    },
+    {
+      "id": "graphql-introspection",
+      "path": "graphql-introspection.yaml",
+      "sha256": "08fcfcc5f99921d00b92d3b78c33e05a3eb5649ef13e47c356503bd2d1f8ed10",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "graphql"
+      ],
+      "protocols": [
+        "graphql",
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "api-discovery",
+        "schema-exposure"
+      ],
+      "fixture": "graphql-introspection",
+      "requests": 3
+    },
+    {
+      "id": "laravel-horizon-dashboard-exposed",
+      "path": "laravel/horizon-dashboard-exposed.yaml",
+      "sha256": "10b0502e83a64b50367c6d3a7d935cebe877932eab5e8e40bfe5e10789b7c42e",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "horizon",
+        "laravel",
+        "php"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "attack-surface",
+        "worker-exposure"
+      ],
+      "fixture": "laravel-horizon",
+      "requests": 3
+    },
+    {
+      "id": "laravel-ignition-debug-exposed",
+      "path": "laravel/ignition-debug-exposed.yaml",
+      "sha256": "92a83366b4a5c2855d342b29f2d89cf1b743482bee7cef4e030142140ffcafe8",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "laravel",
+        "php"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith"
+      ],
+      "coverage": [
+        "debug-exposure",
+        "rce-prerequisite"
+      ],
+      "fixture": "laravel-debug",
+      "requests": 2
+    },
+    {
+      "id": "laravel-environment-secret-exposed",
+      "path": "laravel/laravel-env-secret-exposed.yaml",
+      "sha256": "dd3d3e0af919f5b6dea5f8b56204f69d4bd4f6d257edb0bffd3d986c6518f784",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "laravel",
+        "php"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "configuration-exposure",
+        "secret-exposure"
+      ],
+      "fixture": "laravel-env",
+      "requests": 3
+    },
+    {
+      "id": "magento-admin-exposed",
+      "path": "magento-admin-exposed.yaml",
+      "sha256": "2a4b3853199390cacb306ee13f49e71d45559ffc2d2e51fdd19cd10865f71c6b",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "magento"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "admin-panel",
+        "attack-surface"
+      ],
+      "fixture": "magento-admin",
+      "requests": 4
+    },
+    {
+      "id": "magento-public-rest-api",
+      "path": "magento-api-exposed.yaml",
+      "sha256": "a9a84b80980f097043d4d56a07d6371362c0a2893acc83151994a4445fb19f24",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "magento"
+      ],
+      "protocols": [
+        "http",
+        "rest"
+      ],
+      "architectures": [],
+      "coverage": [
+        "api-discovery",
+        "attack-surface"
+      ],
+      "fixture": "magento-api",
+      "requests": 4
+    },
+    {
+      "id": "bull-board-exposed",
+      "path": "node/bull-board-exposed.yaml",
+      "sha256": "e678807c1204ab26cf47f06c99f9510ca9b28ae407c1680a7db88219dfadc1e5",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "bull",
+        "bullmq",
+        "nodejs"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "attack-surface",
+        "worker-exposure"
+      ],
+      "fixture": "bull-board",
+      "requests": 3
+    },
+    {
+      "id": "javascript-source-map-content-exposed",
+      "path": "node/javascript-source-map-exposed.yaml",
+      "sha256": "88c61c3550aa4d38dcbdad5e98288613c0ab5f22e168a0ff82623b56f0abacae",
+      "severity": "low",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "angular",
+        "nextjs",
+        "nodejs",
+        "nuxtjs",
+        "react",
+        "vue"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "spa",
+        "ssr"
+      ],
+      "coverage": [
+        "client-recon",
+        "source-disclosure"
+      ],
+      "fixture": "source-map",
+      "requests": 5
+    },
+    {
+      "id": "nestjs-openapi-documentation",
+      "path": "node/nestjs-openapi-documentation.yaml",
+      "sha256": "e4015f38dfe30a8397fde7df12b018a8eccd70254716fed3c9bf28f198a73324",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "nestjs",
+        "nodejs"
+      ],
+      "protocols": [
+        "http",
+        "rest"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "api-discovery",
+        "documentation-exposure"
+      ],
+      "fixture": "nestjs-docs",
+      "requests": 5
+    },
+    {
+      "id": "nextjs-development-manifest-exposed",
+      "path": "node/nextjs-development-manifest-exposed.yaml",
+      "sha256": "e5768a9acee794cb5425aff57a6154cf0daf2c988631a1cb73cc1d463025d03e",
+      "severity": "low",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "nextjs",
+        "nodejs",
+        "react"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "spa",
+        "ssr"
+      ],
+      "coverage": [
+        "development-exposure",
+        "route-disclosure"
+      ],
+      "fixture": "nextjs-manifest",
+      "requests": 3
+    },
+    {
+      "id": "node-environment-secret-exposed",
+      "path": "node/node-env-secret-exposed.yaml",
+      "sha256": "6072fff67cbad1c250460d5b8fbd7eeeab1399cd137332d635d49ffcd138d2a2",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "express",
+        "nestjs",
+        "nextjs",
+        "nodejs",
+        "nuxtjs"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "configuration-exposure",
+        "secret-exposure"
+      ],
+      "fixture": "node-env",
+      "requests": 6
+    },
+    {
+      "id": "node-package-metadata-exposed",
+      "path": "node/node-package-metadata-exposed.yaml",
+      "sha256": "694515511da9a170e62068a5a1a724caf38655fbcb1e506af5fafd7d59bc4cf4",
+      "severity": "low",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "express",
+        "nestjs",
+        "nextjs",
+        "nodejs",
+        "nuxtjs"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "dependency-disclosure",
+        "fingerprint"
+      ],
+      "fixture": "node-package",
+      "requests": 4
+    },
+    {
+      "id": "nuxt-devtools-exposed",
+      "path": "node/nuxt-devtools-exposed.yaml",
+      "sha256": "b20516f17c9303b59335126194901d1183041eeadb355b292d4d6fbc69fe342c",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "nodejs",
+        "nuxtjs",
+        "vue"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "spa",
+        "ssr"
+      ],
+      "coverage": [
+        "attack-surface",
+        "development-exposure"
+      ],
+      "fixture": "nuxt-devtools",
+      "requests": 2
+    },
+    {
+      "id": "express-stack-trace-exposed",
+      "path": "node-express-misconfig.yaml",
+      "sha256": "2c0ed2e7d1b365e4463769122741c66a18c429b3729640dcf69a1915e00240a0",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "express",
+        "nodejs"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "debug-exposure",
+        "info-disclosure"
+      ],
+      "fixture": "express-error",
+      "requests": 3
+    },
+    {
+      "id": "payment-test-credentials-exposed",
+      "path": "payment/test-credentials-exposed.yaml",
+      "sha256": "deb35bb41594c7a94509e3c6ab5381c767816bd2396ee1cded8e10c95934f58e",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "fintech",
+        "payment"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith",
+        "spa",
+        "ssr"
+      ],
+      "coverage": [
+        "payment-security",
+        "secret-exposure"
+      ],
+      "fixture": "payment-test-secret",
+      "requests": 6
+    },
+    {
+      "id": "payment-live-credentials-exposed",
+      "path": "payment-gateway-misconfig.yaml",
+      "sha256": "6e009bd600955cfbeafd346c4733018f0a6beedca6e0a3f12a88edbd84cfb7a1",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "fintech",
+        "payment"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith",
+        "spa",
+        "ssr"
+      ],
+      "coverage": [
+        "payment-security",
+        "secret-exposure"
+      ],
+      "fixture": "payment-live-secret",
+      "requests": 6
+    },
+    {
+      "id": "celery-flower-exposed",
+      "path": "python/celery-flower-exposed.yaml",
+      "sha256": "90c724eff1e341a37c963d260cefaf858f043360ce81b13af9d4605470b8094d",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "celery",
+        "python"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "attack-surface",
+        "worker-exposure"
+      ],
+      "fixture": "celery-flower",
+      "requests": 3
+    },
+    {
+      "id": "django-admin-login-surface",
+      "path": "python/django-admin-surface.yaml",
+      "sha256": "0ea52411febcb3e42cf30d1778adcad20e6f3bb1419497597e8b33a2f4cc71b9",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "django",
+        "python"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith"
+      ],
+      "coverage": [
+        "admin-panel",
+        "attack-surface"
+      ],
+      "fixture": "django-admin",
+      "requests": 2
+    },
+    {
+      "id": "django-debug-exposed",
+      "path": "python/django-debug-exposed.yaml",
+      "sha256": "7a5f28d40647a07c9de531edb445c88a2244ec255c4721d001c7b44ea3149cd2",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "django",
+        "python"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith"
+      ],
+      "coverage": [
+        "debug-exposure",
+        "info-disclosure"
+      ],
+      "fixture": "django-debug",
+      "requests": 4
+    },
+    {
+      "id": "flask-werkzeug-debugger-exposed",
+      "path": "python/flask-debugger-exposed.yaml",
+      "sha256": "45601131b23996f10eb2bcabfee1752464e19c57e2324a90f899c6f89cfcd960",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "flask",
+        "python"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith"
+      ],
+      "coverage": [
+        "debug-exposure",
+        "rce-prerequisite"
+      ],
+      "fixture": "flask-debugger",
+      "requests": 2
+    },
+    {
+      "id": "python-environment-secret-exposed",
+      "path": "python/python-env-secret-exposed.yaml",
+      "sha256": "3d73f1db4637e18d729d0aa1c295ed97dfab04362d3dedae8050a1adc58e717b",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "django",
+        "fastapi",
+        "flask",
+        "python"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "configuration-exposure",
+        "secret-exposure"
+      ],
+      "fixture": "python-env",
+      "requests": 5
+    },
+    {
+      "id": "fastapi-openapi-documentation",
+      "path": "python-fastapi-misconfig.yaml",
+      "sha256": "2df5ad43c6d15fe9a81a74b80d179371e8c0f9996e07d578b2f5da0bbb82e5ab",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "fastapi",
+        "python"
+      ],
+      "protocols": [
+        "http",
+        "rest"
+      ],
+      "architectures": [],
+      "coverage": [
+        "api-discovery",
+        "documentation-exposure"
+      ],
+      "fixture": "fastapi-docs",
+      "requests": 8
+    },
+    {
+      "id": "rails-route-list-exposed",
+      "path": "rails/rails-routes-exposed.yaml",
+      "sha256": "38e515e430f2be5d47c2a5286598ead2a18371cf9940e5460595773d04854f4a",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "rails"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith"
+      ],
+      "coverage": [
+        "attack-surface",
+        "route-disclosure"
+      ],
+      "fixture": "rails-routes",
+      "requests": 1
+    },
+    {
+      "id": "rails-secret-config-exposed",
+      "path": "rails/rails-secret-config-exposed.yaml",
+      "sha256": "681208b8b49df3e5d6e331e27a11942a84538b30b287aac789416781bfd7568b",
+      "severity": "high",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "rails",
+        "ruby"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith"
+      ],
+      "coverage": [
+        "configuration-exposure",
+        "secret-exposure"
+      ],
+      "fixture": "rails-secret",
+      "requests": 5
+    },
+    {
+      "id": "sidekiq-dashboard-exposed",
+      "path": "rails/sidekiq-dashboard-exposed.yaml",
+      "sha256": "1e3732bd06442be4307694bf5d03cbde6c1639ab9582ef30e6cd0f603c06ef58",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "rails",
+        "sidekiq"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "attack-surface",
+        "worker-exposure"
+      ],
+      "fixture": "sidekiq",
+      "requests": 2
+    },
+    {
+      "id": "rails-development-info-exposed",
+      "path": "rails-misconfig.yaml",
+      "sha256": "f7433587a6e72ff84a16c68fd55d97adcf33a46f40177e615a1772f254441fef",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "rails",
+        "ruby"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "monolith"
+      ],
+      "coverage": [
+        "debug-exposure",
+        "info-disclosure"
+      ],
+      "fixture": "rails-info",
+      "requests": 4
+    },
+    {
+      "id": "spring-actuator-environment-exposed",
+      "path": "spring/actuator-environment-exposed.yaml",
+      "sha256": "4c627e7d2084e1d6ae09020a8c026816536e4c794b0e067ebe790227d1f8529e",
+      "severity": "high",
+      "risk": "sensitive-data",
+      "auth": "none",
+      "stacks": [
+        "java",
+        "spring"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "configuration-exposure",
+        "sensitive-data-exposure"
+      ],
+      "fixture": "spring-env",
+      "requests": 2
+    },
+    {
+      "id": "spring-actuator-health-details",
+      "path": "spring/actuator-health-details.yaml",
+      "sha256": "23fec32d811b91835a9bd6bd736ab2ba9180d903156f3cbddd44f7a1bb93b543",
+      "severity": "low",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "java",
+        "spring"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "attack-surface",
+        "info-disclosure"
+      ],
+      "fixture": "spring-health",
+      "requests": 3
+    },
+    {
+      "id": "spring-actuator-mappings-exposed",
+      "path": "spring/actuator-mappings-exposed.yaml",
+      "sha256": "60352ec390295b2a39023384fa0352116ae1c06bf4af57c04f59810a6742c20d",
+      "severity": "medium",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "java",
+        "spring"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [
+        "microservices",
+        "monolith"
+      ],
+      "coverage": [
+        "attack-surface",
+        "route-disclosure"
+      ],
+      "fixture": "spring-mappings",
+      "requests": 2
+    },
+    {
+      "id": "vtex-admin-login-surface",
+      "path": "vtex-admin-panel.yaml",
+      "sha256": "d50f719d528a0ca064ba4e15ed6850bf11b3b8258f7cf01cecf17a9d63da5d5d",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "vtex"
+      ],
+      "protocols": [
+        "http"
+      ],
+      "architectures": [],
+      "coverage": [
+        "admin-panel",
+        "attack-surface"
+      ],
+      "fixture": "vtex-admin",
+      "requests": 2
+    },
+    {
+      "id": "vtex-public-api-surface",
+      "path": "vtex-api-exposed.yaml",
+      "sha256": "804800d66908416bd82c34da2c84889f421d04b0d320cc438bc39e5fcc5ffe44",
+      "severity": "info",
+      "risk": "safe",
+      "auth": "none",
+      "stacks": [
+        "vtex"
+      ],
+      "protocols": [
+        "http",
+        "rest"
+      ],
+      "architectures": [],
+      "coverage": [
+        "api-discovery",
+        "attack-surface"
+      ],
+      "fixture": "vtex-api",
+      "requests": 4
+    }
+  ]
+}

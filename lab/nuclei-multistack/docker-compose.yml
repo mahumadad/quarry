@@ -1,0 +1,32 @@
+name: pentest-nuclei-lab
+services:
+  fastapi-vulnerable:
+    build: ./fastapi
+    environment:
+      LAB_MODE: vulnerable
+    ports: ["127.0.0.1:18081:8000"]
+  fastapi-secure:
+    build: ./fastapi
+    environment:
+      LAB_MODE: secure
+    ports: ["127.0.0.1:18084:8000"]
+  django-vulnerable:
+    build: ./django
+    environment:
+      LAB_MODE: vulnerable
+    ports: ["127.0.0.1:18082:8000"]
+  django-secure:
+    build: ./django
+    environment:
+      LAB_MODE: secure
+    ports: ["127.0.0.1:18085:8000"]
+  express-vulnerable:
+    build: ./express
+    environment:
+      LAB_MODE: vulnerable
+    ports: ["127.0.0.1:18083:3000"]
+  express-secure:
+    build: ./express
+    environment:
+      LAB_MODE: secure
+    ports: ["127.0.0.1:18086:3000"]

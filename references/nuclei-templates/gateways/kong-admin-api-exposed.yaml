@@ -1,0 +1,31 @@
+id: kong-admin-api-exposed
+info:
+  name: Kong Admin API Exposed
+  author: pentest-plugin
+  severity: high
+  description: Detects Kong Admin API identity and configuration collections on a supplied admin origin.
+  tags: kong,api-gateway,exposure,microservices
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: kong
+    protocols: http,rest
+    architectures: api-gateway,microservices
+    coverage: gateway-exposure,configuration-exposure
+    fixture: kong-admin
+    max-request: 3
+http:
+  - method: GET
+    path: ["{{BaseURL}}/", "{{BaseURL}}/services", "{{BaseURL}}/routes"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Welcome to kong", '"services"', '"routes"']
+        condition: or
+      - type: regex
+        part: body
+        regex: ['"(tagline|version|data|next)"\s*:']

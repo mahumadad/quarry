@@ -35,6 +35,15 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from .http_client import ProtectedHTTPClient
+    from .redaction import redact
+    from .storage import atomic_write_json
+except ImportError:
+    from http_client import ProtectedHTTPClient
+    from redaction import redact
+    from storage import atomic_write_json
+
 TEMPLATE_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}")
 
 
@@ -130,11 +139,15 @@ def extract_all(data, path: str) -> list:
 # ---- runner ----
 
 class WorkflowRunner:
-    def __init__(self, flow: dict, audit_dir: str = "."):
+    def __init__(self, flow: dict, audit_dir: str = ".", run_id: str = "workflow",
+                 approved_digest: str = ""):
         self.flow = flow
         self.base_url = (flow.get("base_url") or "").rstrip("/")
         self.variables = dict(flow.get("vars") or {})
         self.audit_dir = Path(audit_dir)
+        self.run_id = run_id
+        self.approved_digest = approved_digest
+        self.http = ProtectedHTTPClient(audit_dir)
         self.transcript = RunTranscript(flow=flow.get("name", "unnamed"),
                                         base_url=self.base_url)
 
@@ -182,18 +195,14 @@ class WorkflowRunner:
             body = urlencode(render(step["data"], self.variables)).encode()
         result = StepResult(name=name, method=step.get("method", "GET"), url=url,
                             request_body=body.decode(errors="replace") if body else "")
-        req = urllib.request.Request(url, data=body, method=result.method,
-                                     headers=headers)
         start = time.time()
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                result.status = resp.status
-                result.response_body = resp.read().decode(errors="replace")[:5000]
-        except urllib.error.HTTPError as e:
-            result.status = e.code
-            result.response_body = e.read().decode(errors="replace")[:5000]
-        except Exception as e:
-            result.error = f"{type(e).__name__}: {e}"
+        response = self.http.request(result.method, url, headers=headers, body=body,
+            timeout=15, dangerous=bool(step.get("dangerous") or self.flow.get("dangerous")),
+            approved_digest=self.approved_digest, run_id=self.run_id, task_id=name)
+        result.status = response["status"]
+        result.error = response["error"]
+        # Keep the full in-memory body for invariants; _save bounds the JSON view.
+        result.response_body = response["body"].decode(errors="replace")
         result.duration_ms = round((time.time() - start) * 1000, 1)
         return result
 
@@ -286,8 +295,12 @@ class WorkflowRunner:
         out_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         safe = re.sub(r"[^a-zA-Z0-9-]", "-", self.transcript.flow)
-        (out_dir / f"{safe}-{ts}.json").write_text(
-            json.dumps(asdict(self.transcript), indent=2, ensure_ascii=False))
+        view = redact(asdict(self.transcript))
+        for step in view["steps"]:
+            for field_name in ("request_body", "response_body"):
+                if len(step[field_name]) > 5000:
+                    step[field_name] = step[field_name][:5000] + "\n[VIEW TRUNCATED — full artifact in raw/]"
+        atomic_write_json(out_dir / f"{safe}-{ts}.json", view)
 
 
 def load_flow(path: str) -> dict:

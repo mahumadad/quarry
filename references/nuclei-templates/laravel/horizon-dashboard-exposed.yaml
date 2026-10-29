@@ -1,0 +1,32 @@
+id: laravel-horizon-dashboard-exposed
+info:
+  name: Laravel Horizon Dashboard Exposed
+  author: pentest-plugin
+  severity: medium
+  description: Detects Horizon dashboards without retrying, deleting or creating jobs.
+  tags: php,laravel,horizon,queue,exposure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: php,laravel,horizon
+    protocols: http
+    architectures: monolith,microservices
+    coverage: worker-exposure,attack-surface
+    fixture: laravel-horizon
+    max-request: 3
+http:
+  - method: GET
+    path: ["{{BaseURL}}/horizon", "{{BaseURL}}/horizon/dashboard", "{{BaseURL}}/horizon/api/stats"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Laravel Horizon", '"horizon"', "Horizon"]
+        condition: or
+      - type: word
+        part: body
+        words: ["jobs", "queues", "workload", "failed"]
+        condition: or

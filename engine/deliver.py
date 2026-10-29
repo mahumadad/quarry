@@ -19,8 +19,11 @@ import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .storage import atomic_write_json
+
 
 EXCLUDE_PATTERNS = {".DS_Store", "__pycache__"}
+EXCLUDE_FILES = {"manifest.json", "vault.json", "vault.key"}
 
 
 def hash_file(path: Path) -> str:
@@ -36,7 +39,10 @@ def build_manifest(deliverable_dir: str) -> dict:
     root = Path(deliverable_dir)
     files = {}
     for p in sorted(root.rglob("*")):
-        if p.is_file() and not any(x in p.parts for x in EXCLUDE_PATTERNS):
+        if p.is_symlink():
+            continue
+        if (p.is_file() and p.name not in EXCLUDE_FILES
+                and not any(x in p.parts for x in EXCLUDE_PATTERNS)):
             files[str(p.relative_to(root))] = {
                 "sha256": hash_file(p),
                 "bytes": p.stat().st_size,
@@ -51,7 +57,7 @@ def build_manifest(deliverable_dir: str) -> dict:
     manifest["manifest_sha256"] = hashlib.sha256(
         json.dumps(files, sort_keys=True).encode()
     ).hexdigest()
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    atomic_write_json(manifest_path, manifest)
     return manifest
 
 
@@ -76,17 +82,22 @@ def verify_manifest(deliverable_dir: str) -> dict:
 
 def bundle(deliverable_dir: str, out_path: str,
            gpg_recipient: str = "", gpg_symmetric: bool = False) -> dict:
-    """Create a .tar.gz bundle (+ optional .gpg) of the deliverable."""
+    """Create a bundle containing exactly the attested files, never excluded secrets."""
     root = Path(deliverable_dir)
-    build_manifest(str(root))
+    manifest = build_manifest(str(root))
 
     tar_path = Path(out_path)
     tar_path.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(tar_path, "w:gz") as tar:
-        tar.add(root, arcname=root.name)
+        for relative in sorted(manifest["files"]):
+            tar.add(root / relative, arcname=f"{root.name}/{relative}", recursive=False)
+        tar.add(root / "manifest.json", arcname=f"{root.name}/manifest.json", recursive=False)
 
+    verification = verify_manifest(str(root))
+    if not verification["intact"]:
+        raise RuntimeError(f"Deliverable changed while bundling: {verification}")
     result = {"bundle": str(tar_path), "bundle_sha256": hash_file(tar_path),
-              "encrypted": False}
+              "encrypted": False, "manifest_verified": True}
 
     if (gpg_recipient or gpg_symmetric) and shutil.which("gpg"):
         gpg_path = tar_path.with_suffix(tar_path.suffix + ".gpg")
@@ -101,8 +112,8 @@ def bundle(deliverable_dir: str, out_path: str,
             result["encrypted"] = True
             result["encrypted_bundle"] = str(gpg_path)
         else:
-            result["encryption_error"] = proc.stderr.strip()
+            raise RuntimeError(f"Requested encryption failed; bundle not deliverable: {proc.stderr.strip()}")
     elif gpg_recipient or gpg_symmetric:
-        result["encryption_error"] = "gpg not available — bundle left unencrypted"
+        raise RuntimeError("Requested encryption but gpg is unavailable; bundle not deliverable")
 
     return result

@@ -12,7 +12,7 @@
       "event": "PreToolUse",
       "tool_name": "Bash",
       "commands": [
-        "python3 ${CLAUDE_PLUGIN_ROOT}/engine/guard.py --command \"$TOOL_INPUT\""
+        "python3 ${CLAUDE_PLUGIN_ROOT}/engine/guard.py --audit-dir \"$PWD\" --command \"$TOOL_INPUT\""
       ]
     }
   ]

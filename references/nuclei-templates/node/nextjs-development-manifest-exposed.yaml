@@ -1,0 +1,32 @@
+id: nextjs-development-manifest-exposed
+info:
+  name: Next.js Development Build Manifest Exposed
+  author: pentest-plugin
+  severity: low
+  description: Detects development build manifests and client route metadata.
+  tags: nodejs,nextjs,development,info-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: nodejs,nextjs,react
+    protocols: http
+    architectures: ssr,spa
+    coverage: development-exposure,route-disclosure
+    fixture: nextjs-manifest
+    max-request: 3
+http:
+  - method: GET
+    path: ["{{BaseURL}}/_next/static/development/_buildManifest.js", "{{BaseURL}}/_next/static/development/_ssgManifest.js", "{{BaseURL}}/_next/static/development/_middlewareManifest.js"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["__BUILD_MANIFEST", "__SSG_MANIFEST", "__MIDDLEWARE_MANIFEST"]
+        condition: or
+      - type: word
+        part: body
+        words: ["self.", "static/chunks", "sortedPages"]
+        condition: or

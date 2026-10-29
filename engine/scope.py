@@ -8,6 +8,11 @@ import re
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
+try:
+    from .storage import atomic_write_json
+except ImportError:
+    from storage import atomic_write_json
+
 
 @dataclass
 class ScopeEntry:
@@ -39,18 +44,25 @@ class Scope:
         return False
 
     def _matches(self, target: str, entry: ScopeEntry) -> bool:
-        pattern = entry.pattern
+        from urllib.parse import urlsplit
+        pattern = entry.pattern.rstrip("/")
+        parsed = urlsplit(target if "://" in target else f"//{target}")
+        host = (parsed.hostname or target).lower().rstrip(".")
+        normalized_url = target.lower().rstrip("/")
         if entry.type == "wildcard":
             regex = re.escape(pattern).replace(r"\*", ".*")
-            return bool(re.fullmatch(regex, target, re.IGNORECASE))
+            return bool(re.fullmatch(regex, target, re.IGNORECASE) or
+                        re.fullmatch(regex, host, re.IGNORECASE))
         if entry.type == "domain":
-            return (
-                target.lower() == pattern.lower()
-                or target.lower().endswith("." + pattern.lower())
-            )
+            domain = pattern.lower().rstrip(".")
+            return host == domain or host.endswith("." + domain)
         if entry.type == "cidr":
-            return self._ip_in_cidr(target, pattern)
-        return target.lower() == pattern.lower()
+            return self._ip_in_cidr(host, pattern)
+        if entry.type == "ip":
+            return host == pattern.lower()
+        if entry.type == "url":
+            return normalized_url == pattern.lower() or normalized_url.startswith(pattern.lower() + "/")
+        return normalized_url == pattern.lower()
 
     @staticmethod
     def _ip_in_cidr(ip: str, cidr: str) -> bool:
@@ -75,16 +87,31 @@ class Scope:
 
     @staticmethod
     def _extract_targets(command: str) -> list[str]:
-        """Best-effort extraction of IPs, domains and URLs from a command string."""
-        targets = []
+        """Extract network targets without treating local filenames as domains."""
+        import shlex
+
+        targets = re.findall(r"https?://[^\s'\"<>]+", command, flags=re.IGNORECASE)
+        try:
+            tokens = shlex.split(command)
+        except ValueError:
+            tokens = command.split()
+        file_suffixes = {".yaml", ".yml", ".json", ".jsonl", ".txt", ".xml",
+                         ".csv", ".sarif", ".html", ".js", ".map", ".lock"}
+        searchable = command
+        for token in tokens:
+            if token.startswith(("http://", "https://")):
+                continue
+            path = Path(token)
+            if path.suffix.lower() in file_suffixes or ("/" in token and path.suffix):
+                searchable = searchable.replace(token, " ")
         ip_re = re.compile(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b")
-        targets.extend(ip_re.findall(command))
+        targets.extend(ip_re.findall(searchable))
         domain_re = re.compile(
             r"\b([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"
             r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*"
             r"\.[a-zA-Z]{2,})\b"
         )
-        for m in domain_re.finditer(command):
+        for m in domain_re.finditer(searchable):
             d = m.group(1)
             if d not in targets and not d.startswith("0.") and "." in d:
                 targets.append(d)
@@ -92,12 +119,12 @@ class Scope:
 
     def save(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({
+        atomic_write_json(path, {
             "in_scope": [asdict(e) for e in self.in_scope],
             "out_of_scope": [asdict(e) for e in self.out_of_scope],
             "rules": self.rules,
             "authorization": self.authorization,
-        }, indent=2))
+        })
 
     @classmethod
     def load(cls, path: Path) -> "Scope":

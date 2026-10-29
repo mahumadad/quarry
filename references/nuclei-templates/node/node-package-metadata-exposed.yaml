@@ -1,0 +1,31 @@
+id: node-package-metadata-exposed
+info:
+  name: Node Package Metadata Exposed
+  author: pentest-plugin
+  severity: low
+  description: Detects package manifests or lockfiles with dependency metadata.
+  tags: nodejs,express,nestjs,dependency-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: nodejs,express,nestjs,nextjs,nuxtjs
+    protocols: http
+    coverage: dependency-disclosure,fingerprint
+    fixture: node-package
+    max-request: 4
+http:
+  - method: GET
+    path: ["{{BaseURL}}/package.json", "{{BaseURL}}/package-lock.json", "{{BaseURL}}/yarn.lock", "{{BaseURL}}/node_modules/.package-lock.json"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ['"dependencies"', '"devDependencies"', '"lockfileVersion"', "__metadata"]
+        condition: or
+      - type: word
+        part: body
+        words: ['"name"', '"packages"', '"version"', "yarn lockfile"]
+        condition: or

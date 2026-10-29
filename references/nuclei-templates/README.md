@@ -1,80 +1,69 @@
-# Custom Nuclei Templates
+# Templates Nuclei revisados
 
-Templates propios para plataformas que **no tienen cobertura** en los repos community.
+Catálogo local de checks atómicos para reconocimiento autorizado. La unidad de selección no es “ejecutar todo el framework”, sino **stack + protocolo + arquitectura + autenticación + riesgo**.
 
-## Inventario
+## Contrato de ejecución
 
-| Template | Plataforma | Severidad | Qué detecta |
-|---|---|---|---|
-| `magento-admin-exposed.yaml` | Magento 2 | low | Panel admin accesible (/admin, /backend, variantes) |
-| `magento-api-exposed.yaml` | Magento 2 | medium | REST API sin autenticación (storeConfigs, countries, currency, websites) |
-| `vtex-admin-panel.yaml` | VTEX | low | Panel admin / VTEX ID login expuesto |
-| `vtex-api-exposed.yaml` | VTEX | medium | APIs públicas (catalog, checkout, Master Data, sessions, IO) |
-| `graphql-introspection.yaml` | GraphQL | medium | Introspection habilitada → schema completo |
-| `graphql-batch-query.yaml` | GraphQL | medium | Batch queries aceptadas → DoS / brute force / rate-limit bypass |
-| `graphql-field-suggestions.yaml` | GraphQL | low | Sugerencias de campos en errores → enum sin introspection |
-| `fintech-api-exposed.yaml` | Fintech | medium | APIs financieras expuestas (accounts, transactions, portfolios, docs) |
-| `payment-gateway-misconfig.yaml` | Payment | high | Keys de Stripe/MercadoPago/Transbank en JS, webhooks sin firma |
-| `rails-misconfig.yaml` | Rails | medium | Debug mode, rutas expuestas, Sidekiq, config leaks |
-| `node-express-misconfig.yaml` | Node/Express | medium | Source maps, package.json, .env, GraphQL playground |
-| `python-fastapi-misconfig.yaml` | Python | medium | FastAPI docs, Django debug, Flask Werkzeug, Celery Flower |
-
-## Uso
-
-### Con cent (dentro del contenedor kali)
-
-cent descarga automáticamente los repos community al primer arranque. Para agregar
-estos templates custom al path de nuclei:
+- Índice hash-locked: `references/nuclei-manifest.json`, fuera de la carpeta que recibe Nuclei.
+- Selector: `engine/nuclei_templates.py` sobre `AppProfile`.
+- Runner: `engine/nuclei_runner.py`, con scope, ventana, aprobaciones, `-dr`, `-ni`, límites y JSONL.
+- Evidencia: `ArtifactStore` y `.pentest-state/nuclei-coverage.json`.
+- Todo match es un **lead**, no un finding. Cero matches no demuestra ausencia.
+- Community no forma parte del catálogo revisado. Se revisa y fija por versión de forma puntual; no se ejecuta en bulk ni se actualiza ciegamente.
 
 ```bash
-# Copiar templates custom al directorio de nuclei
-cp /ruta/a/estos/templates/*.yaml /root/nuclei-templates/custom/
+# Validar política, hashes y estructura local
+python -m engine.nuclei_templates validate
 
-# Correr nuclei con templates custom + community
-nuclei -u https://target.com -t /root/nuclei-templates/custom/ -t /root/nuclei-templates/community/
+# Revisar selección sin tocar el target
+python -m engine.nuclei_runner --audit-dir <audit> --target https://target.example \
+  --run-id <run> --plan-only
+
+# Ejecutar solo checks safe seleccionados por AppProfile
+python -m engine.nuclei_runner --audit-dir <audit> --target https://target.example \
+  --run-id <run> --risk safe
+
+# Después de revisar conscientemente un cambio de templates
+python -m engine.nuclei_templates refresh
+nuclei -validate -duc -t references/nuclei-templates/
 ```
 
-### Directamente con nuclei
+## Cobertura actual: 40 checks
 
-```bash
-# Un template específico
-nuclei -u https://target.com -t graphql-introspection.yaml
+| Familia | Checks | Alcance |
+|---|---:|---|
+| Python / FastAPI / Django / Flask / Celery | 6 | OpenAPI, admin, debug, secretos y Flower |
+| Node / Express / Nest / Next / Nuxt / colas | 8 | Stack traces, secretos, source maps, manifests, devtools, OpenAPI y Bull Board |
+| Rails / Sidekiq | 4 | Debug, rutas, secretos y dashboard |
+| GraphQL | 3 | Introspection, batching read-only y field suggestions |
+| Magento / VTEX | 4 | Superficie admin y APIs públicas sin consultar clientes |
+| Fintech / pagos | 4 | OpenAPI, secretos live/test y datos financieros con gate |
+| Spring | 3 | Health detallado, mappings y environment con gate |
+| Laravel / Horizon | 3 | Ignition, secretos y dashboard |
+| ASP.NET | 2 | Developer Exception Page y connection strings |
+| Kong / Traefik / Envoy | 3 | Admin/API/gateway; Envoy requiere gate de datos sensibles |
 
-# Todos los custom de una plataforma
-nuclei -u https://target.com -t /path/to/templates/ -tags vtex
+## Niveles de riesgo
 
-# Filtrar por severidad
-nuclei -u https://target.com -t /path/to/templates/ -severity medium,high
-```
+- `safe`: GET o GraphQL read-only, sin redirects ni destinos externos.
+- `authenticated`: requiere mecanismo e identidad declarados en AppProfile.
+- `sensitive-data`: lectura que puede devolver secretos, datos financieros o configuración interna; exige aprobación exacta.
+- `state-changing` y `oast`: la política los reconoce para futuros casos revisados, pero el catálogo actual no los incluye.
 
-### Tags disponibles
+## Reglas de calidad
 
-- `magento` — templates de Magento 2
-- `vtex` — templates de VTEX
-- `graphql` — templates de GraphQL
-- `api` — detección de APIs expuestas
-- `ecommerce` — todas las de e-commerce (magento + vtex)
-- `fintech` — APIs y endpoints financieros
-- `payment` — payment gateways (Stripe, MercadoPago, Transbank)
-- `rails` — Ruby on Rails
-- `nodejs` / `express` — Node.js / Express
-- `python` / `fastapi` / `django` / `flask` — Python frameworks
+Cada YAML debe tener:
 
-## Repos community (vía cent)
+1. `reviewed: true`, riesgo, stacks, cobertura y fixture en `info.metadata`.
+2. Solo `id`, `info` e `http`; sin code/file/headless/workflow/javascript.
+3. Rutas derivadas exclusivamente de `{{BaseURL}}/`, sin otro host, puerto, redirect ni path traversal.
+4. Solo GET, salvo GraphQL read-only sin mutations/subscriptions.
+5. `matchers-condition: and`, status y contenido específico. HTTP 200 aislado está prohibido.
+6. Severidad acorde: admin/docs/API públicas = `info`; exposición esperada no se vende como vulnerabilidad.
+7. Positivo, negativo, soft-404/login y evidencia de prueba sin secretos reales.
 
-El archivo `/root/.config/cent/.cent.yaml` en el contenedor kali incluye:
+## Lo que Nuclei no cubre
 
-| Repo | Qué aporta |
-|---|---|
-| `projectdiscovery/nuclei-templates` | Repo oficial (~8k templates) |
-| `topscoder/nuclei-wordfence-cve` | CVEs de WordPress (Wordfence feed) |
-| `rxerium/rxerium-templates` | Templates community verificados |
-| `0xAwali/Blind-SSRF` | Detección de Blind SSRF |
+IDOR, autorización entre roles, lógica de negocio, race conditions, cadenas complejas y validación de webhooks con efectos siguen en skills manuales/browser. gRPC, WebSocket y serverless interno requieren técnicas específicas; no se declara cobertura genérica inexistente.
 
-## Nota de seguridad
-
-Requiere **nuclei ≥ 3.8.0** por:
-- GHSA-29rg-wmcw-hpf4 — leak de JS en templates
-- GHSA-jm34-66cf-qpvr — RCE por expression injection desde templates maliciosos
-
-Nunca correr templates de fuentes no verificadas sin revisión previa.
+Los paths fijos de bundles son solo un pase mínimo. El crawl y `js-analysis` deben analizar los assets realmente descubiertos; no asumir que `main.js` agota la cobertura.

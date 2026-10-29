@@ -12,6 +12,11 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from .storage import atomic_write_json
+except ImportError:
+    from storage import atomic_write_json
+
 
 @dataclass
 class Checkpoint:
@@ -46,10 +51,10 @@ class CheckpointManager:
 
     def _save(self):
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        self.checkpoint_file.write_text(json.dumps({
+        atomic_write_json(self.checkpoint_file, {
             "checkpoints": [asdict(c) for c in self._checkpoints],
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, indent=2))
+        })
 
     def create(
         self,
@@ -84,6 +89,13 @@ class CheckpointManager:
         return None
 
     def resume_plan(self) -> dict:
+        # The run journal is authoritative; legacy checkpoints remain a fallback.
+        if (self.state_dir / "runs.json").exists():
+            try:
+                from .orchestrator import Orchestrator
+            except ImportError:
+                from orchestrator import Orchestrator
+            return Orchestrator(self.state_dir.parent).resume_plan()
         cp = self.latest()
         if not cp:
             return {"skip_skills": [], "resume_at": "", "phase": "", "findings_at_checkpoint": 0}

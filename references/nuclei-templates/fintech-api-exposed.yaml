@@ -1,71 +1,40 @@
-id: fintech-api-exposed
-
+id: fintech-openapi-documentation
 info:
-  name: Fintech API Endpoints Exposed
+  name: Financial API Documentation Surface
   author: pentest-plugin
-  severity: medium
-  description: |
-    Detects exposed API endpoints common in fintech platforms (investment,
-    banking, payment processing). Targets Plaid, Stripe, MercadoPago,
-    Fintual-style APIs, and generic financial REST patterns.
-  tags: fintech,api,exposure,payment
-
+  severity: info
+  description: Identifies OpenAPI documentation; does not infer financial data exposure from HTTP 200.
+  tags: fintech,api,openapi,attack-surface
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: fintech,payment
+    protocols: http,rest
+    coverage: api-discovery,documentation-exposure
+    fixture: openapi-docs
+    max-request: 8
 http:
   - method: GET
     path:
-      # Generic fintech API patterns
-      - "{{BaseURL}}/api/v1/accounts"
-      - "{{BaseURL}}/api/v1/transactions"
-      - "{{BaseURL}}/api/v1/balances"
-      - "{{BaseURL}}/api/v1/investments"
-      - "{{BaseURL}}/api/v1/portfolios"
-      - "{{BaseURL}}/api/v1/funds"
-      - "{{BaseURL}}/api/v1/movements"
-      - "{{BaseURL}}/api/v2/accounts"
-      - "{{BaseURL}}/api/v2/transactions"
-
-      # Swagger/OpenAPI docs
-      - "{{BaseURL}}/api/docs"
-      - "{{BaseURL}}/api/swagger"
       - "{{BaseURL}}/api/swagger.json"
       - "{{BaseURL}}/api/openapi.json"
-      - "{{BaseURL}}/api/v1/docs"
+      - "{{BaseURL}}/api/v1/openapi.json"
+      - "{{BaseURL}}/openapi.json"
+      - "{{BaseURL}}/api/docs"
       - "{{BaseURL}}/docs"
       - "{{BaseURL}}/swagger-ui/"
       - "{{BaseURL}}/swagger-ui/index.html"
-      - "{{BaseURL}}/redoc"
-
-      # Health/status endpoints
-      - "{{BaseURL}}/api/health"
-      - "{{BaseURL}}/api/status"
-      - "{{BaseURL}}/api/v1/health"
-      - "{{BaseURL}}/healthz"
-      - "{{BaseURL}}/_health"
-
     stop-at-first-match: false
-    matchers-condition: or
+    matchers-condition: and
     matchers:
-      - type: word
-        words:
-          - "swagger"
-          - "openapi"
-          - "\"paths\""
-          - "\"info\""
-        condition: or
-        part: body
-
-      - type: word
-        words:
-          - "account_id"
-          - "balance"
-          - "portfolio"
-          - "investment"
-          - "fund_id"
-          - "transactions"
-          - "movements"
-        condition: or
-        part: body
-
       - type: status
-        status:
-          - 200
+        status: [200]
+      - type: word
+        part: body
+        words: ["openapi", "swagger", "OpenAPI", "Swagger UI"]
+        condition: or
+      - type: word
+        part: body
+        words: ['"paths"', '"info"', "SwaggerUIBundle", "swagger-ui"]
+        condition: or

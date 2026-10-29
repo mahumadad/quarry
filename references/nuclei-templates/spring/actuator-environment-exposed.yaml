@@ -1,0 +1,31 @@
+id: spring-actuator-environment-exposed
+info:
+  name: Spring Actuator Environment Exposed
+  author: pentest-plugin
+  severity: high
+  description: Gated read-only check for environment properties that may contain secrets.
+  tags: java,spring,actuator,sensitive-data
+  metadata:
+    reviewed: true
+    risk: sensitive-data
+    stacks: java,spring
+    protocols: http
+    architectures: monolith,microservices
+    coverage: sensitive-data-exposure,configuration-exposure
+    fixture: spring-env
+    max-request: 2
+http:
+  - method: GET
+    path: ["{{BaseURL}}/actuator/env", "{{BaseURL}}/env"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ['"propertySources"', '"properties"']
+        condition: and
+      - type: regex
+        part: body
+        regex: ['(?i)"(password|secret|token|spring.datasource.url)"\s*:']

@@ -1,42 +1,34 @@
-id: vtex-admin-panel
-
+id: vtex-admin-login-surface
 info:
-  name: VTEX Admin Panel Exposed
+  name: VTEX Admin Login Surface
   author: pentest-plugin
-  severity: low
-  description: |
-    Detecta panel de administración de VTEX accesible. En VTEX el /admin
-    redirige al login de VTEX ID. La presencia confirma que es una tienda
-    VTEX y permite intentar acceso con credenciales filtradas.
-  tags: vtex,admin,panel,exposure,ecommerce
-  reference:
-    - https://developers.vtex.com/
+  severity: info
+  description: Identifies VTEX admin login content without following redirects or attempting authentication.
+  tags: vtex,admin,panel,fingerprint,ecommerce
   metadata:
-    verified: true
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: vtex
+    protocols: http
+    coverage: attack-surface,admin-panel
+    fixture: vtex-admin
     max-request: 2
-
 http:
   - method: GET
     path:
       - "{{BaseURL}}/admin"
       - "{{BaseURL}}/admin/Site/FullCleanUp.aspx"
-
     stop-at-first-match: true
-    redirects: true
-    max-redirects: 3
-
     matchers-condition: and
     matchers:
+      - type: status
+        status: [200]
       - type: word
         part: body
-        words:
-          - "vtex"
-          - "VTEX"
-          - "vtexid"
-          - "vtex-id"
+        words: ["vtex", "VTEX"]
         condition: or
-
-      - type: status
-        status:
-          - 200
-          - 302
+      - type: word
+        part: body
+        words: ["vtexid", "vtex-id", "VTEX ID"]
+        condition: or

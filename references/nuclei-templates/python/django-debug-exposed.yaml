@@ -1,0 +1,32 @@
+id: django-debug-exposed
+info:
+  name: Django Debug Interface Exposed
+  author: pentest-plugin
+  severity: high
+  description: Detects Django debug toolbar or DEBUG=true exception pages with two framework signals.
+  tags: python,django,debug,info-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: python,django
+    protocols: http
+    architectures: monolith
+    coverage: debug-exposure,info-disclosure
+    fixture: django-debug
+    max-request: 4
+http:
+  - method: GET
+    path: ["{{BaseURL}}/__debug__/", "{{BaseURL}}/__debug__/sql/", "{{BaseURL}}/silk/", "{{BaseURL}}/nonexistent_route_12345"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200, 404, 500]
+      - type: word
+        part: body
+        words: ["Django Debug Toolbar", "DEBUG = True", "You're seeing this error because you have"]
+        condition: or
+      - type: word
+        part: body
+        words: ["djdt", "Django", "Silk Requests"]
+        condition: or

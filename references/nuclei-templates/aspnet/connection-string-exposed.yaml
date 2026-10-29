@@ -1,0 +1,32 @@
+id: aspnet-connection-string-exposed
+info:
+  name: ASP.NET Connection String Exposed
+  author: pentest-plugin
+  severity: high
+  description: Detects concrete database credentials in publicly served ASP.NET configuration.
+  tags: aspnet,dotnet,secret-exposure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: aspnet,dotnet
+    protocols: http
+    coverage: secret-exposure,configuration-exposure
+    fixture: aspnet-config
+    max-request: 4
+http:
+  - method: GET
+    path: ["{{BaseURL}}/appsettings.json", "{{BaseURL}}/appsettings.Production.json", "{{BaseURL}}/web.config", "{{BaseURL}}/.env"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: regex
+        part: body
+        regex:
+          - "(?i)(Password|Pwd)\\s*=\\s*[^;\"'\\r\\n]{8,}"
+        condition: or
+      - type: word
+        part: body
+        words: ["ConnectionStrings", "connectionString", "Server=", "Data Source="]
+        condition: or

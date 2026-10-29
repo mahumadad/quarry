@@ -1,92 +1,49 @@
-"""PreToolUse guard for Bash commands.
-
-Validates that commands target in-scope assets and aren't destructive
-without prior human approval. Called by hooks/hooks.json on every Bash call.
-
-Usage: python3 guard.py --command "nmap -sV target.com"
-"""
+"""Fail-closed PreToolUse guard for network/destructive Bash commands."""
+from __future__ import annotations
 
 import argparse
 import json
 import sys
 from pathlib import Path
 
-DESTRUCTIVE_PATTERNS = [
-    "rm -rf", "rm -r", "rmdir",
-    "DROP TABLE", "DROP DATABASE", "DELETE FROM", "TRUNCATE",
-    "mkfs", "dd if=", "format",
-    "> /dev/", "chmod 777",
-    "iptables -F", "iptables --flush",
-]
+try:
+    from .policy import PolicyDenied, command_policy
+except ImportError:
+    from policy import PolicyDenied, command_policy
 
-DANGEROUS_TOOLS = [
-    "msfconsole", "msfvenom", "exploit/",
-    "hydra", "hashcat", "john",
-    "responder", "impacket-",
-    "sqlmap --os-shell", "sqlmap --os-cmd",
-]
-
-BLOCKED_ALWAYS = [
-    "shutdown", "reboot", "halt", "poweroff",
-    "init 0", "init 6",
-]
+BLOCKED_ALWAYS = ("shutdown", "reboot", "halt", "poweroff", "init 0", "init 6")
 
 
-def check_command(command: str, scope_file: str | None = None) -> dict:
-    result = {"allowed": True, "warnings": [], "blocked_reason": None}
-
-    cmd_lower = command.lower().strip()
-
-    for pattern in BLOCKED_ALWAYS:
-        if pattern in cmd_lower:
-            result["allowed"] = False
-            result["blocked_reason"] = f"Blocked: '{pattern}' is never allowed"
-            return result
-
-    for pattern in DESTRUCTIVE_PATTERNS:
-        if pattern.lower() in cmd_lower:
-            result["warnings"].append(
-                f"DESTRUCTIVE: command contains '{pattern}'. "
-                "Requires explicit human approval before execution."
-            )
-
-    for tool in DANGEROUS_TOOLS:
-        if tool.lower() in cmd_lower:
-            result["warnings"].append(
-                f"DANGEROUS TOOL: '{tool}' detected. "
-                "Verify scope and get human approval before exploitation."
-            )
-
-    if scope_file:
-        scope_path = Path(scope_file)
-        if scope_path.exists():
-            try:
-                from scope import Scope
-                scope = Scope.load(scope_path)
-                valid, reason = scope.validate_command(command)
-                if not valid:
-                    result["allowed"] = False
-                    result["blocked_reason"] = f"OUT OF SCOPE: {reason}"
-            except Exception:
-                pass
-
-    return result
+def check_command(command: str, scope_file: str | None = None,
+                  audit_dir: str | None = None, approved_digest: str = "") -> dict:
+    """Backward-compatible API. scope_file selects the engagement containing it."""
+    lowered = command.lower()
+    for marker in BLOCKED_ALWAYS:
+        if marker in lowered:
+            return {"allowed": False, "warnings": [],
+                    "blocked_reason": f"Blocked: '{marker}' is never allowed"}
+    root = audit_dir or (str(Path(scope_file).parent.parent) if scope_file else ".")
+    try:
+        return command_policy(command, root, approved_digest)
+    except PolicyDenied as exc:
+        return {"allowed": False, "warnings": [], "blocked_reason": str(exc)}
+    except Exception as exc:
+        return {"allowed": False, "warnings": [],
+                "blocked_reason": f"Policy engine failure; fail-closed: {type(exc).__name__}: {exc}"}
 
 
 def main():
     parser = argparse.ArgumentParser(description="Pentest command guard")
-    parser.add_argument("--command", required=True, help="Command to validate")
-    parser.add_argument("--scope-file", help="Path to scope.json")
+    parser.add_argument("--command", required=True)
+    parser.add_argument("--scope-file")
+    parser.add_argument("--audit-dir", default=".")
+    parser.add_argument("--approval", default="")
     args = parser.parse_args()
-
-    result = check_command(args.command, args.scope_file)
+    result = check_command(args.command, args.scope_file, args.audit_dir, args.approval)
     print(json.dumps(result))
-
     if not result["allowed"]:
-        sys.exit(1)
-    if result["warnings"]:
-        for w in result["warnings"]:
-            print(f"⚠ {w}", file=sys.stderr)
+        print(result["blocked_reason"], file=sys.stderr)
+        sys.exit(2)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1 @@
+{"version":3,"sources":["src/lab.ts"],"names":["lab"],"mappings":"AAAA","sourcesContent":["export const lab = 'safe-fixture';"]}

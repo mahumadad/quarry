@@ -1,0 +1,32 @@
+id: laravel-ignition-debug-exposed
+info:
+  name: Laravel Ignition Debug Page Exposed
+  author: pentest-plugin
+  severity: high
+  description: Detects Laravel Ignition exception pages without invoking debug actions.
+  tags: php,laravel,ignition,debug
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: php,laravel
+    protocols: http
+    architectures: monolith
+    coverage: debug-exposure,rce-prerequisite
+    fixture: laravel-debug
+    max-request: 2
+http:
+  - method: GET
+    path: ["{{BaseURL}}/nonexistent_route_12345", "{{BaseURL}}/_ignition/health-check"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200, 500]
+      - type: word
+        part: body
+        words: ["Ignition", "Facade\\Ignition", "Spatie\\Ignition"]
+        condition: or
+      - type: word
+        part: body
+        words: ["Stack trace", "Laravel", "exception"]
+        condition: or

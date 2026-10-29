@@ -1,0 +1,35 @@
+id: fintech-customer-data-exposure
+info:
+  name: Unauthenticated Financial Customer Data Exposure
+  author: pentest-plugin
+  severity: high
+  description: Gated read-only check for financial records containing account and transaction identifiers.
+  tags: fintech,api,sensitive-data,authorization
+  metadata:
+    reviewed: true
+    risk: sensitive-data
+    stacks: fintech
+    protocols: http,rest
+    coverage: sensitive-data-exposure,authorization
+    fixture: fintech-records
+    max-request: 4
+http:
+  - method: GET
+    path: ["{{BaseURL}}/api/v1/accounts", "{{BaseURL}}/api/v1/transactions", "{{BaseURL}}/api/v2/accounts", "{{BaseURL}}/api/v2/transactions"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: header
+        words: ["application/json"]
+      - type: regex
+        part: body
+        regex:
+          - '"(account_id|transaction_id)"\s*:\s*"[^"]+"'
+          - '"(iban|account_number)"\s*:\s*"[^"]+"'
+        condition: or
+      - type: regex
+        part: body
+        regex: ['"(balance|amount|currency)"\s*:']

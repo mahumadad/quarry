@@ -1,0 +1,31 @@
+id: spring-actuator-health-details
+info:
+  name: Spring Actuator Detailed Health Exposure
+  author: pentest-plugin
+  severity: low
+  description: Detects health responses exposing internal component details rather than status only.
+  tags: java,spring,actuator,info-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: java,spring
+    protocols: http
+    architectures: monolith,microservices
+    coverage: info-disclosure,attack-surface
+    fixture: spring-health
+    max-request: 3
+http:
+  - method: GET
+    path: ["{{BaseURL}}/actuator/health", "{{BaseURL}}/actuator/health/liveness", "{{BaseURL}}/actuator/health/readiness"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ['"status"', '"components"', '"details"']
+        condition: and
+      - type: regex
+        part: body
+        regex: ['"(db|diskSpace|mongo|redis|rabbit|mail)"\s*:']

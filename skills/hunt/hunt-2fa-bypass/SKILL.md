@@ -88,6 +88,20 @@ chains_with: [hunt-rate-limiting, hunt-session-management, hunt-password-reset]
    curl -s -i -X POST https://target.com/mobile-api/login -d "username=testuser&password=CorrectPass1!"
    ```
 
+10. **Alternative auth flow bypass (device login / auto-login / API keys).** Many apps offer secondary auth flows that bypass the MFA check entirely. Look for:
+    - **Device auto-login tokens**: the "trust this device" flow may issue a long-lived token that grants full access without re-verifying any factor. If the token is obtainable pre-MFA (e.g., via mass-assignment on a user object to set `device_trusted: true`), MFA is completely skipped.
+    - **API keys / personal access tokens**: some platforms let users generate API keys that authenticate requests without MFA. If the key-generation endpoint doesn't itself require MFA, or if the key was created before MFA was enforced, it bypasses MFA.
+    - **OAuth device flow / SSO pass-through**: federated login paths (SAML, OAuth) may not enforce the app's own MFA if the IdP session is already established.
+    - **Magic link / passwordless login**: if the app also offers email magic-link login, MFA may not apply to that flow.
+    ```bash
+    # check for device-login / auto-login endpoints
+    curl -s -i -X POST https://target.com/api/auth/device-login -d '{"device_token":"$CAPTURED_TOKEN"}'
+    curl -s -i -X POST https://target.com/api/auth/auto-login -d '{"token":"$PRE_MFA_TOKEN"}'
+    # check if API key generation requires current MFA
+    curl -s -i -X POST https://target.com/api/settings/api-keys -b "session=$PARTIAL_SESSION"
+    ```
+    **Temporal ordering attack**: grab a credential or token (API key, device token, session cookie) *before* MFA is enabled on the account, then use it *after* MFA enforcement — if the platform doesn't retroactively invalidate pre-MFA credentials, MFA is bypassed for that session/token.
+
 ## Tooling
 
 - Burp Suite Repeater + match/replace rules for response-field manipulation tests.
@@ -101,6 +115,8 @@ chains_with: [hunt-rate-limiting, hunt-session-management, hunt-password-reset]
 - Backup codes generated with low entropy, not invalidated after use, or checked against a separate code path that lacks the primary flow's protections.
 - "Trusted device" token is a static/guessable value not bound to device+account, or not expiring.
 - Multiple login entry points (web/mobile/API/legacy) with inconsistent 2FA enforcement.
+- Alternative auth flows (device login, API keys, magic links, SSO) that bypass MFA entirely, especially when credentials obtained pre-MFA remain valid post-enforcement.
+- Mass-assignment allowing attackers to set trust/device flags on their own user object, skipping MFA.
 
 ## Validation Gate (minimum proof)
 
@@ -125,6 +141,8 @@ Before declaring this finding complete, probe these escalation paths:
 2. **Session reuse** — Can a pre-2FA session token be reused to reach post-2FA authenticated endpoints directly?
 3. **Backup code/recovery abuse** — Can backup codes or account-recovery flows re-enroll 2FA without proving the original factor?
 4. **Account takeover chain** — Combined with a leaked password (credential-stuffing list, prior breach), does the bypass yield full account takeover?
+5. **Tenant isolation after MFA bypass** — In multi-tenant platforms, does bypassing MFA on one tenant's admin grant access to other tenants' data? (mass-assignment → MFA bypass → broken tenant isolation is a known critical chain).
+6. **Temporal credential reuse** — Do pre-MFA tokens (API keys, device tokens, sessions) survive MFA enablement without invalidation?
 
 A finding without chain anchor results is INCOMPLETE. Record each anchor as
 tested/not-applicable/blocked with the reason.
@@ -135,3 +153,6 @@ tested/not-applicable/blocked with the reason.
 - Response-manipulation bypass → often co-occurs with poor session-state design, chain with hunt-session-management for how the "partial" vs "full" session is tracked.
 - Backup code reuse/weak entropy → direct account takeover path, especially damaging when combined with a password-reset flow that also emails/displays backup codes (chain with hunt-password-reset).
 - Legacy/alternate login path skipping 2FA entirely → the strongest, simplest bypass when present; always check for it first.
+- Mass-assignment + alt-auth-flow → if the user object has writable fields that control MFA state or device trust, mass-assignment can flip them to skip MFA entirely (chain with hunt-mass-assignment or IDOR skill).
+- Pre-MFA credential reuse → temporal ordering attack: credentials obtained before MFA enforcement remain valid after, completely bypassing MFA for existing sessions/tokens.
+- MFA bypass + broken tenant isolation → in multi-tenant SaaS, bypassing MFA on a privileged account can escalate to cross-tenant data access if tenant boundaries rely on application-level checks rather than database-level isolation.

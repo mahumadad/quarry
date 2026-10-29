@@ -1,0 +1,31 @@
+id: sidekiq-dashboard-exposed
+info:
+  name: Sidekiq Dashboard Exposed
+  author: pentest-plugin
+  severity: medium
+  description: Detects Sidekiq dashboards without changing jobs or queue state.
+  tags: rails,sidekiq,worker,exposure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: rails,sidekiq
+    protocols: http
+    architectures: monolith,microservices
+    coverage: worker-exposure,attack-surface
+    fixture: sidekiq
+    max-request: 2
+http:
+  - method: GET
+    path: ["{{BaseURL}}/sidekiq", "{{BaseURL}}/sidekiq/stats"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Sidekiq", "sidekiq_version"]
+      - type: word
+        part: body
+        words: ["processed", "failed", "busy", "queues"]
+        condition: or

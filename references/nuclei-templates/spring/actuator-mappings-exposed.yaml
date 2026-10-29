@@ -1,0 +1,31 @@
+id: spring-actuator-mappings-exposed
+info:
+  name: Spring Actuator Request Mappings Exposed
+  author: pentest-plugin
+  severity: medium
+  description: Detects Spring request mapping disclosure with framework-specific keys.
+  tags: java,spring,actuator,route-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: java,spring
+    protocols: http
+    architectures: monolith,microservices
+    coverage: route-disclosure,attack-surface
+    fixture: spring-mappings
+    max-request: 2
+http:
+  - method: GET
+    path: ["{{BaseURL}}/actuator/mappings", "{{BaseURL}}/mappings"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ['"contexts"', '"mappings"']
+        condition: and
+      - type: regex
+        part: body
+        regex: ['"(dispatcherServlets|handlerMethods|requestMappingConditions|predicate)"\s*:']

@@ -1,0 +1,32 @@
+id: bull-board-exposed
+info:
+  name: Bull Queue Dashboard Exposed
+  author: pentest-plugin
+  severity: medium
+  description: Detects Bull Board queue management surfaces without invoking queue operations.
+  tags: nodejs,bull,bullmq,queue,exposure
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: nodejs,bullmq,bull
+    protocols: http
+    architectures: microservices,monolith
+    coverage: worker-exposure,attack-surface
+    fixture: bull-board
+    max-request: 3
+http:
+  - method: GET
+    path: ["{{BaseURL}}/bull-board", "{{BaseURL}}/queues", "{{BaseURL}}/admin/queues"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Bull Board", "BullMQ", "@bull-board"]
+        condition: or
+      - type: word
+        part: body
+        words: ["Queues", "queue", "jobs"]
+        condition: or

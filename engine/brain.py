@@ -14,6 +14,11 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from .storage import atomic_write_json, read_json
+except ImportError:
+    from storage import atomic_write_json, read_json
+
 
 # Capability taxonomy — what a finding GIVES an attacker
 CAPABILITY_TAXONOMY = {
@@ -126,7 +131,7 @@ class Brain:
 
     def _load(self) -> dict:
         if self.brain_file.exists():
-            return json.loads(self.brain_file.read_text())
+            return read_json(self.brain_file)
         return {
             "capabilities": [],
             "exhausted": [],
@@ -138,7 +143,7 @@ class Brain:
     def _save(self):
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self._data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        self.brain_file.write_text(json.dumps(self._data, indent=2))
+        atomic_write_json(self.brain_file, self._data)
 
     def add_capability(self, capability: str, source_finding_id: str,
                        confidence: float = 1.0, notes: str = "") -> bool:

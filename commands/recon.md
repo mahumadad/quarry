@@ -58,6 +58,9 @@ de tasa/horario de `/pt:engage`):
     rutas inferidas desde JS
 13. `tech-stack-fingerprint` — stack completo (frontend, backend, CDN,
     cloud provider) combinando todo lo anterior
+14. `nuclei-reviewed` — seleccionar checks custom desde `AppProfile` con
+    `NucleiRunner`; perfil `safe` por defecto, scope/redirects/OAST confinados,
+    hashes y JSONL persistidos. Matches = leads; cero matches ≠ target limpio.
 
 Para cada skill: leer su `SKILL.md` en `skills/recon/<skill>/` antes de
 ejecutar — ahí están los comandos exactos y los gotchas de esa técnica.
@@ -67,14 +70,27 @@ contenido, no bloquear el recon por eso.
 
 ## Registro de resultados
 
-- Cada asset nuevo descubierto (subdominio, IP, puerto, servicio, endpoint)
-  se registra en `engine/coverage.py` vía `CoverageTracker.add_asset(asset)`
-  — esto inicializa su fila en la matriz vuln_class × asset para
-  `/pt:hunt` y `/pt:map` más adelante.
-- Guardar output crudo de cada herramienta en `<audit_dir>/raw/<skill>-<timestamp>.<ext>`.
+- Antes de ejecutar, consultar `engine/tool_registry.py` por **capacidad** (DNS, HTTP probe,
+  crawl, JS, contenido, screenshots, etc.), registrar herramienta/versión/backend elegidos y
+  usar el fallback determinista. Una capacidad sin backend es `tool_unavailable`, nunca éxito.
+- Normalizar cada handoff con `engine/recon_pipeline.py`: descubrimiento → filtro de scope →
+  deduplicación → resolución/HTTP → fingerprint → crawl/JS/históricos → screenshots → ranking.
+  Cada observación conserva fuente, etapa, timestamp, completitud y metadatos; los candidatos
+  fuera de scope quedan `out_of_scope_pending_authorization` y no pasan a sondas activas.
+- Priorizar por señales explícitas (legacy/olvidado, admin, import/export, upload, webhooks,
+  integraciones, multi-tenant y diferencias free/paid), guardando score y razones. El score
+  ordena trabajo; no es severidad ni evidencia de vulnerabilidad.
+- Para brute force o fuzzing, indexar listas locales con `engine/wordlists.py` y persistir path,
+  SHA-256, tamaño, tecnología y criterios de selección en el run/task. No improvisar `wordlist.txt`.
+- Cada asset nuevo se registra con `CoverageTracker.add_asset(asset)`. Cada
+  endpoint descubierto se agrega con `add_surface`, incluyendo método,
+  parámetros e identidades conocidas; así `/pt:hunt` no colapsa toda una
+  aplicación en una sola celda por host.
+- Guardar output crudo completo mediante `ArtifactStore`, con SHA-256 e índice; no depender de
+  vistas truncadas del terminal.
 - Mantener un `asset-inventory.md` en `<audit_dir>/report/` (Write tool),
   actualizado incrementalmente: tabla de assets con tipo, fuente de
-  descubrimiento, y notas.
+  descubrimiento, prioridad y notas. Crear snapshot/diff con `TargetDiffEngine` al terminar.
 
 ## Tracking de cobertura
 

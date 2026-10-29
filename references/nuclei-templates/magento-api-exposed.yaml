@@ -1,20 +1,19 @@
-id: magento-api-exposed
-
+id: magento-public-rest-api
 info:
-  name: Magento REST API Accessible Without Authentication
+  name: Magento Public REST API Surface
   author: pentest-plugin
-  severity: medium
-  description: |
-    Detecta endpoints de la REST API de Magento accesibles sin autenticación.
-    Estos endpoints exponen configuración de la tienda, países, monedas y
-    potencialmente catálogo de productos con precios.
-  tags: magento,api,exposure,ecommerce,rest
-  reference:
-    - https://developer.adobe.com/commerce/webapi/rest/
+  severity: info
+  description: Identifies intentionally public Magento store and directory APIs; validate data sensitivity before escalation.
+  tags: magento,api,fingerprint,ecommerce,rest
   metadata:
-    verified: true
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: magento
+    protocols: http,rest
+    coverage: attack-surface,api-discovery
+    fixture: magento-api
     max-request: 4
-
 http:
   - method: GET
     path:
@@ -22,31 +21,16 @@ http:
       - "{{BaseURL}}/rest/V1/directory/countries"
       - "{{BaseURL}}/rest/V1/directory/currency"
       - "{{BaseURL}}/rest/V1/store/websites"
-
     stop-at-first-match: false
-
     matchers-condition: and
     matchers:
       - type: status
-        status:
-          - 200
-
+        status: [200]
       - type: word
         part: header
-        words:
-          - "application/json"
-
+        words: ["application/json"]
       - type: regex
         part: body
         regex:
-          - '"id"\s*:\s*\d+'
-          - '"code"\s*:\s*"'
+          - '"(base_url|base_currency_code|locale|code)"\s*:'
         condition: or
-
-    extractors:
-      - type: json
-        part: body
-        json:
-          - '.[0].base_url'
-          - '.[0].locale'
-          - '.[0].base_currency_code'

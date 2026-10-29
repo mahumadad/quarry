@@ -78,7 +78,10 @@ def check_engine():
         "app_profile.py", "brain.py", "vault.py", "router.py",
         "checkpoint.py", "cost_estimator.py", "target_diff.py",
         "oast.py", "sessions.py", "knowledge.py", "custody.py",
-        "toolrunner.py", "exporters.py", "timeguard.py", "deliver.py"
+        "toolrunner.py", "exporters.py", "timeguard.py", "deliver.py",
+        "storage.py", "artifacts.py", "redaction.py", "policy.py", "http_client.py",
+        "orchestrator.py", "tool_registry.py", "wordlists.py", "recon_pipeline.py",
+        "memory_maintenance.py", "nuclei_templates.py", "nuclei_runner.py",
     ]
     engine_dir = ROOT / "engine"
     for f in expected:
@@ -129,6 +132,19 @@ def check_engine_imports():
         ok("engine.timeguard imports OK")
         from engine.deliver import build_manifest, verify_manifest, bundle
         ok("engine.deliver imports OK")
+        from engine.artifacts import ArtifactStore
+        from engine.http_client import ProtectedHTTPClient
+        from engine.orchestrator import Orchestrator
+        from engine.policy import PolicyEngine
+        from engine.storage import read_json, atomic_write_json
+        ok("resilience modules import OK")
+        from engine.tool_registry import ToolRegistry, CAPABILITY_BACKENDS
+        from engine.wordlists import WordlistIndex
+        from engine.recon_pipeline import ReconPipeline, Observation
+        from engine.memory_maintenance import maintain_knowledge
+        from engine.nuclei_templates import NucleiTemplateCatalog
+        from engine.nuclei_runner import NucleiRunner
+        ok(f"recon/registry/memory/Nuclei modules import OK ({len(CAPABILITY_BACKENDS)} capabilities)")
     except Exception as e:
         error(f"Engine import failed: {e}")
 
@@ -154,7 +170,8 @@ def check_commands():
     expected = [
         "engage.md", "recon.md", "map.md", "hunt.md", "chain.md",
         "validate.md", "report.md", "scope.md", "status.md", "findings.md",
-        "export.md", "retest.md", "closeout.md", "notify.md", "deliver.md"
+        "export.md", "retest.md", "closeout.md", "notify.md", "deliver.md",
+        "run.md", "resume.md", "doctor.md"
     ]
     cmd_dir = ROOT / "commands"
     for f in expected:
@@ -221,7 +238,7 @@ def check_skills():
             "passive-recon", "active-recon", "dns-enumeration", "subdomain-discovery",
             "port-scan", "service-enumeration", "web-crawling", "js-analysis",
             "api-discovery", "osint", "cloud-recon", "email-harvesting",
-            "github-dorking", "waf-fingerprint", "tech-stack-fingerprint"
+            "github-dorking", "waf-fingerprint", "tech-stack-fingerprint", "nuclei-reviewed"
         ],
         "mapping": ["asset-map", "trust-map", "identity-map", "state-map", "capability-map"],
         "hunt": [
@@ -234,7 +251,8 @@ def check_skills():
             "hunt-clickjacking", "hunt-host-header", "hunt-parameter-pollution",
             "hunt-prototype-pollution", "hunt-mass-assignment", "hunt-broken-access-control",
             "hunt-business-logic", "hunt-rate-limiting", "hunt-password-reset",
-            "hunt-2fa-bypass", "hunt-session-management", "hunt-email-injection"
+            "hunt-2fa-bypass", "hunt-session-management", "hunt-email-injection",
+            "css-injection", "cryptographic-oracle",
         ],
         "chain": [
             "chain-analysis", "chain-web-to-rce", "chain-auth-to-takeover",
@@ -343,9 +361,49 @@ def check_benchmarks():
         warn(f"benchmarks/targets/ has only {len(targets)} targets")
 
 
+def check_nuclei():
+    print("\n=== Reviewed Nuclei catalog ===")
+    try:
+        from engine.nuclei_templates import NucleiTemplateCatalog
+        records = NucleiTemplateCatalog().load()["templates"]
+        if len(records) >= 40:
+            ok(f"Hash-locked Nuclei catalog: {len(records)} reviewed templates")
+        else:
+            error(f"Nuclei catalog unexpectedly small: {len(records)}")
+        if all(item.get("fixture") for item in records):
+            ok("Every Nuclei template declares a fixture")
+        else:
+            error("Nuclei template without fixture metadata")
+    except Exception as exc:
+        error(f"Nuclei catalog validation failed: {exc}")
+    workflows = ["web-app-pentest.yaml", "full-pentest.yaml", "recon-only.yaml",
+                 "api-pentest.yaml", "mobile-pentest.yaml", "ai-agent-pentest.yaml"]
+    for name in workflows:
+        text = (ROOT / "workflows" / name).read_text()
+        if "nuclei-reviewed" in text:
+            ok(f"{name} integrates reviewed Nuclei")
+        else:
+            error(f"{name} lacks reviewed Nuclei integration")
+    lab = ROOT / "lab" / "nuclei-multistack"
+    required = ["docker-compose.yml", "run_lab.py", "README.md", "results.json", "results.md"]
+    missing = [name for name in required if not (lab / name).is_file()]
+    if missing:
+        error(f"Multistack lab missing files: {', '.join(missing)}")
+    else:
+        ok("Nuclei multistack lab: runner, Compose, docs and results present")
+    compose = lab / "docker-compose.yml"
+    if compose.is_file():
+        if compose.read_text().count("127.0.0.1:") == 6:
+            ok("Nuclei multistack lab exposes exactly six loopback-only services")
+        else:
+            error("Nuclei multistack lab must expose exactly six loopback-only services")
+
+
 def check_tests():
     print("\n=== Tests ===")
-    for f in ["validate_plugin.py", "test_engine.py", "test_benchmark_score.py"]:
+    for f in ["validate_plugin.py", "test_engine.py", "test_benchmark_score.py",
+              "test_resilience.py", "test_recon_capabilities.py", "test_nuclei_capabilities.py",
+              "test_nuclei_live_fixtures.py", "test_nuclei_runner_live.py", "nuclei_fixture_server.py"]:
         p = ROOT / "tests" / f
         if p.exists():
             ok(f"tests/{f}")
@@ -376,6 +434,7 @@ def main():
     check_skills()
     check_references()
     check_benchmarks()
+    check_nuclei()
     check_tests()
 
     print("\n" + "=" * 60)

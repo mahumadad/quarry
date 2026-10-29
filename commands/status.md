@@ -83,5 +83,7 @@ Dashboard de una pantalla, en este orden:
 5. Cobertura: ratio, assets, celdas con finding, top gaps.
 6. Budget: uso por fase, alertas ≥80%.
 7. Rebuttal: sesiones pendientes si las hay.
-8. Próximas acciones recomendadas (lista priorizada, de la tabla
-   anterior).
+8. Run actual: `run_id`, estados por tarea, gates, interrumpidas y siguiente
+   acción de `Orchestrator.resume_plan()`.
+9. Integridad: resultado de `Orchestrator.doctor()` para artefactos y custodia.
+10. Próximas acciones recomendadas (lista priorizada, de la tabla anterior).

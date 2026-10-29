@@ -30,6 +30,17 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from .artifacts import ArtifactStore
+    from .custody import CustodyLog
+    from .policy import PolicyDenied, PolicyEngine, command_policy
+    from .storage import atomic_write_json
+except ImportError:
+    from artifacts import ArtifactStore
+    from custody import CustodyLog
+    from policy import PolicyDenied, PolicyEngine, command_policy
+    from storage import atomic_write_json
+
 
 DEFAULT_TIMEOUT = 120          # seconds — matches CLAUDE.md
 HARD_LIMIT = 20 * 60           # 20 minutes — matches CLAUDE.md
@@ -59,6 +70,7 @@ class ToolResult:
 
 class ToolRunner:
     def __init__(self, audit_dir: str):
+        self.audit_dir = Path(audit_dir)
         self.state_dir = Path(audit_dir) / ".pentest-state"
         self.config_file = self.state_dir / "toolrunner.json"
         self.backend = "local"
@@ -81,13 +93,13 @@ class ToolRunner:
 
     def _save(self):
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        self.config_file.write_text(json.dumps({
+        atomic_write_json(self.config_file, {
             "backend": self.backend,
             "kali_url": self.kali_url,
             "docker_image": self.docker_image,
             "anonlab_container": self.anonlab_container,
             "verified_tools": sorted(self._verified),
-        }, indent=2))
+        })
 
     # ---- availability & verification (anti-hallucination) ----
 
@@ -123,29 +135,50 @@ class ToolRunner:
     # ---- execution ----
 
     def run(self, argv: list[str], timeout: int = DEFAULT_TIMEOUT,
-            is_verification: bool = False) -> ToolResult:
+            is_verification: bool = False, run_id: str = "manual",
+            task_id: str = "tool", approved_digest: str = "") -> ToolResult:
+        if not argv:
+            raise ValueError("argv cannot be empty")
         tool = argv[0]
         timeout = min(timeout, HARD_LIMIT)
-
-        if not is_verification and tool not in self._verified:
-            self.verify_tool(tool)
+        policy_result = {"dangerous": False}
+        if not is_verification:
+            policy_result = command_policy(" ".join(argv), self.audit_dir, approved_digest)
+            if tool not in self._verified and not self.verify_tool(tool):
+                return ToolResult(tool=tool, argv=argv, backend=self.backend,
+                                  exit_code=127, stderr=f"tool unavailable or help failed: {tool}")
 
         sig = " ".join(argv)
         self._cmd_counts[sig] = self._cmd_counts.get(sig, 0) + 1
         if self._cmd_counts[sig] > MAX_IDENTICAL_RETRIES:
-            return ToolResult(tool=tool, argv=argv, backend=self.backend,
-                              stderr=f"refused: identical command already ran "
-                                     f"{MAX_IDENTICAL_RETRIES}x — change approach (CLAUDE.md)",
-                              exit_code=126)
-
-        if self.backend == "kali":
-            return self._run_kali(argv, timeout)
-        if self.backend == "anonlab":
-            return self._run_anonlab(argv, timeout)
-        if self.backend == "docker":
-            argv = ["docker", "run", "--rm", "--network", "host",
-                    self.docker_image] + argv
-        return self._run_local(argv, timeout, tool)
+            res = ToolResult(tool=tool, argv=argv, backend=self.backend,
+                             stderr=f"refused: identical command already ran "
+                                    f"{MAX_IDENTICAL_RETRIES}x — change approach (CLAUDE.md)",
+                             exit_code=126)
+        elif self.backend == "kali":
+            res = self._run_kali(argv, timeout)
+        elif self.backend == "anonlab":
+            res = self._run_anonlab(argv, timeout)
+        else:
+            local_argv = (["docker", "run", "--rm", "--network", "host",
+                           self.docker_image] + argv) if self.backend == "docker" else argv
+            res = self._run_local(local_argv, timeout, tool)
+        if policy_result["dangerous"]:
+            # Consume only after execution was actually attempted, never on a failed preflight.
+            PolicyEngine(self.audit_dir).consume(approved_digest)
+        store = ArtifactStore(self.audit_dir)
+        store.capture(run_id, task_id, "command.json", json.dumps({
+            "argv": argv, "backend": self.backend, "exit_code": res.exit_code,
+            "timed_out": res.timed_out, "duration_s": res.duration_s,
+            "ran_at": res.ran_at}), metadata={"tool": tool})
+        store.capture(run_id, task_id, "stdout.txt", res.stdout,
+                      complete=not res.timed_out)
+        store.capture(run_id, task_id, "stderr.txt", res.stderr,
+                      complete=not res.timed_out)
+        CustodyLog(self.audit_dir).append("command_executed", {
+            "run_id": run_id, "task_id": task_id, "tool": tool,
+            "exit_code": res.exit_code, "timed_out": res.timed_out})
+        return res
 
     def _run_local(self, argv: list[str], timeout: int, tool: str) -> ToolResult:
         res = ToolResult(tool=tool, argv=argv, backend="local")

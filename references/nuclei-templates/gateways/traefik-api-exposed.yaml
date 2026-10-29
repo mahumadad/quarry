@@ -1,0 +1,31 @@
+id: traefik-api-exposed
+info:
+  name: Traefik API and Dashboard Exposed
+  author: pentest-plugin
+  severity: high
+  description: Detects Traefik router configuration or dashboard without modifying routes.
+  tags: traefik,api-gateway,exposure,microservices
+  metadata:
+    reviewed: true
+    risk: safe
+    stacks: traefik
+    protocols: http,rest
+    architectures: api-gateway,microservices,kubernetes
+    coverage: gateway-exposure,configuration-exposure
+    fixture: traefik-api
+    max-request: 3
+http:
+  - method: GET
+    path: ["{{BaseURL}}/api/http/routers", "{{BaseURL}}/api/overview", "{{BaseURL}}/dashboard/"]
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Traefik", '"routers"', '"entryPoints"', '"rule"']
+        condition: or
+      - type: regex
+        part: body
+        regex: ['"(provider|service|status|middlewares)"\s*:']

@@ -103,12 +103,18 @@ corrido primero y haya scope confirmado.
    sc.save(Path("<audit_dir>/.pentest-state/scope.json"))
    ```
 
-7. **Transicionar la fase** `INIT → SCOPED` con `s.transition(Phase.SCOPED)`.
+7. **Persistir los controles y la autoridad.** Configurar `TimeWindowGuard`
+   con timezone, ventanas y expiración; son obligatorios para acciones de red.
+   Registrar `CustodyLog.scope_confirmed(...)` con el hash del scope y la
+   referencia de autorización. Guardar secretos únicamente en el vault cifrado
+   (`PENTEST_VAULT_KEY` externo recomendado), nunca en target cards o comandos.
+
+8. **Transicionar la fase** `INIT → SCOPED` con `s.transition(Phase.SCOPED)`.
    Si `can_transition` devuelve `False` (no debería en un engagement nuevo),
    reportarlo y detenerse — es una señal de estado corrupto, no algo para
    forzar.
 
-8. **Escribir la target card** como `<audit_dir>/report/target-card.md`
+9. **Escribir la target card** como `<audit_dir>/report/target-card.md`
    (Write tool) con las 5 respuestas y el scope resuelto.
 
 ## Output esperado
