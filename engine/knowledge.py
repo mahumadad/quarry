@@ -106,6 +106,61 @@ class KnowledgeBase:
                 and (not waf or not r.waf or r.waf == waf)
                 and (not stack or not r.stack or set(r.stack) & set(stack))]
 
+    def record_episode(self, vuln_class: str, tech_stack: list[str],
+                        waf: str, technique: str, outcome: str,
+                        context: str = "") -> TechniqueRecord:
+        """Record an episodic memory pattern (Gap 9).
+
+        Higher-level than record(): captures the full episode context
+        (vuln_class + stack + WAF + technique + outcome) as a reusable
+        pattern for future engagements.
+        """
+        rec = TechniqueRecord(
+            technique=technique,
+            vuln_class=vuln_class,
+            stack=tech_stack,
+            waf=waf,
+            outcome=outcome,
+            notes=context,
+        )
+        return self.record(rec)
+
+    def suggest_for_context(self, vuln_class: str, tech_stack: list[str],
+                             waf: str = "") -> dict:
+        """Given a target context, suggest techniques based on episodic memory.
+
+        Returns prioritized list: what worked first, then untried, then
+        explicitly marks what was blocked.
+        """
+        worked = self.what_worked(stack=tech_stack, waf=waf, vuln_class=vuln_class)
+        blocked = self.what_failed(stack=tech_stack, waf=waf)
+        blocked_techniques = {r.technique for r in blocked}
+
+        all_for_class = [r for r in self._records.values()
+                         if r.vuln_class == vuln_class]
+        all_techniques = {r.technique for r in all_for_class}
+        tried_techniques = {r.technique for r in worked} | blocked_techniques
+
+        return {
+            "recommended": [
+                {"technique": r.technique, "times_worked": r.times_seen,
+                 "notes": r.notes, "bypass_of": r.bypass_of}
+                for r in worked[:10]
+            ],
+            "avoid": [
+                {"technique": r.technique, "times_blocked": r.times_seen,
+                 "waf": r.waf, "notes": r.notes}
+                for r in blocked[:10]
+            ],
+            "untried_known": sorted(all_techniques - tried_techniques),
+            "context": {
+                "vuln_class": vuln_class,
+                "stack": tech_stack,
+                "waf": waf,
+                "total_episodes": len(all_for_class),
+            },
+        }
+
     def summary(self) -> dict:
         by_outcome: dict[str, int] = {}
         for r in self._records.values():

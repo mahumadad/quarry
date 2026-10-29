@@ -128,6 +128,52 @@ class CustodyLog:
             "head_hash": prev,
         }
 
+    def command_executed(self, command: str, exit_code: int,
+                         output_sha256: str = "", duration_ms: int = 0) -> CustodyEntry:
+        """Log a command execution with its hash for audit trail (Gap 16)."""
+        cmd_hash = hashlib.sha256(command.encode("utf-8")).hexdigest()
+        return self.append("command_executed", {
+            "command_hash": cmd_hash,
+            "command_preview": command[:200],
+            "exit_code": exit_code,
+            "output_sha256": output_sha256,
+            "duration_ms": duration_ms,
+        })
+
+    def evidence_replay_captured(self, finding_id: str, replay_file: str,
+                                  request_sha256: str, response_sha256: str) -> CustodyEntry:
+        """Log raw HTTP evidence capture for replay (Gap 10)."""
+        return self.append("evidence_replay_captured", {
+            "finding_id": finding_id,
+            "replay_file": replay_file,
+            "request_sha256": request_sha256,
+            "response_sha256": response_sha256,
+        })
+
+    def capture_http_evidence(self, finding_id: str, request_raw: str,
+                               response_raw: str, timing_ms: int = 0) -> str:
+        """Save raw HTTP request/response pair for replay. Returns path."""
+        raw_dir = self.state_dir / "raw"
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        req_hash = hashlib.sha256(request_raw.encode("utf-8")).hexdigest()
+        resp_hash = hashlib.sha256(response_raw.encode("utf-8")).hexdigest()
+
+        replay_id = f"{finding_id}_{req_hash[:12]}"
+        replay_file = raw_dir / f"{replay_id}.json"
+        replay_file.write_text(json.dumps({
+            "finding_id": finding_id,
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "timing_ms": timing_ms,
+            "request": request_raw,
+            "request_sha256": req_hash,
+            "response": response_raw,
+            "response_sha256": resp_hash,
+        }, indent=2))
+
+        self.evidence_replay_captured(finding_id, str(replay_file),
+                                       req_hash, resp_hash)
+        return str(replay_file)
+
     def attestation_block(self) -> str:
         """Markdown block for the engagement report appendix."""
         v = self.verify()

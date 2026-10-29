@@ -154,6 +154,60 @@ class BudgetManager:
             },
         }
 
+    def exhaustion_report(self, coverage_summary: dict | None = None,
+                          open_leads: list[dict] | None = None) -> dict:
+        exhausted = {phase: t for phase, t in self._trackers.items()
+                     if t.remaining == 0}
+        near_exhaustion = {phase: t for phase, t in self._trackers.items()
+                           if 0 < t.remaining <= t.limit * 0.2}
+
+        untested_surface = []
+        if coverage_summary:
+            not_tested = coverage_summary.get("by_status", {}).get("not_tested", 0)
+            total = coverage_summary.get("applicable_cells", 0)
+            if not_tested > 0:
+                untested_surface.append(
+                    f"{not_tested}/{total} cells not tested "
+                    f"({not_tested/total:.0%} of applicable surface)"
+                )
+
+        return {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "exhausted_phases": {
+                phase: {"used": t.used, "limit": t.limit}
+                for phase, t in exhausted.items()
+            },
+            "near_exhaustion_phases": {
+                phase: {"used": t.used, "limit": t.limit, "remaining": t.remaining}
+                for phase, t in near_exhaustion.items()
+            },
+            "open_leads": open_leads or [],
+            "open_leads_count": len(open_leads) if open_leads else 0,
+            "untested_surface": untested_surface,
+            "coverage_ratio": coverage_summary.get("coverage_ratio", 0.0) if coverage_summary else None,
+            "roi": self.roi_summary(),
+            "recommendation": self._exhaustion_recommendation(
+                len(exhausted), len(open_leads or []),
+                coverage_summary.get("coverage_ratio", 0.0) if coverage_summary else 0.0,
+            ),
+        }
+
+    @staticmethod
+    def _exhaustion_recommendation(exhausted_count: int, open_leads: int,
+                                    coverage_ratio: float) -> str:
+        parts = []
+        if exhausted_count:
+            parts.append(f"{exhausted_count} phase(s) exhausted")
+        if open_leads:
+            parts.append(f"{open_leads} leads still open — engagement CANNOT close")
+        if coverage_ratio < 0.5:
+            parts.append(f"coverage at {coverage_ratio:.0%} — significant gaps remain")
+        elif coverage_ratio < 0.8:
+            parts.append(f"coverage at {coverage_ratio:.0%} — moderate gaps")
+        if not parts:
+            return "Budget healthy, no action needed."
+        return "ESCALATE TO OPERATOR: " + "; ".join(parts) + "."
+
     def summary(self) -> dict:
         return {
             phase: {"used": t.used, "limit": t.limit, "remaining": t.remaining}

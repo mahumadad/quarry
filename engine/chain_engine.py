@@ -340,6 +340,55 @@ class ChainEngine:
         suggestions.sort(key=lambda s: s["priority"], reverse=True)
         return suggestions
 
+    def serialize_attack_graph(self, findings: list[dict],
+                               assets: list[str]) -> str:
+        """Persist the full attack graph to .pentest-state/attack-graph.json.
+
+        Nodes are typed: asset, service, endpoint, parameter, vulnerability.
+        Returns the file path.
+        """
+        graph = self.build_pivot_graph(findings, assets)
+
+        typed_nodes = []
+        for n in graph["nodes"]:
+            if ":" in n:
+                parts = n.split(":", 1)
+                typed_nodes.append({
+                    "id": n, "label": n,
+                    "type": "capability",
+                    "parent_asset": parts[0],
+                    "capability": parts[1],
+                })
+            else:
+                typed_nodes.append({"id": n, "label": n, "type": "asset"})
+
+        for f in findings:
+            fid = f["id"]
+            vc = f.get("vuln_class", "")
+            typed_nodes.append({
+                "id": fid, "label": f.get("title", vc),
+                "type": "vulnerability",
+                "vuln_class": vc,
+                "severity": f.get("severity", "info"),
+            })
+
+        output = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "nodes": typed_nodes,
+            "edges": graph["edges"],
+            "chains": [asdict(c) for c in self._chains.values()],
+            "stats": {
+                "node_count": len(typed_nodes),
+                "edge_count": len(graph["edges"]),
+                "chain_count": len(self._chains),
+            },
+        }
+
+        graph_file = self.state_dir / "attack-graph.json"
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        graph_file.write_text(json.dumps(output, indent=2))
+        return str(graph_file)
+
     @staticmethod
     def _class_matches(finding_class: str, pattern: str) -> bool:
         fc = finding_class.lower().replace("_", "-").replace(" ", "-")

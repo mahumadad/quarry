@@ -218,6 +218,49 @@ class FindingsStore:
         chainable = {FindingStatus.CONFIRMED.value, FindingStatus.EXPLOITED.value, FindingStatus.CHAINED.value}
         return [f for f in self._findings.values() if f.status in chainable]
 
+    def completion_score(self, finding_id: str) -> dict:
+        """Numeric completeness metric for a finding (Gap #15).
+
+        Scores 0-100 based on what's filled in: evidence, CVSS, MITRE,
+        steps to reproduce, remediation, evidence tag quality, rebuttal.
+        """
+        f = self._findings.get(finding_id)
+        if not f:
+            return {"finding_id": finding_id, "score": 0, "missing": ["not found"]}
+
+        checks = {
+            "has_evidence": (bool(f.evidence), 20),
+            "has_cvss": (bool(f.cvss_vector), 15),
+            "has_mitre": (bool(f.mitre_attack), 10),
+            "has_steps": (len(f.steps_to_reproduce) >= 2, 15),
+            "has_remediation": (bool(f.remediation), 10),
+            "evidence_demonstrated": (f.evidence_tag == EvidenceTag.DEMONSTRATED.value, 15),
+            "has_impact": (bool(f.impact), 5),
+            "has_description": (bool(f.description), 5),
+            "rebuttal_passed": (f.rebuttal_result == "ACCEPTED", 5),
+        }
+
+        score = 0
+        missing = []
+        for check_name, (passed, weight) in checks.items():
+            if passed:
+                score += weight
+            else:
+                missing.append(check_name)
+
+        return {
+            "finding_id": finding_id,
+            "score": score,
+            "max": 100,
+            "grade": "A" if score >= 90 else "B" if score >= 70 else "C" if score >= 50 else "D",
+            "missing": missing,
+        }
+
+    def bulk_completion_scores(self) -> list[dict]:
+        """Completion scores for all findings, sorted lowest first."""
+        scores = [self.completion_score(fid) for fid in self._findings]
+        return sorted(scores, key=lambda s: s["score"])
+
     def summary(self) -> dict:
         by_status = {}
         by_severity = {}

@@ -169,8 +169,165 @@ class TargetDiffEngine:
             return None
         return self.diff()
 
+    def diff_scope_from_git(self, base_ref: str = "main",
+                            head_ref: str = "HEAD") -> dict:
+        """Generate a scope narrowed to files/endpoints changed in a PR (Gap 8).
+
+        Runs `git diff --name-only base..head` to find changed files, then
+        filters to security-relevant ones (routes, controllers, models, configs).
+        Returns a dict suitable for narrowing scan scope.
+        """
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--name-only", f"{base_ref}...{head_ref}"],
+                capture_output=True, text=True, timeout=30,
+                cwd=str(self.state_dir.parent),
+            )
+            changed_files = [f.strip() for f in result.stdout.strip().split("\n") if f.strip()]
+        except (subprocess.SubprocessError, FileNotFoundError):
+            return {"error": "git diff failed", "files": [], "scope_narrowed": False}
+
+        security_patterns = {
+            "routes": [], "controllers": [], "models": [],
+            "auth": [], "config": [], "migrations": [], "other": [],
+        }
+        security_extensions = {".py", ".js", ".ts", ".rb", ".go", ".java",
+                               ".php", ".yaml", ".yml", ".json", ".xml",
+                               ".env", ".conf", ".cfg", ".toml"}
+
+        for f in changed_files:
+            ext = Path(f).suffix.lower()
+            if ext not in security_extensions:
+                continue
+            fl = f.lower()
+            if any(w in fl for w in ("route", "url", "endpoint", "api")):
+                security_patterns["routes"].append(f)
+            elif any(w in fl for w in ("controller", "handler", "view", "resolver")):
+                security_patterns["controllers"].append(f)
+            elif any(w in fl for w in ("model", "schema", "entity")):
+                security_patterns["models"].append(f)
+            elif any(w in fl for w in ("auth", "login", "session", "token", "password", "permission")):
+                security_patterns["auth"].append(f)
+            elif any(w in fl for w in ("config", "setting", ".env", "secret")):
+                security_patterns["config"].append(f)
+            elif "migration" in fl:
+                security_patterns["migrations"].append(f)
+            else:
+                security_patterns["other"].append(f)
+
+        total_relevant = sum(len(v) for v in security_patterns.values())
+        return {
+            "base_ref": base_ref,
+            "head_ref": head_ref,
+            "total_changed": len(changed_files),
+            "security_relevant": total_relevant,
+            "by_category": security_patterns,
+            "scope_narrowed": total_relevant > 0,
+            "recommendation": (
+                f"Narrow scan to {total_relevant} security-relevant files "
+                f"(out of {len(changed_files)} changed)."
+                if total_relevant else "No security-relevant changes detected in this diff."
+            ),
+        }
+
     def list_snapshots(self) -> list[TargetSnapshot]:
         return list(self._snapshots)
+
+    def diff_from_git(self, repo_path: str, base_branch: str = "main") -> dict:
+        """Limit scan scope to files/endpoints changed in a PR (Gap #8).
+
+        Runs git diff against base_branch and extracts:
+        - Changed source files (routes, controllers, models)
+        - Affected endpoints (from route annotations)
+        - New dependencies
+        """
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--name-only", f"{base_branch}...HEAD"],
+                capture_output=True, text=True, timeout=30,
+                cwd=repo_path)
+            if result.returncode != 0:
+                return {"error": result.stderr.strip(), "changed_files": []}
+        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+            return {"error": str(e), "changed_files": []}
+
+        changed_files = [f.strip() for f in result.stdout.strip().splitlines() if f.strip()]
+
+        route_files = [f for f in changed_files if any(
+            kw in f.lower() for kw in [
+                "route", "controller", "view", "endpoint", "api",
+                "handler", "urls.py", "router", "middleware",
+            ])]
+
+        config_files = [f for f in changed_files if any(
+            kw in f.lower() for kw in [
+                "config", "settings", "env", ".yml", ".yaml",
+                ".json", ".toml", "docker", "nginx", "apache",
+            ])]
+
+        dep_files = [f for f in changed_files if any(
+            f.endswith(ext) for ext in [
+                "requirements.txt", "Pipfile", "Pipfile.lock",
+                "package.json", "package-lock.json", "yarn.lock",
+                "Gemfile", "Gemfile.lock", "go.mod", "go.sum",
+                "pom.xml", "build.gradle", "Cargo.toml", "composer.json",
+            ])]
+
+        endpoints = []
+        for rf in route_files:
+            full_path = Path(repo_path) / rf
+            if full_path.exists() and full_path.stat().st_size < 500_000:
+                try:
+                    content = full_path.read_text(errors="replace")
+                    endpoints.extend(self._extract_endpoints_from_source(content))
+                except OSError:
+                    pass
+
+        return {
+            "base_branch": base_branch,
+            "changed_files": changed_files,
+            "total_changed": len(changed_files),
+            "route_files": route_files,
+            "config_files": config_files,
+            "dependency_files": dep_files,
+            "affected_endpoints": endpoints,
+            "scope_recommendation": self._scope_recommendation(
+                route_files, config_files, dep_files, endpoints),
+        }
+
+    @staticmethod
+    def _extract_endpoints_from_source(content: str) -> list[str]:
+        """Heuristic extraction of API endpoints from source code."""
+        import re
+        patterns = [
+            re.compile(r'''@(?:app|router|api)\.(?:get|post|put|delete|patch)\s*\(\s*['"](/[^'"]*?)['"]''', re.I),
+            re.compile(r'''path\s*\(\s*['"](/[^'"]*?)['"]'''),
+            re.compile(r'''url\s*\(\s*r?['"](/[^'"]*?)['"]'''),
+            re.compile(r'''(?:GET|POST|PUT|DELETE|PATCH)\s+['"](/[^'"]*?)['"]'''),
+            re.compile(r'''Route\s*\(\s*['"](/[^'"]*?)['"]''', re.I),
+        ]
+        found = set()
+        for pat in patterns:
+            for m in pat.finditer(content):
+                found.add(m.group(1))
+        return sorted(found)
+
+    @staticmethod
+    def _scope_recommendation(route_files, config_files, dep_files, endpoints) -> str:
+        parts = []
+        if endpoints:
+            parts.append(f"Test {len(endpoints)} affected endpoint(s)")
+        if route_files:
+            parts.append(f"Review {len(route_files)} route/controller file(s)")
+        if config_files:
+            parts.append(f"Check {len(config_files)} config change(s) for security impact")
+        if dep_files:
+            parts.append(f"Audit {len(dep_files)} dependency file(s) for known CVEs")
+        if not parts:
+            parts.append("No security-relevant files changed")
+        return "; ".join(parts)
 
     def _generate_summary(self, d: DiffResult) -> str:
         parts = []
