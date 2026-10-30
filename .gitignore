@@ -16,3 +16,7 @@ exports/
 *.gpg
 *.pem
 *.key
+analisis-*
+evidencia-*
+superficie-*
+comparacion-*
