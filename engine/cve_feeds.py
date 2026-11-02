@@ -79,7 +79,7 @@ class CVEFeedClient:
             return False
 
     def _http_get(self, url: str, headers: dict | None = None) -> dict | None:
-        hdrs = {"User-Agent": "pentest-plugin/1.0"}
+        hdrs = {"User-Agent": "quarry/1.0"}
         if headers:
             hdrs.update(headers)
         if self.api_key and "nvd.nist.gov" in url:

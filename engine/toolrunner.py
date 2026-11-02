@@ -46,7 +46,7 @@ DEFAULT_TIMEOUT = 120          # seconds — matches CLAUDE.md
 HARD_LIMIT = 20 * 60           # 20 minutes — matches CLAUDE.md
 MAX_IDENTICAL_RETRIES = 3      # matches CLAUDE.md
 
-DOCKER_IMAGE = "pentest-plugin/toolkit:1.0"   # see references/tool-backends.md
+DOCKER_IMAGE = "quarry/toolkit:1.0"   # see references/tool-backends.md
 ANONLAB_CONTAINER = "kali"                     # see references/anon-lab.md
 TOR_CHECK_URL = "https://check.torproject.org/api/ip"
 

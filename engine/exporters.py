@@ -41,7 +41,7 @@ def _exportable(store: FindingsStore, include_all: bool = False):
     return [f for f in findings if f.status in EXPORTABLE_STATUSES]
 
 
-def to_sarif(store: FindingsStore, tool_name: str = "pentest-plugin",
+def to_sarif(store: FindingsStore, tool_name: str = "quarry",
              include_all: bool = False) -> dict:
     """SARIF 2.1.0 — https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html"""
     findings = _exportable(store, include_all)
@@ -90,7 +90,7 @@ def to_sarif(store: FindingsStore, tool_name: str = "pentest-plugin",
             "tool": {
                 "driver": {
                     "name": tool_name,
-                    "informationUri": "https://github.com/mahumadad/pentest-plugin",
+                    "informationUri": "https://github.com/mahumadad/quarry",
                     "rules": rules,
                 },
             },

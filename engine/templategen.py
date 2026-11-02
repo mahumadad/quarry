@@ -23,7 +23,7 @@ TEMPLATE_SKELETON = """\
 id: {template_id}
 info:
   name: {name}
-  author: pentest-plugin-autogen
+  author: quarry-autogen
   severity: {severity}
   description: {description}
   tags: {tags}

@@ -77,7 +77,7 @@ class BrowserSession:
         self._browser = self._playwright.chromium.launch(headless=headless)
         context = self._browser.new_context(
             ignore_https_errors=True,
-            user_agent="Mozilla/5.0 (pentest-plugin browser-loop)",
+            user_agent="Mozilla/5.0 (quarry browser-loop)",
         )
         self._page = context.new_page()
         self._page.on("console", lambda msg: self._console_logs.append(

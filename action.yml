@@ -1,4 +1,4 @@
-name: "Pentest Plugin — Validate & SARIF"
+name: "Quarry — Validate & SARIF"
 description: >-
   Run the quarry structural validator, engine smoke tests,
   and optionally export results as SARIF for GitHub Code Scanning.
@@ -44,8 +44,8 @@ runs:
         cd "${{ github.action_path }}"
         output=$(python3 tests/validate_plugin.py 2>&1) || true
         echo "$output"
-        errors=$(echo "$output" | grep -c "^ERROR:" || true)
-        warnings=$(echo "$output" | grep -c "^WARNING:" || true)
+        errors=$(echo "$output" | sed -n '/^ERRORS (must fix):/,/^WARNINGS/p' | grep -c '^  - ' || true)
+        warnings=$(echo "$output" | sed -n '/^WARNINGS (should fix):/,$ p' | grep -c '^  - ' || true)
         echo "errors=$errors" >> "$GITHUB_OUTPUT"
         echo "warnings=$warnings" >> "$GITHUB_OUTPUT"
 

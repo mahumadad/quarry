@@ -4,7 +4,7 @@
     {
       "id": "aspnet-connection-string-exposed",
       "path": "aspnet/connection-string-exposed.yaml",
-      "sha256": "fe7ce01703702460728e8e766ee0f8ed02544bc87c9b17ec3f3de09f633df118",
+      "sha256": "45fbe8bb5136745cab9dae1738327688c330f4b97733137350159d11437a5165",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -25,7 +25,7 @@
     {
       "id": "aspnet-developer-exception-exposed",
       "path": "aspnet/developer-exception-exposed.yaml",
-      "sha256": "9151c4dc5815dfa3fd6c2e0f12efea141d8b233f83fb2c03bb5b12ceeaba7f1b",
+      "sha256": "f2a543bb695ff6cc48a4378d6801d6ff04c68f18389dcee24587ef6ccf12b6fe",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -49,7 +49,7 @@
     {
       "id": "fintech-customer-data-exposure",
       "path": "fintech/customer-data-exposure.yaml",
-      "sha256": "ae0fc4582dce3d7193fef3e71a1d92de8a22a058dde43de0ec4b785efaa10004",
+      "sha256": "dbb54c1ee96119d8876cfaddb30d967cb370f7ff8ca8a2132edfc9c5d9eb0317",
       "severity": "high",
       "risk": "sensitive-data",
       "auth": "none",
@@ -71,7 +71,7 @@
     {
       "id": "fintech-openapi-documentation",
       "path": "fintech-api-exposed.yaml",
-      "sha256": "9b98e91ebe5e3a753343a385a97bf81327f8899c26fc1667eddbdf0daefb3ab1",
+      "sha256": "890b74573f55fdfe46ce3f027f62e0267e122534bce46aafb3ec9e6ceaa0b682",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -94,7 +94,7 @@
     {
       "id": "envoy-admin-config-exposed",
       "path": "gateways/envoy-admin-config-exposed.yaml",
-      "sha256": "f334c6f20ce28cfa22b361e3136a14b30ebc64f416b775530987dda191a67f72",
+      "sha256": "e73b2647ce973b7fb32e518e508230ba7880d1ef0464367286131c593e1e7267",
       "severity": "high",
       "risk": "sensitive-data",
       "auth": "none",
@@ -119,7 +119,7 @@
     {
       "id": "kong-admin-api-exposed",
       "path": "gateways/kong-admin-api-exposed.yaml",
-      "sha256": "21b43f1e2ffc522fecbdeec9895e3cc38a217d2adbcf6656c29b1bd4c33f8df4",
+      "sha256": "3d8d41ecd974e94d695e52af13a57cc9d973e1483d285e2d91c175c661abd251",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -144,7 +144,7 @@
     {
       "id": "traefik-api-exposed",
       "path": "gateways/traefik-api-exposed.yaml",
-      "sha256": "334e4193c8e9ecbcdb8fc8cc414cb12449ee3c56f39a5adf6085826f477c7b7a",
+      "sha256": "d7c0fe9d85d173b2122ccd4f7bcb507140c191e08dc9b440d4fa1ca5b78dc057",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -170,7 +170,7 @@
     {
       "id": "graphql-batch-query",
       "path": "graphql-batch-query.yaml",
-      "sha256": "4e9c1919daa1425129797d0708e06821ae5abe34d31933a8af2ab9822187e558",
+      "sha256": "df9314bea4e7afea01bc2c13ce7bc279a85178c3eebfdfde60bb9fac273c3090",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -192,7 +192,7 @@
     {
       "id": "graphql-field-suggestions",
       "path": "graphql-field-suggestions.yaml",
-      "sha256": "cead228d7aea21aed0021b8c243951a8b5d17667cadce19cdab1f02f77d753a0",
+      "sha256": "892dd13520080b0857878ad5c830ac5bab6999d464190b195152c233f5673676",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -214,7 +214,7 @@
     {
       "id": "graphql-introspection",
       "path": "graphql-introspection.yaml",
-      "sha256": "08fcfcc5f99921d00b92d3b78c33e05a3eb5649ef13e47c356503bd2d1f8ed10",
+      "sha256": "4f965fc1baba47e6cbfde053a010be5679af191dc97dbe0b0afb0f6214d5f2c5",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -236,7 +236,7 @@
     {
       "id": "laravel-horizon-dashboard-exposed",
       "path": "laravel/horizon-dashboard-exposed.yaml",
-      "sha256": "10b0502e83a64b50367c6d3a7d935cebe877932eab5e8e40bfe5e10789b7c42e",
+      "sha256": "2f9a3f35df2fa8befc1da4ad1cb96116bd380f0a9a9160b87f3951e311a73f74",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -262,7 +262,7 @@
     {
       "id": "laravel-ignition-debug-exposed",
       "path": "laravel/ignition-debug-exposed.yaml",
-      "sha256": "92a83366b4a5c2855d342b29f2d89cf1b743482bee7cef4e030142140ffcafe8",
+      "sha256": "4e918edf77453fc4d92983e5c1e703f53ba1d232f6c5f44373dddfc63d01a6b2",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -286,7 +286,7 @@
     {
       "id": "laravel-environment-secret-exposed",
       "path": "laravel/laravel-env-secret-exposed.yaml",
-      "sha256": "dd3d3e0af919f5b6dea5f8b56204f69d4bd4f6d257edb0bffd3d986c6518f784",
+      "sha256": "6b7a4ab92e49646b5ceb6467a43a6650fc843bb06b402f42c3a4b2d8a0991846",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -308,7 +308,7 @@
     {
       "id": "magento-admin-exposed",
       "path": "magento-admin-exposed.yaml",
-      "sha256": "2a4b3853199390cacb306ee13f49e71d45559ffc2d2e51fdd19cd10865f71c6b",
+      "sha256": "3fc14d2758df256475a5348a5584a0f4c48daf67f528624b990c07a859ade6ee",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -329,7 +329,7 @@
     {
       "id": "magento-public-rest-api",
       "path": "magento-api-exposed.yaml",
-      "sha256": "a9a84b80980f097043d4d56a07d6371362c0a2893acc83151994a4445fb19f24",
+      "sha256": "921873369049723dd210cee02f75ca20b6d659cf922e13c0f92a7a4c58d3f649",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -351,7 +351,7 @@
     {
       "id": "bull-board-exposed",
       "path": "node/bull-board-exposed.yaml",
-      "sha256": "e678807c1204ab26cf47f06c99f9510ca9b28ae407c1680a7db88219dfadc1e5",
+      "sha256": "185ec0a14b767b27256ed2d6ae3016ba4106a8b5b97a6bea51a27030a02b95aa",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -377,7 +377,7 @@
     {
       "id": "javascript-source-map-content-exposed",
       "path": "node/javascript-source-map-exposed.yaml",
-      "sha256": "88c61c3550aa4d38dcbdad5e98288613c0ab5f22e168a0ff82623b56f0abacae",
+      "sha256": "6aa015288173c60cc06931d705039b88e8e6b73d303d9692221f3309608f43c8",
       "severity": "low",
       "risk": "safe",
       "auth": "none",
@@ -406,7 +406,7 @@
     {
       "id": "nestjs-openapi-documentation",
       "path": "node/nestjs-openapi-documentation.yaml",
-      "sha256": "e4015f38dfe30a8397fde7df12b018a8eccd70254716fed3c9bf28f198a73324",
+      "sha256": "58c90250ede5398ee30c1f68cab40b109fe4dcdf966371229821896cf26b7b21",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -432,7 +432,7 @@
     {
       "id": "nextjs-development-manifest-exposed",
       "path": "node/nextjs-development-manifest-exposed.yaml",
-      "sha256": "e5768a9acee794cb5425aff57a6154cf0daf2c988631a1cb73cc1d463025d03e",
+      "sha256": "54a0cc598484644d0743b023a630842eecfa963930103bea83798e4d4df2396e",
       "severity": "low",
       "risk": "safe",
       "auth": "none",
@@ -458,7 +458,7 @@
     {
       "id": "node-environment-secret-exposed",
       "path": "node/node-env-secret-exposed.yaml",
-      "sha256": "6072fff67cbad1c250460d5b8fbd7eeeab1399cd137332d635d49ffcd138d2a2",
+      "sha256": "70913674a493c5e4e4f702ad15ae0d277358231be68c279f2e77945ee3fca94c",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -483,7 +483,7 @@
     {
       "id": "node-package-metadata-exposed",
       "path": "node/node-package-metadata-exposed.yaml",
-      "sha256": "694515511da9a170e62068a5a1a724caf38655fbcb1e506af5fafd7d59bc4cf4",
+      "sha256": "a1b04cc51722a4cc2200eb75c2a69ac598082f1cbbd8bdc44e9bc0a182ace5d9",
       "severity": "low",
       "risk": "safe",
       "auth": "none",
@@ -508,7 +508,7 @@
     {
       "id": "nuxt-devtools-exposed",
       "path": "node/nuxt-devtools-exposed.yaml",
-      "sha256": "b20516f17c9303b59335126194901d1183041eeadb355b292d4d6fbc69fe342c",
+      "sha256": "257443a749b3bc794fe63f909484b8a6572ceda38cc119536691e1879c08aac2",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -534,7 +534,7 @@
     {
       "id": "express-stack-trace-exposed",
       "path": "node-express-misconfig.yaml",
-      "sha256": "2c0ed2e7d1b365e4463769122741c66a18c429b3729640dcf69a1915e00240a0",
+      "sha256": "9fd649d2449a2c14827082819edcf0037aebe6df6dc74312c428923d10218e62",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -556,7 +556,7 @@
     {
       "id": "payment-test-credentials-exposed",
       "path": "payment/test-credentials-exposed.yaml",
-      "sha256": "deb35bb41594c7a94509e3c6ab5381c767816bd2396ee1cded8e10c95934f58e",
+      "sha256": "5567dc2ac9c67c02d4c027aa1edc5a6a00371a95b694b9f485054188edc1da68",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -582,7 +582,7 @@
     {
       "id": "payment-live-credentials-exposed",
       "path": "payment-gateway-misconfig.yaml",
-      "sha256": "6e009bd600955cfbeafd346c4733018f0a6beedca6e0a3f12a88edbd84cfb7a1",
+      "sha256": "c6769646296848bc5a36a619cd54eebe351fe4aea1d1674fe01732c496da6c4c",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -608,7 +608,7 @@
     {
       "id": "celery-flower-exposed",
       "path": "python/celery-flower-exposed.yaml",
-      "sha256": "90c724eff1e341a37c963d260cefaf858f043360ce81b13af9d4605470b8094d",
+      "sha256": "2a1f4eca8e781cf7f30581b41c50b702a37eeedd64a22bed88b58da3fafb52c4",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -633,7 +633,7 @@
     {
       "id": "django-admin-login-surface",
       "path": "python/django-admin-surface.yaml",
-      "sha256": "0ea52411febcb3e42cf30d1778adcad20e6f3bb1419497597e8b33a2f4cc71b9",
+      "sha256": "c015b4d7a85ccb76cd6901b6919734b88ca3a2a35f5516915e42bdc614f6f8b1",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -657,7 +657,7 @@
     {
       "id": "django-debug-exposed",
       "path": "python/django-debug-exposed.yaml",
-      "sha256": "7a5f28d40647a07c9de531edb445c88a2244ec255c4721d001c7b44ea3149cd2",
+      "sha256": "8268087890dca0a3ed8a1db8e6271a13b82d8277f5fd7a33b430cf4dd1998488",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -681,7 +681,7 @@
     {
       "id": "flask-werkzeug-debugger-exposed",
       "path": "python/flask-debugger-exposed.yaml",
-      "sha256": "45601131b23996f10eb2bcabfee1752464e19c57e2324a90f899c6f89cfcd960",
+      "sha256": "6e362c33f72160958fa383a9815a5c0cba4b3d6d988ab1699fb17d9c17839e3d",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -705,7 +705,7 @@
     {
       "id": "python-environment-secret-exposed",
       "path": "python/python-env-secret-exposed.yaml",
-      "sha256": "3d73f1db4637e18d729d0aa1c295ed97dfab04362d3dedae8050a1adc58e717b",
+      "sha256": "3eb17e92a40c32a06538f060a7c0c28d7256006c669dbef3640f82c16ea849ea",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -729,7 +729,7 @@
     {
       "id": "fastapi-openapi-documentation",
       "path": "python-fastapi-misconfig.yaml",
-      "sha256": "2df5ad43c6d15fe9a81a74b80d179371e8c0f9996e07d578b2f5da0bbb82e5ab",
+      "sha256": "e31ef5cb408dcc22cb999613c7156fd7cff7956de9313e4211bedcd9eacc976d",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -752,7 +752,7 @@
     {
       "id": "rails-route-list-exposed",
       "path": "rails/rails-routes-exposed.yaml",
-      "sha256": "38e515e430f2be5d47c2a5286598ead2a18371cf9940e5460595773d04854f4a",
+      "sha256": "db01af68726ad81c2db9b2b8e4b62e73a312f350aeaf97907428e5553e466d1f",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -775,7 +775,7 @@
     {
       "id": "rails-secret-config-exposed",
       "path": "rails/rails-secret-config-exposed.yaml",
-      "sha256": "681208b8b49df3e5d6e331e27a11942a84538b30b287aac789416781bfd7568b",
+      "sha256": "3e3dcabd94763de7e7bdb57b7c02d9fe5c72ee640927ab438e5de520453a63d2",
       "severity": "high",
       "risk": "safe",
       "auth": "none",
@@ -799,7 +799,7 @@
     {
       "id": "sidekiq-dashboard-exposed",
       "path": "rails/sidekiq-dashboard-exposed.yaml",
-      "sha256": "1e3732bd06442be4307694bf5d03cbde6c1639ab9582ef30e6cd0f603c06ef58",
+      "sha256": "f0c5e98a33b3bc50796f29e60efdd6b41bb6b9ac54f45c4c4299b41d8df23fdd",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -824,7 +824,7 @@
     {
       "id": "rails-development-info-exposed",
       "path": "rails-misconfig.yaml",
-      "sha256": "f7433587a6e72ff84a16c68fd55d97adcf33a46f40177e615a1772f254441fef",
+      "sha256": "fb91ca6735fc532b955e521efa8efbefa4607c2d12989141a3735a36acc3a9ad",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -848,7 +848,7 @@
     {
       "id": "spring-actuator-environment-exposed",
       "path": "spring/actuator-environment-exposed.yaml",
-      "sha256": "4c627e7d2084e1d6ae09020a8c026816536e4c794b0e067ebe790227d1f8529e",
+      "sha256": "df1ab117dff5ece94c962ea28daebdb9c3c1d0158e04ed8af67726848d259707",
       "severity": "high",
       "risk": "sensitive-data",
       "auth": "none",
@@ -873,7 +873,7 @@
     {
       "id": "spring-actuator-health-details",
       "path": "spring/actuator-health-details.yaml",
-      "sha256": "23fec32d811b91835a9bd6bd736ab2ba9180d903156f3cbddd44f7a1bb93b543",
+      "sha256": "4db731069753907c6b061ede42f38a1c13864f565152efb44d22d708dfb07239",
       "severity": "low",
       "risk": "safe",
       "auth": "none",
@@ -898,7 +898,7 @@
     {
       "id": "spring-actuator-mappings-exposed",
       "path": "spring/actuator-mappings-exposed.yaml",
-      "sha256": "60352ec390295b2a39023384fa0352116ae1c06bf4af57c04f59810a6742c20d",
+      "sha256": "31cc5ef596f73cd3c22f4214f6bae8374c3807f03189f17f7a9f09e928c617b2",
       "severity": "medium",
       "risk": "safe",
       "auth": "none",
@@ -923,7 +923,7 @@
     {
       "id": "vtex-admin-login-surface",
       "path": "vtex-admin-panel.yaml",
-      "sha256": "d50f719d528a0ca064ba4e15ed6850bf11b3b8258f7cf01cecf17a9d63da5d5d",
+      "sha256": "83306b4b7ca5c6f4056f800bff09d80abdcd19a13ed9928f32ab91b5c9df981b",
       "severity": "info",
       "risk": "safe",
       "auth": "none",
@@ -944,7 +944,7 @@
     {
       "id": "vtex-public-api-surface",
       "path": "vtex-api-exposed.yaml",
-      "sha256": "804800d66908416bd82c34da2c84889f421d04b0d320cc438bc39e5fcc5ffe44",
+      "sha256": "93b938c03722a4959331c10104db213d4ed7c80dd0004e8f19c95c3ee3496876",
       "severity": "info",
       "risk": "safe",
       "auth": "none",

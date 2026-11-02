@@ -20,20 +20,5 @@
     "nuclei",
     "evidence-chain"
   ],
-  "documentationUrl": "https://github.com/mahumadad/quarry#readme",
-  "mcpServers": {
-    "nuclei-runner": {
-      "description": "Fail-closed Nuclei template execution with policy enforcement, scope validation, and evidence hashing.",
-      "transport": "stdio",
-      "command": ["python3", "-m", "engine.nuclei_runner"],
-      "tools": ["nuclei_plan", "nuclei_run", "nuclei_coverage"]
-    },
-    "browser-verify": {
-      "description": "Headless Chromium verification for client-side findings (XSS, clickjacking, open redirect).",
-      "transport": "stdio",
-      "command": ["python3", "-m", "engine.browser_verify"],
-      "tools": ["verify_xss", "verify_clickjacking", "verify_redirect"],
-      "optional": true
-    }
-  }
+  "documentationUrl": "https://github.com/mahumadad/quarry#readme"
 }

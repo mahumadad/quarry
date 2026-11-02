@@ -78,7 +78,7 @@ class MCPClient:
         resp = self._send_jsonrpc("initialize", {
             "protocolVersion": "2025-03-26",
             "capabilities": {},
-            "clientInfo": {"name": "pentest-plugin", "version": "1.0"},
+            "clientInfo": {"name": "quarry", "version": "1.0"},
         })
         self._connected = True
         self._send_jsonrpc_notification("notifications/initialized", {})
@@ -90,7 +90,7 @@ class MCPClient:
         resp = self._http_request("initialize", {
             "protocolVersion": "2025-03-26",
             "capabilities": {},
-            "clientInfo": {"name": "pentest-plugin", "version": "1.0"},
+            "clientInfo": {"name": "quarry", "version": "1.0"},
         })
         self._connected = True
         return resp

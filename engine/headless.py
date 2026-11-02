@@ -112,9 +112,9 @@ class HeadlessRunner:
             "runs": [{
                 "tool": {
                     "driver": {
-                        "name": "pentest-plugin",
+                        "name": "quarry",
                         "version": "1.0.0",
-                        "informationUri": "https://github.com/pentest-plugin",
+                        "informationUri": "https://github.com/mahumadad/quarry",
                     },
                 },
                 "results": results,
