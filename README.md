@@ -43,13 +43,16 @@ Most AI pentest tools optimize for **autonomy** — more tools, more actions, le
 
 Scored against known-vulnerable applications with versioned ground truth:
 
-| Target | Expected | Found | Recall | Evidence integrity |
-|--------|----------|-------|--------|--------------------|
-| DVWA | 25 | 25 | **100%** | 100% |
-| crAPI | 10 | 10 | **100%** | 100% |
-| Juice Shop v20.3.0 | 14 | 14 | **100%** | 100% |
+| Target | Type | Expected | Found | Recall | Evidence integrity |
+|--------|------|----------|-------|--------|--------------------|
+| DVWA | Web (PHP) | 25 | 25 | **100%** | 100% |
+| crAPI | REST API | 10 | 10 | **100%** | 100% |
+| Juice Shop v20.3.0 | Web (Node) | 14 | 14 | **100%** | 100% |
+| DVGA | GraphQL | 20 | — | pending | — |
+| VAmPI | REST API (OWASP API Top 10) | 9 | — | pending | — |
+| WebGoat | Web (Java) | 21 | — | pending | — |
 
-Full results: [`benchmarks/results/`](benchmarks/results/). Weekly CI runs on Mondays.
+Full results: [`benchmarks/results/`](benchmarks/results/). Target definitions: [`benchmarks/targets/`](benchmarks/targets/). Weekly CI runs on Mondays.
 
 ---
 

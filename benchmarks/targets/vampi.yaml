@@ -1,0 +1,76 @@
+name: vampi
+image: erev0s/vampi:latest
+port: 5000
+description: >
+  VAmPI (Vulnerable API) — REST API target covering OWASP API Top 10.
+  Flask-based with Swagger UI at /ui. Global switch for vulnerable/secure mode.
+  Default: vulnerable. Reset not needed — stateless endpoints.
+
+# VAmPI exposes a REST API with token-based auth (JWT).
+# Swagger docs at /ui when running.
+# Run: docker run -p 5000:5000 erev0s/vampi:latest
+
+expected:
+  # --- API1: Broken Object Level Authorization ---
+
+  - id: vampi-bola
+    vuln_class: idor
+    severity: high
+    title: "Broken Object Level Authorization — access other users' data"
+    keywords: [bola, idor, authorization, object, level]
+
+  # --- API2: Broken Authentication ---
+
+  - id: vampi-unauth-password-change
+    vuln_class: auth-bypass
+    severity: critical
+    title: "Unauthorized password change — change any user's password without auth"
+    keywords: [password, change, unauthorized, authentication]
+
+  - id: vampi-user-enum
+    vuln_class: info-disclosure
+    severity: medium
+    title: "User and password enumeration via error messages"
+    keywords: [enumeration, user, password, error, disclosure]
+
+  - id: vampi-jwt-weak-key
+    vuln_class: jwt
+    severity: high
+    title: "JWT authentication bypass via weak signing key"
+    keywords: [jwt, token, weak, key, signing, bypass]
+
+  # --- API3: Broken Object Property Level Authorization ---
+
+  - id: vampi-mass-assignment
+    vuln_class: mass-assignment
+    severity: high
+    title: "Mass assignment — set admin flag or other protected properties"
+    keywords: [mass, assignment, property, admin, overwrite]
+
+  - id: vampi-excessive-data-exposure
+    vuln_class: info-disclosure
+    severity: medium
+    title: "Excessive data exposure via debug endpoint"
+    keywords: [excessive, data, exposure, debug, endpoint]
+
+  # --- API4: Unrestricted Resource Consumption ---
+
+  - id: vampi-regex-dos
+    vuln_class: dos
+    severity: medium
+    title: "RegexDOS — denial of service via crafted regex input"
+    keywords: [regex, dos, denial, service, redos]
+
+  - id: vampi-no-rate-limit
+    vuln_class: rate-limiting
+    severity: medium
+    title: "Lack of rate limiting on authentication endpoints"
+    keywords: [rate, limit, brute, force, throttle]
+
+  # --- API8: Security Misconfiguration ---
+
+  - id: vampi-sqli
+    vuln_class: sqli
+    severity: high
+    title: "SQL injection in API parameters"
+    keywords: [sql, injection, sqli, query, api]

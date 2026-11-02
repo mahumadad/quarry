@@ -1,0 +1,159 @@
+name: webgoat
+image: webgoat/webgoat
+port: 8080
+description: >
+  WebGoat — OWASP's flagship vulnerable web app. Java-based with guided
+  lessons covering injection, auth, XSS, XXE, JWT, IDOR, CSRF, crypto,
+  deserialization, and more. The most comprehensive single-app target.
+  Access at /WebGoat after startup. Requires account creation (local only).
+
+# WebGoat runs on port 8080, WebWolf companion on 9090.
+# Run: docker run -p 8080:8080 -p 9090:9090 webgoat/webgoat
+# Create a local account on first access (no external auth).
+
+expected:
+  # --- Injection ---
+
+  - id: webgoat-sqli-basic
+    vuln_class: sqli
+    severity: high
+    title: "SQL Injection — basic string and numeric injection"
+    keywords: [sql, injection, sqli, string, numeric]
+
+  - id: webgoat-sqli-advanced
+    vuln_class: sqli
+    severity: high
+    title: "SQL Injection Advanced — UNION, blind, second-order"
+    keywords: [sql, injection, advanced, union, blind]
+
+  - id: webgoat-sqli-mitigation
+    vuln_class: sqli
+    severity: medium
+    title: "SQL Injection Mitigations — parameterized queries, order by"
+    keywords: [sql, mitigation, parameterized, order]
+
+  - id: webgoat-xxe
+    vuln_class: xxe
+    severity: high
+    title: "XXE — XML External Entity injection"
+    keywords: [xxe, xml, external, entity, dtd]
+
+  - id: webgoat-path-traversal
+    vuln_class: lfi-rfi
+    severity: high
+    title: "Path Traversal — file read via directory traversal"
+    keywords: [path, traversal, directory, lfi, file]
+
+  # --- Authentication & Sessions ---
+
+  - id: webgoat-jwt-decode
+    vuln_class: jwt
+    severity: high
+    title: "JWT — decode, forge, alg none, weak key, kid injection"
+    keywords: [jwt, token, decode, forge, alg, none, kid]
+
+  - id: webgoat-password-reset
+    vuln_class: auth-bypass
+    severity: high
+    title: "Password Reset — insecure reset flow exploitation"
+    keywords: [password, reset, token, email, bypass]
+
+  - id: webgoat-auth-bypass
+    vuln_class: auth-bypass
+    severity: high
+    title: "Authentication Bypass — hidden inputs, parameter manipulation"
+    keywords: [authentication, bypass, hidden, parameter]
+
+  - id: webgoat-insecure-login
+    vuln_class: info-disclosure
+    severity: medium
+    title: "Insecure Login — credentials over unencrypted channel"
+    keywords: [insecure, login, cleartext, sniff]
+
+  # --- Cross-Site Scripting ---
+
+  - id: webgoat-xss-reflected
+    vuln_class: xss
+    severity: high
+    title: "Reflected XSS — script injection in parameters"
+    keywords: [xss, reflected, script, cross-site]
+
+  - id: webgoat-xss-dom
+    vuln_class: xss
+    severity: medium
+    title: "DOM-based XSS — client-side script injection"
+    keywords: [xss, dom, client, script]
+
+  - id: webgoat-xss-stored
+    vuln_class: xss
+    severity: high
+    title: "Stored XSS — persistent script injection"
+    keywords: [xss, stored, persistent, script]
+
+  # --- Access Control ---
+
+  - id: webgoat-idor
+    vuln_class: idor
+    severity: high
+    title: "IDOR — Insecure Direct Object References"
+    keywords: [idor, direct, object, reference, access]
+
+  - id: webgoat-missing-function-level
+    vuln_class: auth-bypass
+    severity: high
+    title: "Missing Function Level Access Control"
+    keywords: [function, level, access, control, privilege]
+
+  # --- CSRF ---
+
+  - id: webgoat-csrf
+    vuln_class: csrf
+    severity: high
+    title: "Cross-Site Request Forgery"
+    keywords: [csrf, cross-site, request, forgery, token]
+
+  # --- Client-Side ---
+
+  - id: webgoat-client-side-filtering
+    vuln_class: info-disclosure
+    severity: medium
+    title: "Client-Side Filtering — sensitive data in client responses"
+    keywords: [client, side, filtering, hidden, response]
+
+  - id: webgoat-client-side-tampering
+    vuln_class: input-validation
+    severity: medium
+    title: "Client-Side Tampering — bypass JavaScript validation"
+    keywords: [client, side, tampering, javascript, validation]
+
+  # --- Crypto ---
+
+  - id: webgoat-crypto-basics
+    vuln_class: crypto
+    severity: medium
+    title: "Cryptography Basics — encoding vs encryption, hashing"
+    keywords: [crypto, encoding, encryption, hashing, base64]
+
+  # --- Vulnerable Components ---
+
+  - id: webgoat-vulnerable-components
+    vuln_class: vulnerable-components
+    severity: high
+    title: "Vulnerable Components — known CVEs in dependencies"
+    keywords: [vulnerable, components, dependency, cve, library]
+
+  # --- SSRF ---
+
+  - id: webgoat-ssrf
+    vuln_class: ssrf
+    severity: high
+    title: "Server-Side Request Forgery"
+    keywords: [ssrf, server, side, request, forgery]
+
+  # --- Deserialization ---
+
+  - id: webgoat-insecure-deserialization
+    vuln_class: deserialization
+    severity: critical
+    title: "Insecure Deserialization — Java object manipulation"
+    keywords: [deserialization, java, object, serialization, gadget]
