@@ -1,7 +1,7 @@
 id: envoy-admin-config-exposed
 info:
   name: Envoy Admin Configuration Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Gated read-only check for Envoy admin configuration and cluster internals.
   tags: envoy,api-gateway,sensitive-data,microservices

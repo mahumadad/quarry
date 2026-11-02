@@ -1,7 +1,7 @@
 id: spring-actuator-mappings-exposed
 info:
   name: Spring Actuator Request Mappings Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects Spring request mapping disclosure with framework-specific keys.
   tags: java,spring,actuator,route-disclosure

@@ -1,7 +1,7 @@
 id: flask-werkzeug-debugger-exposed
 info:
   name: Flask Werkzeug Debugger Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Detects the Werkzeug debugger interface using specific debugger markers.
   tags: python,flask,werkzeug,debug

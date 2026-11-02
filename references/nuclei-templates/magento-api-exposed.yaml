@@ -1,7 +1,7 @@
 id: magento-public-rest-api
 info:
   name: Magento Public REST API Surface
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Identifies intentionally public Magento store and directory APIs; validate data sensitivity before escalation.
   tags: magento,api,fingerprint,ecommerce,rest

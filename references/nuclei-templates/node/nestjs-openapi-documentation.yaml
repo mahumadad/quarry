@@ -1,7 +1,7 @@
 id: nestjs-openapi-documentation
 info:
   name: NestJS OpenAPI Documentation Surface
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Identifies NestJS Swagger and OpenAPI surfaces without asserting sensitive access.
   tags: nodejs,nestjs,openapi,attack-surface

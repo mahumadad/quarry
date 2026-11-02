@@ -118,7 +118,7 @@ transporte (stdio vs HTTP) y autenticación.
 vs nuestro plugin:
 
 ┌─────────────────────────────────────────────┐
-│           pentest-plugin                     │
+│           quarry                     │
 │  Claude Code skills + Python engine          │
 ├──────────────┬──────────────┬───────────────┤
 │  Recon       │  Hunting     │  Chains       │

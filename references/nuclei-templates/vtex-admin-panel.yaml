@@ -1,7 +1,7 @@
 id: vtex-admin-login-surface
 info:
   name: VTEX Admin Login Surface
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Identifies VTEX admin login content without following redirects or attempting authentication.
   tags: vtex,admin,panel,fingerprint,ecommerce

@@ -6,8 +6,8 @@
     "name": "mahumadad"
   },
   "license": "MIT",
-  "repository": "https://github.com/mahumadad/pentest-plugin",
-  "homepage": "https://github.com/mahumadad/pentest-plugin",
+  "repository": "https://github.com/mahumadad/quarry",
+  "homepage": "https://github.com/mahumadad/quarry",
   "keywords": [
     "quarry",
     "pentest",
@@ -20,7 +20,7 @@
     "nuclei",
     "evidence-chain"
   ],
-  "documentationUrl": "https://github.com/mahumadad/pentest-plugin#readme",
+  "documentationUrl": "https://github.com/mahumadad/quarry#readme",
   "mcpServers": {
     "nuclei-runner": {
       "description": "Fail-closed Nuclei template execution with policy enforcement, scope validation, and evidence hashing.",

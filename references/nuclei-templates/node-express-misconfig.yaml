@@ -1,7 +1,7 @@
 id: express-stack-trace-exposed
 info:
   name: Express Server Stack Trace Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects server-side Express stack traces, excluding ordinary Cannot GET responses.
   tags: nodejs,express,debug,info-disclosure

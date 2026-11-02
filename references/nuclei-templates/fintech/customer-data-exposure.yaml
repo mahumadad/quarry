@@ -1,7 +1,7 @@
 id: fintech-customer-data-exposure
 info:
   name: Unauthenticated Financial Customer Data Exposure
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Gated read-only check for financial records containing account and transaction identifiers.
   tags: fintech,api,sensitive-data,authorization

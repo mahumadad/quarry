@@ -1,7 +1,7 @@
 id: django-admin-login-surface
 info:
   name: Django Admin Login Surface
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Identifies Django admin login; does not attempt credentials or claim a vulnerability.
   tags: python,django,admin,attack-surface

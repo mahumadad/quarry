@@ -1,7 +1,7 @@
 id: sidekiq-dashboard-exposed
 info:
   name: Sidekiq Dashboard Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects Sidekiq dashboards without changing jobs or queue state.
   tags: rails,sidekiq,worker,exposure

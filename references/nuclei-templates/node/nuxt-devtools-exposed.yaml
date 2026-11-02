@@ -1,7 +1,7 @@
 id: nuxt-devtools-exposed
 info:
   name: Nuxt DevTools Client Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects the Nuxt DevTools client using devtools-specific markers.
   tags: nodejs,nuxtjs,vue,development,exposure

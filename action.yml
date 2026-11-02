@@ -1,6 +1,6 @@
 name: "Pentest Plugin — Validate & SARIF"
 description: >-
-  Run the pentest-plugin structural validator, engine smoke tests,
+  Run the quarry structural validator, engine smoke tests,
   and optionally export results as SARIF for GitHub Code Scanning.
 
 inputs:
@@ -12,7 +12,7 @@ inputs:
     default: "false"
   sarif-file:
     description: "SARIF output path"
-    default: "pentest-plugin.sarif"
+    default: "quarry.sarif"
 
 outputs:
   errors:
@@ -81,9 +81,9 @@ runs:
             'runs': [{
                 'tool': {
                     'driver': {
-                        'name': 'pentest-plugin-validator',
+                        'name': 'quarry-validator',
                         'version': '0.1.0',
-                        'informationUri': 'https://github.com/mahumadad/pentest-plugin',
+                        'informationUri': 'https://github.com/mahumadad/quarry',
                         'rules': []
                     }
                 },

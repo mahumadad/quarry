@@ -1,7 +1,7 @@
 id: node-package-metadata-exposed
 info:
   name: Node Package Metadata Exposed
-  author: pentest-plugin
+  author: quarry
   severity: low
   description: Detects package manifests or lockfiles with dependency metadata.
   tags: nodejs,express,nestjs,dependency-disclosure

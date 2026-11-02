@@ -1,7 +1,7 @@
 id: graphql-batch-query
 info:
   name: GraphQL Read-Only Batch Accepted
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Confirms two read-only operations in one request; does not claim DoS or rate-limit bypass.
   tags: graphql,batch,api,attack-surface

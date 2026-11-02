@@ -1,7 +1,7 @@
 id: traefik-api-exposed
 info:
   name: Traefik API and Dashboard Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Detects Traefik router configuration or dashboard without modifying routes.
   tags: traefik,api-gateway,exposure,microservices

@@ -1,7 +1,7 @@
 id: aspnet-developer-exception-exposed
 info:
   name: ASP.NET Developer Exception Page Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Detects the ASP.NET Core developer exception page with runtime-specific markers.
   tags: aspnet,dotnet,debug,info-disclosure

@@ -1,7 +1,7 @@
 id: nextjs-development-manifest-exposed
 info:
   name: Next.js Development Build Manifest Exposed
-  author: pentest-plugin
+  author: quarry
   severity: low
   description: Detects development build manifests and client route metadata.
   tags: nodejs,nextjs,development,info-disclosure

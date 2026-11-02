@@ -1,7 +1,7 @@
 id: laravel-horizon-dashboard-exposed
 info:
   name: Laravel Horizon Dashboard Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects Horizon dashboards without retrying, deleting or creating jobs.
   tags: php,laravel,horizon,queue,exposure

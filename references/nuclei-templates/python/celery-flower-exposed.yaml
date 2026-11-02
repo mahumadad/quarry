@@ -1,7 +1,7 @@
 id: celery-flower-exposed
 info:
   name: Celery Flower Interface Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects an unauthenticated Flower response on the supplied origin without changing ports.
   tags: python,celery,flower,worker,exposure

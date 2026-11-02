@@ -1,7 +1,7 @@
 id: javascript-source-map-content-exposed
 info:
   name: JavaScript Source Map With Source Content Exposed
-  author: pentest-plugin
+  author: quarry
   severity: low
   description: Detects source maps containing original source content on fixed bundle paths.
   tags: nodejs,nextjs,nuxtjs,source-map,info-disclosure

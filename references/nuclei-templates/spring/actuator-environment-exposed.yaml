@@ -1,7 +1,7 @@
 id: spring-actuator-environment-exposed
 info:
   name: Spring Actuator Environment Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Gated read-only check for environment properties that may contain secrets.
   tags: java,spring,actuator,sensitive-data

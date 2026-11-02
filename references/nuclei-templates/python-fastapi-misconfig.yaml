@@ -1,7 +1,7 @@
 id: fastapi-openapi-documentation
 info:
   name: FastAPI OpenAPI Documentation Surface
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Identifies FastAPI documentation and schema endpoints; public documentation alone is not a vulnerability.
   tags: python,fastapi,openapi,attack-surface

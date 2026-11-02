@@ -1,7 +1,7 @@
 id: kong-admin-api-exposed
 info:
   name: Kong Admin API Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Detects Kong Admin API identity and configuration collections on a supplied admin origin.
   tags: kong,api-gateway,exposure,microservices

@@ -1,7 +1,7 @@
 id: payment-live-credentials-exposed
 info:
   name: Live Payment Credentials in Public JavaScript
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Detects likely live payment secrets in fixed public bundles; redact and validate ownership without using credentials.
   tags: payment,stripe,mercadopago,paypal,secret-exposure

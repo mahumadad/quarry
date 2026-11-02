@@ -1,7 +1,7 @@
 id: graphql-introspection
 info:
   name: GraphQL Introspection Enabled
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Confirms schema introspection; impact depends on exposed operations and authorization.
   tags: graphql,introspection,api,attack-surface

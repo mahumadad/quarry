@@ -1,4 +1,4 @@
-# pentest-plugin — Review Fix List
+# Quarry — Review Fix List
 
 Consolidated from the independent technical review (Nov 2026 PDF) and
 operator analysis. Items are ordered by priority: P0 blocks correct

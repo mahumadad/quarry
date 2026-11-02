@@ -45,7 +45,7 @@ Imagen pineada con versiones declaradas de herramientas — máxima
 reproducibilidad entre operadores y entre runs del benchmark.
 
 ```bash
-# Dockerfile base sugerido (construir y taggear pentest-plugin/toolkit:1.0):
+# Dockerfile base sugerido (construir y taggear quarry/toolkit:1.0):
 FROM kalilinux/kali-rolling
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nmap masscan sqlmap nuclei ffuf gobuster curl dnsutils whois \
@@ -53,7 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 ```
 
-Configuración: `{"backend": "docker", "docker_image": "pentest-plugin/toolkit:1.0"}`.
+Configuración: `{"backend": "docker", "docker_image": "quarry/toolkit:1.0"}`.
 El runner envuelve cada comando en `docker run --rm --network host {image}`.
 Montar el directorio del engagement como volumen si las herramientas deben
 escribir outputs: extender `_run_local` según necesidad.

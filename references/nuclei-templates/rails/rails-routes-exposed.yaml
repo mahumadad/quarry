@@ -1,7 +1,7 @@
 id: rails-route-list-exposed
 info:
   name: Rails Route List Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects the Rails development route inspector with route-table specific markers.
   tags: rails,routes,info-disclosure

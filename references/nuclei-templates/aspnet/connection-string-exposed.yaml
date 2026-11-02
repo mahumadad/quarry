@@ -1,7 +1,7 @@
 id: aspnet-connection-string-exposed
 info:
   name: ASP.NET Connection String Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Detects concrete database credentials in publicly served ASP.NET configuration.
   tags: aspnet,dotnet,secret-exposure

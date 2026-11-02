@@ -1,7 +1,7 @@
 id: spring-actuator-health-details
 info:
   name: Spring Actuator Detailed Health Exposure
-  author: pentest-plugin
+  author: quarry
   severity: low
   description: Detects health responses exposing internal component details rather than status only.
   tags: java,spring,actuator,info-disclosure

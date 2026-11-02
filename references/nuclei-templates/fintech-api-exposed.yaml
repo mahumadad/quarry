@@ -1,7 +1,7 @@
 id: fintech-openapi-documentation
 info:
   name: Financial API Documentation Surface
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Identifies OpenAPI documentation; does not infer financial data exposure from HTTP 200.
   tags: fintech,api,openapi,attack-surface

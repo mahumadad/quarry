@@ -1,7 +1,7 @@
 id: bull-board-exposed
 info:
   name: Bull Queue Dashboard Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects Bull Board queue management surfaces without invoking queue operations.
   tags: nodejs,bull,bullmq,queue,exposure

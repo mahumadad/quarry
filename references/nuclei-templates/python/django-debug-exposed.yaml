@@ -1,7 +1,7 @@
 id: django-debug-exposed
 info:
   name: Django Debug Interface Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Detects Django debug toolbar or DEBUG=true exception pages with two framework signals.
   tags: python,django,debug,info-disclosure

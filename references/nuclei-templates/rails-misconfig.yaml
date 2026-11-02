@@ -1,7 +1,7 @@
 id: rails-development-info-exposed
 info:
   name: Rails Development Information Pages Exposed
-  author: pentest-plugin
+  author: quarry
   severity: medium
   description: Detects Rails development information pages with framework-specific content.
   tags: rails,ruby,debug,info-disclosure

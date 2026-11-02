@@ -1,7 +1,7 @@
 id: laravel-ignition-debug-exposed
 info:
   name: Laravel Ignition Debug Page Exposed
-  author: pentest-plugin
+  author: quarry
   severity: high
   description: Detects Laravel Ignition exception pages without invoking debug actions.
   tags: php,laravel,ignition,debug

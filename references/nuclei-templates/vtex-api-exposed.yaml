@@ -1,7 +1,7 @@
 id: vtex-public-api-surface
 info:
   name: VTEX Public Catalog and Session API Surface
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Identifies public VTEX APIs without querying customer data entities or checkout operations.
   tags: vtex,api,fingerprint,ecommerce

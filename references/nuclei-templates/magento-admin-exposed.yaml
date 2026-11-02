@@ -1,7 +1,7 @@
 id: magento-admin-exposed
 info:
   name: Magento Admin Login Surface
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Identifies a Magento admin login surface; public routing alone is not a vulnerability.
   tags: magento,admin,panel,fingerprint,ecommerce

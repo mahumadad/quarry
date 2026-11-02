@@ -1,7 +1,7 @@
 id: graphql-field-suggestions
 info:
   name: GraphQL Field Suggestions Enabled
-  author: pentest-plugin
+  author: quarry
   severity: info
   description: Confirms schema-derived field suggestions in validation errors.
   tags: graphql,enumeration,api,attack-surface

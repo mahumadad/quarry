@@ -2,7 +2,7 @@
 
 **Track. Aim. Prove.**
 
-[![CI](https://github.com/mahumadad/pentest-plugin/actions/workflows/validate.yml/badge.svg)](https://github.com/mahumadad/pentest-plugin/actions/workflows/validate.yml)
+[![CI](https://github.com/mahumadad/quarry/actions/workflows/validate.yml/badge.svg)](https://github.com/mahumadad/quarry/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Quarry is a full-cycle penetration testing plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). It turns an AI coding agent into a methodical security tester — from recon through reporting — with a deterministic evidence chain that no other plugin in the ecosystem provides.
@@ -56,8 +56,8 @@ Full results: [`benchmarks/results/`](benchmarks/results/). Weekly CI runs on Mo
 ## Quick start
 
 ```bash
-git clone https://github.com/mahumadad/pentest-plugin.git
-claude plugin add /path/to/pentest-plugin
+git clone https://github.com/mahumadad/quarry.git
+claude plugin add /path/to/quarry
 ```
 
 ```
@@ -158,7 +158,7 @@ docs/                 Design docs and gap analysis
 Quarry ships a [GitHub Action](action.yml) for PR-level security scanning with SARIF export:
 
 ```yaml
-- uses: mahumadad/pentest-plugin@main
+- uses: mahumadad/quarry@main
   with:
     sarif: "true"
 ```
