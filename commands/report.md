@@ -1,10 +1,10 @@
 ---
-name: pt:report
+name: quarry:report
 description: Genera el reporte del engagement — completo o solo resumen ejecutivo, en Markdown o PDF
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:report [--format md|pdf] [--executive]
+# /quarry:report [--format md|pdf] [--executive]
 
 Genera el reporte final del engagement a partir de findings `VALIDATED`
 y cadenas verificadas. Por defecto: formato `md`, reporte completo (no
@@ -14,7 +14,7 @@ solo ejecutivo).
 
 - Debe haber al menos 1 finding en status `VALIDATED` o `REPORTED`
   (`FindingsStore.list_by_status(FindingStatus.VALIDATED)`). Si no hay
-  ninguno, detener y señalar que falta `/pt:validate` — un reporte sin
+  ninguno, detener y señalar que falta `/quarry:validate` — un reporte sin
   findings validados es, en el mejor caso, un reporte de recon/cobertura,
   no un reporte de hallazgos. Ofrecer generar igual un reporte de
   "estado del engagement" si eso es lo que el operador quiere, pero no
@@ -63,8 +63,8 @@ Usar `templates/engagement-report.md` si existe; si no, esta estructura
    - Remediación concreta
    - Mapeo MITRE ATT&CK (tactic + technique ID)
    - `evidence_tag` (Demonstrated/Inferred/Unproven) visible
-4. **Cadenas de ataque** — cada cadena de `/pt:chain` que pasó
-   `/pt:validate`, con el mecanismo completo, los findings componentes
+4. **Cadenas de ataque** — cada cadena de `/quarry:chain` que pasó
+   `/quarry:validate`, con el mecanismo completo, los findings componentes
    (como referencia, no repetidos en extenso), e impacto combinado.
 5. **Matriz de cobertura** — de `CoverageTracker.summary()` y
    `get_gaps()`: qué se probó, qué no, y por qué (scope, tiempo, o
@@ -105,7 +105,7 @@ Usar `templates/engagement-report.md` si existe; si no, esta estructura
   explícita de que no pasaron el pipeline de validación completo.
 - **Cadena validada cuyos findings componentes individuales NO están
   validados** (pasó por rebuttal la combinación, pero algún finding base
-  quedó en `STALL`): esto no debería ocurrir si `/pt:validate` se corrió
+  quedó en `STALL`): esto no debería ocurrir si `/quarry:validate` se corrió
   correctamente sobre la cadena; si ocurre, señalarlo como inconsistencia
   de estado y resolver antes de incluir la cadena en el reporte.
 - **Reporte parcial a mitad de engagement** (operador pide un snapshot

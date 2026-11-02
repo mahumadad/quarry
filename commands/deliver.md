@@ -1,12 +1,12 @@
 ---
-name: pt:deliver
+name: quarry:deliver
 description: Package and deliver engagement artifacts with optional GPG encryption
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:deliver — Empaquetar y entregar los artefactos del engagement
+# /quarry:deliver — Empaquetar y entregar los artefactos del engagement
 
-Uso: `/pt:deliver <dir_entregable> [--gpg RECIPIENT | --gpg-symmetric]`
+Uso: `/quarry:deliver <dir_entregable> [--gpg RECIPIENT | --gpg-symmetric]`
 
 ## Qué hace
 
@@ -34,6 +34,6 @@ Uso: `/pt:deliver <dir_entregable> [--gpg RECIPIENT | --gpg-symmetric]`
 ## Ejemplos
 
 ```
-/pt:deliver outputs/acme-2026-09/deliverable --gpg security@acme.com
-/pt:deliver outputs/acme-2026-09/deliverable --gpg-symmetric
+/quarry:deliver outputs/acme-2026-09/deliverable --gpg security@acme.com
+/quarry:deliver outputs/acme-2026-09/deliverable --gpg-symmetric
 ```

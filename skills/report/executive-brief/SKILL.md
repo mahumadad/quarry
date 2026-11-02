@@ -3,7 +3,7 @@ name: executive-brief
 description: >
   Produce the one-page, non-technical brief for C-level/board audiences: overall risk rating,
   the top 3 critical chains in plain language, and the headline remediation priorities, using
-  `templates/executive-summary.md`. Use for `/pt:report --executive`, or whenever the full
+  `templates/executive-summary.md`. Use for `/quarry:report --executive`, or whenever the full
   technical report already exists and a standalone leadership-facing summary is needed
   separately. Do NOT use this in place of the full `report-writing` deliverable — this skill
   only produces the one-page synthesis, and per `executive-summary.md`'s own footer, the full
@@ -18,7 +18,7 @@ feeds_into: []
 
 ## Signals
 
-- `/pt:report --executive` was invoked.
+- `/quarry:report --executive` was invoked.
 - The full `engagement-report.md` is finished and a separate leadership-facing one-pager is
   needed for distribution to people who won't read the technical sections.
 - A mid-engagement checkpoint needs a short, accurate status for stakeholders without

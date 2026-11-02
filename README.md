@@ -1,93 +1,90 @@
-# pentest-plugin
+# Quarry
+
+**Track. Aim. Prove.**
 
 [![CI](https://github.com/mahumadad/pentest-plugin/actions/workflows/validate.yml/badge.svg)](https://github.com/mahumadad/pentest-plugin/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A full-cycle penetration testing plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
-Covers reconnaissance, vulnerability hunting, finding chaining, adversarial
-validation, and reporting — with a deterministic evidence discipline that no
-other plugin in the ecosystem provides.
+Quarry is a full-cycle penetration testing plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). It turns an AI coding agent into a methodical security tester — from recon through reporting — with a deterministic evidence chain that no other plugin in the ecosystem provides.
 
-> **Authorized engagements only.** This plugin is designed exclusively for
-> penetration tests performed under written authorization (signed Rules of
-> Engagement / Statement of Work). Never use it against systems you do not
-> have explicit, documented permission to test. Unauthorized use is illegal
-> and unethical.
+Every finding is tracked, every claim is proven, every artifact is custody-logged. No hallucinated vulns. No unverified severity. No guesswork in your report.
 
-## Features
+> **Authorized engagements only.** Quarry is designed exclusively for penetration tests performed under written authorization (signed RoE / SoW). Never use it against systems you do not have explicit permission to test.
+
+---
+
+## Why Quarry?
+
+Most AI pentest tools optimize for **autonomy** — more tools, more actions, less human oversight. Quarry optimizes for **proof**:
+
+| What others do | What Quarry does |
+|---|---|
+| Report findings based on version banners | Require PoC or evidence before any finding |
+| Trust the AI's classification | Blind adversarial rebuttal by an independent agent |
+| Flat list of vulnerabilities | Attack chains with BFS graph walking |
+| "We found 47 vulnerabilities" | Custody-grade evidence log, hash-chained, attestable |
+
+**The result:** reports that survive scrutiny. Findings that reproduce. Evidence that holds up.
+
+---
+
+## What's inside
 
 - **124 skills** across 10 domains (recon, hunt, chain, report, SAST, AI security, platform, mapping, validation, core)
-- **18 agents** with defined roles, inputs/outputs, and delegation rules
-- **14 declarative workflows** (full pentest, web app, API, cloud, AD, mobile, AI agent, purple team, retest, CVE response, PR scan, surface watch, closeout, recon-only)
-- **55 engine modules** — deterministic Python harness (custody, policy, OAST, chaining, nuclei runner, browser verification, budget tracking, and more)
-- **40 reviewed Nuclei templates** with integrity hashes (PCI DSS 4.0, SOC 2, HIPAA, CIS v8, MITRE ATT&CK, NIST CSF, OWASP Top 10)
-- **Evidence discipline**: append-only custody chain with hash-per-entry, Demonstrated/Inferred/Unproven evidence tags, anti-fabrication rules, seven-question gate for findings, and blind adversarial rebuttal
+- **18 specialized agents** — each with defined roles, inputs/outputs, and delegation rules
+- **14 declarative workflows** — full pentest, web app, API, cloud, AD, mobile, AI agent, purple team, retest, CVE response, PR scan, surface watch, closeout, recon-only
+- **55 engine modules** — deterministic Python harness: custody, policy, OAST, chaining, nuclei runner, browser verification, budget tracking
+- **40 reviewed Nuclei templates** — integrity-hashed, mapped to PCI DSS 4.0, SOC 2, HIPAA, CIS v8, MITRE ATT&CK, NIST CSF, OWASP Top 10
+- **Evidence discipline** — append-only custody chain, Demonstrated/Inferred/Unproven evidence tags, anti-fabrication rules, seven-question gate, blind adversarial rebuttal
+
+---
 
 ## Benchmarks
 
 Scored against known-vulnerable applications with versioned ground truth:
 
-| Target | Expected | Found | Recall |
-|--------|----------|-------|--------|
-| DVWA | 25 | 25 | 100% |
-| crAPI | 10 | 10 | 100% |
-| OWASP Juice Shop (v20.3.0) | 14 | 14 | 100% |
+| Target | Expected | Found | Recall | Evidence integrity |
+|--------|----------|-------|--------|--------------------|
+| DVWA | 25 | 25 | **100%** | 100% |
+| crAPI | 10 | 10 | **100%** | 100% |
+| Juice Shop v20.3.0 | 14 | 14 | **100%** | 100% |
 
-Results in [`benchmarks/results/`](benchmarks/results/).
+Full results: [`benchmarks/results/`](benchmarks/results/). Weekly CI runs on Mondays.
 
-## Installation
+---
+
+## Quick start
 
 ```bash
-# Clone the repository
 git clone https://github.com/mahumadad/pentest-plugin.git
-
-# Add as a Claude Code plugin
 claude plugin add /path/to/pentest-plugin
+```
+
+```
+/quarry:doctor            # Check your environment
+/quarry:engage            # Set scope and target
+/quarry:recon             # Reconnaissance
+/quarry:hunt              # Hunt by vulnerability class
+/quarry:chain             # Chain findings for combined impact
+/quarry:validate          # Adversarial validation
+/quarry:report            # Generate the report
 ```
 
 ### Prerequisites
 
-**Required:**
-- Python 3.11+
-- `pip install -r requirements.txt`
+**Required:** Python 3.11+ and `pip install -r requirements.txt`
 
-**External tools** (checked by `/pt:doctor`):
-- [nmap](https://nmap.org/)
-- [nuclei](https://github.com/projectdiscovery/nuclei)
-- [ffuf](https://github.com/ffuf/ffuf)
-- [httpx](https://github.com/projectdiscovery/httpx)
+**External tools** (checked by `/quarry:doctor`):
+[nmap](https://nmap.org/) ·
+[nuclei](https://github.com/projectdiscovery/nuclei) ·
+[ffuf](https://github.com/ffuf/ffuf) ·
+[httpx](https://github.com/projectdiscovery/httpx)
 
-**Optional:**
-- [Playwright](https://playwright.dev/) — for browser-based verification (`pip install playwright && playwright install chromium`)
+**Optional:** [Playwright](https://playwright.dev/) for browser-based XSS/clickjacking verification
 
-Run `/pt:doctor` after installation to verify your environment.
+---
 
-## Quick start
-
-```
-# 1. Start an engagement (sets scope and target)
-/pt:engage
-
-# 2. Run reconnaissance
-/pt:recon
-
-# 3. Check status and coverage
-/pt:status
-
-# 4. Hunt for vulnerabilities by class
-/pt:hunt
-
-# 5. Chain findings for combined impact
-/pt:chain
-
-# 6. Validate findings adversarially
-/pt:validate
-
-# 7. Generate the report
-/pt:report
-```
-
-## Architecture
+## How it works
 
 ```
 Operator
@@ -109,74 +106,70 @@ engagement-planner ──► recon-agent ──► exploit-researcher
 
 **Human gates:** exploitation, state-modifying payloads, scope expansion, destructive actions, and pivoting all require explicit operator confirmation.
 
-**Custody chain:** every evidence artifact is logged in an append-only, hash-chained custody log via `engine/custody.py`. Each entry is attestable after the fact.
+**Custody chain:** every evidence artifact is logged in an append-only, hash-chained custody log. Each entry is attestable after the fact.
+
+---
+
+## Commands
+
+| Command | What it does |
+|---------|-------------|
+| `/quarry:engage` | Start engagement with scope and RoE |
+| `/quarry:scope` | View or modify scope |
+| `/quarry:recon` | Run reconnaissance |
+| `/quarry:hunt` | Hunt vulnerabilities by class |
+| `/quarry:chain` | Analyze finding chains |
+| `/quarry:validate` | Adversarial validation pipeline |
+| `/quarry:findings` | List current findings |
+| `/quarry:report` | Generate report |
+| `/quarry:status` | Engagement status and coverage |
+| `/quarry:doctor` | Check environment |
+| `/quarry:map` | Map to MITRE, NIST, OWASP |
+| `/quarry:export` | Export as SARIF, JSON, CSV |
+| `/quarry:deliver` | Package and deliver |
+| `/quarry:closeout` | Close with coverage summary |
+| `/quarry:resume` | Resume paused engagement |
+| `/quarry:retest` | Re-test remediated vulns |
+| `/quarry:run` | Execute a workflow |
+| `/quarry:notify` | Escalate critical finding |
+
+---
 
 ## Project structure
 
 ```
-.claude-plugin/       Plugin manifest
-agents/               18 agent definitions with roles and delegation rules
-commands/             18 slash commands (/pt:engage, /pt:recon, etc.)
+.claude-plugin/       Plugin manifest and marketplace config
+agents/               18 agent definitions with roles and delegation
+commands/             18 slash commands (/quarry:*)
 engine/               55 Python modules — deterministic harness
-hooks/                PreToolUse guard + SessionStart rules injection
-skills/               126 skills organized by domain
-  ├── recon/          Reconnaissance skills
-  ├── hunt/           Vulnerability hunting by class
-  ├── chain/          Finding chaining and graph walking
-  ├── report/         Report generation and QC
-  ├── sast/           Static analysis
-  ├── validate/       Finding validation and evidence hygiene
-  ├── core/           Core methodology skills
-  ├── mapping/        Framework and compliance mapping
-  ├── platform/       Platform-specific attacks (cloud, mobile, IoT)
-  └── ai-security/    AI/ML-specific attack skills
+hooks/                PreToolUse guard + SessionStart rules
+skills/               124 skills across 10 domains
 workflows/            14 declarative YAML workflows
-benchmarks/           Ground-truth scoring against DVWA, crAPI, Juice Shop
+benchmarks/           Ground-truth scoring (DVWA, crAPI, Juice Shop)
 references/           CVSS 4.0, EPSS, ATT&CK references
 lab/                  Multistack Docker lab for template validation
-docs/                 Internal design docs and gap analysis
+docs/                 Design docs and gap analysis
 ```
 
-## Commands
+---
 
-| Command | Description |
-|---------|-------------|
-| `/pt:engage` | Start a new engagement with scope and RoE |
-| `/pt:scope` | View or modify current scope |
-| `/pt:recon` | Run reconnaissance phase |
-| `/pt:hunt` | Hunt for vulnerabilities by class |
-| `/pt:chain` | Analyze finding chains for combined impact |
-| `/pt:validate` | Run adversarial validation on findings |
-| `/pt:findings` | List current findings |
-| `/pt:report` | Generate engagement report |
-| `/pt:status` | Show engagement status and coverage |
-| `/pt:doctor` | Check environment and dependencies |
-| `/pt:map` | Map findings to frameworks (MITRE, NIST, OWASP) |
-| `/pt:export` | Export findings in various formats |
-| `/pt:deliver` | Package and deliver final report |
-| `/pt:closeout` | Close engagement with coverage summary |
-| `/pt:resume` | Resume a paused engagement |
-| `/pt:retest` | Re-test previously found vulnerabilities |
-| `/pt:run` | Execute a named workflow |
-| `/pt:notify` | Send engagement notifications |
+## CI & reusable action
 
-## How it differs from other tools
+Quarry ships a [GitHub Action](action.yml) for PR-level security scanning with SARIF export:
 
-This plugin does not compete on tool count or autonomy. Its differentiator
-is **evidence integrity**:
+```yaml
+- uses: mahumadad/pentest-plugin@main
+  with:
+    sarif: "true"
+```
 
-- **Custody chain** — append-only, hash-chained log of every evidence artifact
-- **Three-level evidence tags** — Demonstrated, Inferred, Unproven
-- **Anti-fabrication rules** — no finding without reproducible evidence
-- **Blind adversarial rebuttal** — `finding-checker` reviews in isolation, without engagement context
-- **Detection pairing** — every offensive technique is paired with its detection opportunity
-- **Fail-closed scope guard** — `engine/guard.py` blocks out-of-scope commands by default
+Results upload to GitHub Code Scanning automatically.
+
+---
 
 ## Contributing
 
-Contributions are welcome. Please ensure any changes maintain the evidence
-discipline and scope-guard invariants. Run the validation suite before
-submitting:
+Contributions welcome. Maintain the evidence discipline and scope-guard invariants. Run validation before submitting:
 
 ```bash
 python3 -m pytest tests/
@@ -184,8 +177,4 @@ python3 -m pytest tests/
 
 ## License
 
-[MIT](LICENSE) — see the license file for details.
-
-**Reminder:** This tool is for authorized security testing only. The MIT
-license grants permission to use the software, not permission to test
-systems you don't own or have written authorization to test.
+[MIT](LICENSE) — the license grants permission to use the software, not permission to test systems you don't own or have written authorization to test.

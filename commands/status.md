@@ -1,10 +1,10 @@
 ---
-name: pt:status
+name: quarry:status
 description: Dashboard del engagement — fase, findings, cobertura, budget, gaps, próximos pasos
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:status
+# /quarry:status
 
 Lee todo el estado persistido del engagement activo y lo presenta como
 un dashboard de una sola pantalla. No modifica nada — es un comando de
@@ -14,7 +14,7 @@ contexto, o simplemente para orientarse.
 ## Precondición
 
 - Debe existir `.pentest-state/engagement.json`. Si no existe, decirlo
-  claramente y recomendar `/pt:engage <target>` — no inventar un estado
+  claramente y recomendar `/quarry:engage <target>` — no inventar un estado
   vacío con apariencia de dashboard.
 
 ## Pasos exactos
@@ -22,7 +22,7 @@ contexto, o simplemente para orientarse.
 1. Cargar `EngagementState` → fase actual, target, fecha de creación,
    historial de transiciones de fase.
 2. Cargar `Scope` → conteo de entradas in-scope/out-of-scope (no el
-   detalle completo, eso es trabajo de `/pt:scope --show`).
+   detalle completo, eso es trabajo de `/quarry:scope --show`).
 3. Cargar `FindingsStore.summary()` → total, desglose por status
    (detected/confirmed/exploited/chained/validated/reported/killed) y
    por severidad.
@@ -45,13 +45,13 @@ contexto, o simplemente para orientarse.
 
 | Situación observada | Recomendación |
 |---|---|
-| Fase `INIT` o sin engagement | `/pt:engage <target>` |
-| Fase `SCOPED`, sin recon | `/pt:recon` |
-| Fase `RECON`, sin mapas | `/pt:map` |
-| Fase `MAPPED`/`HUNTING`, cobertura <100% y budget de hunting <80% | `/pt:hunt` sobre los gaps listados |
-| ≥2 findings `CONFIRMED`/`EXPLOITED` sin cadenas analizadas | `/pt:chain` |
-| Findings `DETECTED`/`CONFIRMED` acumulados sin pasar pipeline | `/pt:validate` |
-| Findings `VALIDATED` sin reportar | `/pt:report` |
+| Fase `INIT` o sin engagement | `/quarry:engage <target>` |
+| Fase `SCOPED`, sin recon | `/quarry:recon` |
+| Fase `RECON`, sin mapas | `/quarry:map` |
+| Fase `MAPPED`/`HUNTING`, cobertura <100% y budget de hunting <80% | `/quarry:hunt` sobre los gaps listados |
+| ≥2 findings `CONFIRMED`/`EXPLOITED` sin cadenas analizadas | `/quarry:chain` |
+| Findings `DETECTED`/`CONFIRMED` acumulados sin pasar pipeline | `/quarry:validate` |
+| Findings `VALIDATED` sin reportar | `/quarry:report` |
 | Budget de alguna fase ≥80% | Escalar al operador antes de seguir — no recomendar más tool calls en esa fase sin decisión humana |
 | Sesiones de rebuttal en `pending` | Completar esas sesiones antes de abrir trabajo nuevo |
 

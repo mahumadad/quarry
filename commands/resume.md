@@ -1,10 +1,10 @@
 ---
-name: pt:resume
+name: quarry:resume
 description: Reanuda un engagement sin repetir ni perder tareas tras una interrupción
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:resume [run_id]
+# /quarry:resume [run_id]
 
 1. Cargar `.pentest-state/engagement.json`, scope, autorización y ventana.
    Si cualquiera falta, está corrupto o expiró, detenerse fail-closed.
@@ -15,7 +15,7 @@ allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
    `interrupted`, nunca a completada.
 4. Presentar `resume_plan`: fase, siguiente tarea, intentos, fallos recientes,
    artefactos disponibles y gates pendientes.
-5. Reanudar con `/pt:run --resume <run_id>` solamente después de verificar los
+5. Reanudar con `/quarry:run --resume <run_id>` solamente después de verificar los
    artefactos de tareas interrumpidas. Si su resultado quedó persistido y es
    íntegro, registrarlo; si no, repetir de forma idempotente esa tarea.
 6. No saltar tareas solo porque su skill aparece en un checkpoint antiguo:

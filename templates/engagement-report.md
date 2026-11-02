@@ -191,7 +191,7 @@ descubiertos, logs de la sesión de testing con timestamps.
 
 | Formato | Ruta | Uso |
 |---|---|---|
-| SARIF | {{sarif_path}} | GitHub/GitLab code scanning (`/pt:export sarif`) |
+| SARIF | {{sarif_path}} | GitHub/GitLab code scanning (`/quarry:export sarif`) |
 | JSON | {{json_path}} | Ticketing / automatización |
 | CSV | {{csv_path}} | Triage en spreadsheet |
 

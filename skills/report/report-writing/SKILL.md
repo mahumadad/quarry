@@ -4,8 +4,8 @@ description: >
   Assemble the full engagement deliverable — executive summary, findings by severity, chains,
   coverage matrix, gaps, recommendations — from VALIDATED material only, using
   `templates/engagement-report.md` and `templates/executive-summary.md`. Use once
-  `/pt:validate` has produced at least one `VALIDATED` finding and the engagement is ready for
-  `/pt:report`. Do NOT use this to decide whether a finding is reportable — that decision
+  `/quarry:validate` has produced at least one `VALIDATED` finding and the engagement is ready for
+  `/quarry:report`. Do NOT use this to decide whether a finding is reportable — that decision
   already happened in `finding-validation`/`triage-gate`/rebuttal; this skill only translates
   and synthesizes what already passed. Do NOT use for the one-page client-facing brief alone —
   that's executive-brief; this skill produces the full technical deliverable (which also
@@ -20,7 +20,7 @@ feeds_into: [framework-mapping, executive-brief]
 
 ## Signals
 
-- `/pt:report` was invoked and at least one finding has status `VALIDATED` or `REPORTED`
+- `/quarry:report` was invoked and at least one finding has status `VALIDATED` or `REPORTED`
   (`FindingsStore.list_by_status(FindingStatus.VALIDATED)`).
 - The engagement is transitioning from `VALIDATING` to `REPORTING` phase.
 - A partial/interim report is requested mid-engagement — same methodology, explicitly titled
@@ -28,14 +28,14 @@ feeds_into: [framework-mapping, executive-brief]
 
 ## Prerequisites
 
-- At least one `VALIDATED` finding. If none exist, stop and surface that `/pt:validate` hasn't
+- At least one `VALIDATED` finding. If none exist, stop and surface that `/quarry:validate` hasn't
   produced anything reportable yet — don't manufacture a findings report from `DETECTED`/
   `CONFIRMED`/`STALL` items.
 - `templates/engagement-report.md` and `templates/executive-summary.md` as the structural
   skeletons.
 - Coverage data from `CoverageTracker.summary()`/`get_gaps()`, and the engagement's scope/RoE
   record for the Scope section.
-- Validated chains from `/pt:chain` + `/pt:validate`, each with `chain-report.md`-shaped detail.
+- Validated chains from `/quarry:chain` + `/quarry:validate`, each with `chain-report.md`-shaped detail.
 
 ## Methodology
 

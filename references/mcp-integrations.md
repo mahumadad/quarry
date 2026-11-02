@@ -63,7 +63,7 @@ MCPs at engagement start and includes them in the Brain's available_tools.
 
 To check available MCPs:
 ```
-/pt:status  → shows connected MCP servers
+/quarry:status  → shows connected MCP servers
 ```
 
 ## Note on Privacy

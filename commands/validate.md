@@ -1,13 +1,13 @@
 ---
-name: pt:validate
+name: quarry:validate
 description: Pipeline de validación de findings — higiene de evidencia, dedup, 4 gates, 7-Question Gate, rebuttal adversarial
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:validate [finding_id|--all]
+# /quarry:validate [finding_id|--all]
 
 Corre el pipeline completo de validación sobre un finding específico o
-sobre todos los pendientes de validar. Nada se reporta (`/pt:report`) sin
+sobre todos los pendientes de validar. Nada se reporta (`/quarry:report`) sin
 haber pasado por este pipeline — es el control anti-fabricación del
 plugin hecho proceso, no solo regla en `CLAUDE.md`.
 
@@ -32,7 +32,7 @@ terreno.
 Verificar por cada finding/cadena:
 - ¿La evidencia es reproducible (request/response completo, o output de
   herramienta con timestamp)? Si falta, **no avanzar** — volver a
-  `/pt:hunt` para esa celda y capturar evidencia real primero.
+  `/quarry:hunt` para esa celda y capturar evidencia real primero.
 - ¿La evidencia demuestra el impacto reclamado, o solo una precondición?
   (ej. "se ve el parámetro reflejado" no es lo mismo que "el XSS
   ejecuta").
@@ -145,6 +145,6 @@ Tabla final por finding/cadena: ID, título, etapa donde terminó
 `KILLED`), y razón en una línea. Resumen agregado
 (`FindingsStore.summary()` + `RebuttalEngine.summary()`).
 
-Próximo paso recomendado: `/pt:report` si hay findings `VALIDATED`;
-si todo quedó en `STALL`, volver a `/pt:hunt`/`/pt:chain` por evidencia
+Próximo paso recomendado: `/quarry:report` si hay findings `VALIDATED`;
+si todo quedó en `STALL`, volver a `/quarry:hunt`/`/quarry:chain` por evidencia
 adicional antes de reintentar validación.

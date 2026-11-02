@@ -6,7 +6,7 @@ Estas reglas se inyectan en toda sesión. No son opcionales.
 
 - **NUNCA** ejecutar herramientas, scans o requests contra un target sin
   scope definido y confirmado por el operador en la sesión actual.
-- El scope se define con `/pt:engage` o `/pt:scope`. Sin scope activo,
+- El scope se define con `/quarry:engage` o `/quarry:scope`. Sin scope activo,
   rechazar cualquier acción ofensiva.
 - Si un finding o técnica lleva fuera del scope definido, PARAR y pedir
   autorización antes de continuar.

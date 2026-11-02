@@ -15,7 +15,7 @@ metadata:
 # Scope Import
 
 Import and validate engagement scope from external sources instead of
-manual `/pt:scope` entry.
+manual `/quarry:scope` entry.
 
 ## Supported Formats
 
@@ -110,8 +110,8 @@ After import:
 ## Usage
 
 ```
-/pt:scope-import path/to/scope.yaml
-/pt:scope-import path/to/hackerone-policy.json
+/quarry:scope-import path/to/scope.yaml
+/quarry:scope-import path/to/hackerone-policy.json
 ```
 
 The command auto-detects format and imports accordingly.

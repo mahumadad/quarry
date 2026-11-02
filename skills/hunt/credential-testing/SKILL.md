@@ -11,7 +11,7 @@ description: >-
 
 ## Prerequisites
 
-- Scope confirmed (`/pt:scope`) with credential testing authorized
+- Scope confirmed (`/quarry:scope`) with credential testing authorized
 - AppProfile available (tech stack, auth mechanisms identified)
 - Account lockout policy documented or unknown (assume aggressive)
 

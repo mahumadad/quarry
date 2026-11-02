@@ -104,7 +104,7 @@ the program and can breach the engagement's rules of engagement.
 
 **How to check:**
 - Match the exact asset (domain, subdomain, IP, mobile app ID, API) against
-  the scope document from `/pt:engage` or `/pt:scope`.
+  the scope document from `/quarry:engage` or `/quarry:scope`.
 - For a wildcard scope entry (e.g. `*.example.com`), confirm the specific
   host actually resolves to infrastructure the program controls — a
   wildcard DNS match is not proof of ownership (CDN edge nodes, third-party

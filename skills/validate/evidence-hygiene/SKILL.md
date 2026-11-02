@@ -1,7 +1,7 @@
 ---
 name: evidence-hygiene
 description: >
-  Stage 1 of the validation pipeline (`/pt:validate`). Verify that each finding's raw
+  Stage 1 of the validation pipeline (`/quarry:validate`). Verify that each finding's raw
   evidence actually meets the minimum bar before anything else runs: timestamped,
   reproducible, complete request/response (or tool output), and tagged with the correct
   Demonstrated/Inferred/Unproven label for what it actually shows. Use immediately after
@@ -20,7 +20,7 @@ feeds_into: [dedup]
 ## Signals
 
 - A finding/chain just arrived from a */chain-* skill with status `DETECTED` or
-  `CONFIRMED` and is about to enter `/pt:validate`.
+  `CONFIRMED` and is about to enter `/quarry:validate`.
 - Reviewing a batch of findings before `--all` validation to catch evidence gaps cheaply,
   before spending rebuttal-loop budget on something that was never going to survive.
 - A finding's `evidence_tag` looks inconsistent with what's actually attached (e.g. tagged

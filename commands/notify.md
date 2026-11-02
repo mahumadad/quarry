@@ -1,12 +1,12 @@
 ---
-name: pt:notify
+name: quarry:notify
 description: Immediately escalate a critical finding to stakeholders
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:notify — Escalación inmediata de hallazgo crítico
+# /quarry:notify — Escalación inmediata de hallazgo crítico
 
-Uso: `/pt:notify <finding_id>`
+Uso: `/quarry:notify <finding_id>`
 
 ## Cuándo es OBLIGATORIO
 
@@ -26,9 +26,9 @@ Uso: `/pt:notify <finding_id>`
    prod.
 2. Completar `templates/critical-alert.md`: veredicto, evidencia mínima
    suficiente para actuar, qué NO tocar, mitigación inmediata sugerida.
-3. Enviar por el canal de emergencia definido en `/pt:engage`
+3. Enviar por el canal de emergencia definido en `/quarry:engage`
    (emergency_contact). Cifrar si el canal no es de confianza
-   (`/pt:deliver` con gpg aplica para adjuntos).
+   (`/quarry:deliver` con gpg aplica para adjuntos).
 4. Registrar el envío en custody (actor: operator, evento: critical_alert).
 5. Reanudar el engagement solo tras ack del cliente (o decisión documentada
    del operador si el cliente no responde en lo acordado).

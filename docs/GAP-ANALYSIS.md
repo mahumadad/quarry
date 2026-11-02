@@ -1,13 +1,48 @@
-# Gap Analysis — pentest-plugin vs ecosistema 2026
+# Gap Analysis — Quarry vs ecosystem 2026
 
-> Análisis exhaustivo comparando nuestro plugin contra 9 frameworks/repos
-> del ecosistema de AI pentesting. Fecha: 2026-10-29.
+> Exhaustive comparison of Quarry (formerly pentest-plugin) against
+> 16+ frameworks/repos in the AI pentesting ecosystem.
+> Last refresh: 2026-11-02.
 >
-> Repos analizados: Strix, PentAGI, HexStrike AI, opencode-pentester,
+> Repos analyzed (Oct 2026): Strix, PentAGI, HexStrike AI, opencode-pentester,
 > pentest-ai-agents (0xSteph), CyberStrikeAI, RedAmon, CAI, CVEngine.
 >
-> Análisis previo (2026-10-21): H-mmer/pentest-agents, PiRanha, Claude-
+> Prior batch (2026-10-21): H-mmer/pentest-agents, PiRanha, Claude-
 > BugHunter, Shannon, Armur-Ai, ghostsecurity, utkusen, Cybermes, bbscope.
+>
+> Nov 2026 additions: RedteamAgent, SuperClaw, Scenario, Agent Security
+> Harness, ptai, Pentest-R1 (paper), RefPentester (paper).
+
+## Nov 2026 refresh — new repos and updates
+
+### New entries
+
+| Repo/Paper | Capability | Gap for Quarry |
+|---|---|---|
+| **RedteamAgent** (NeoTheCapt) | Claude Code structured recon→exploit→report | Containerized tools, resumable state — lighter but less rigorous |
+| **SuperClaw** (Superagentic) | Pre-deployment red-teaming for AI coding agents | SARIF output for Code Scanning; tests the *agent* not the *target* |
+| **Scenario** (LangWatch) | Multi-turn AI app red teaming, CI integration | AI app attack surfaces not covered by our traditional web skills |
+| **Agent Security Harness** (msaleme) | 649 tests across MCP/A2A/OWASP Agentic T1-T17 | Tests agent security posture — our plugin's own attack surface |
+| **ptai** (PyPI) | 200+ MCP tool wrappers, 60 probes for Claude Code | Breadth of tool integration via MCP; subscription model |
+| **Pentest-R1** (paper) | Two-stage RL for pentest reasoning (15% Cybench) | RL-based decision making vs our static STACK_SKILL_MAP |
+| **RefPentester** (paper) | Self-reflective 7-stage state machine | Explicit state machine model for pentesting flow |
+
+### Updates to tracked repos
+
+- **HexStrike AI v6→v7**: 150→250 tools, 12 agents, Docker support, desktop client
+- **Strix v1.4.1**: Topped GitHub trending Jul 2026; now has paid tiers ($29/seat/mo)
+- **CVEngine**: No 2026 activity — likely abandoned
+- **PentAGI**: No significant updates since Apr 2026
+
+### Actionable gaps (Nov 2026)
+
+1. **SARIF-native output** — engine-level SARIF per finding (CI action added but not per-finding)
+2. **Real MCP server endpoints** — mcpServers declared but need protocol implementation
+3. **Agent self-security** — OWASP Agentic T1-T17 coverage for our own plugin
+4. **RL-based decision making** — research direction; our static STACK_SKILL_MAP works but doesn't learn
+5. **API-direction data anonymization** — redaction.py handles output but not LLM-bound traffic
+
+---
 
 ## Resumen ejecutivo
 

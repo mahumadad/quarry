@@ -1,7 +1,7 @@
 {
-  "name": "pentest",
+  "name": "quarry",
   "version": "0.1.0",
-  "description": "Full-cycle pentest plugin for authorized engagements. Covers recon, mapping, vulnerability hunting by class, finding chaining, adversarial validation, and reporting with MITRE/NIST/CVSS.",
+  "description": "Track. Aim. Prove. Full-cycle penetration testing with custody-grade evidence discipline — the only Claude Code plugin with hash-chained proof, blind adversarial rebuttal, and anti-fabrication rules.",
   "author": {
     "name": "mahumadad"
   },
@@ -9,6 +9,7 @@
   "repository": "https://github.com/mahumadad/pentest-plugin",
   "homepage": "https://github.com/mahumadad/pentest-plugin",
   "keywords": [
+    "quarry",
     "pentest",
     "security",
     "offensive-security",
@@ -19,5 +20,20 @@
     "nuclei",
     "evidence-chain"
   ],
-  "documentationUrl": "https://github.com/mahumadad/pentest-plugin#readme"
+  "documentationUrl": "https://github.com/mahumadad/pentest-plugin#readme",
+  "mcpServers": {
+    "nuclei-runner": {
+      "description": "Fail-closed Nuclei template execution with policy enforcement, scope validation, and evidence hashing.",
+      "transport": "stdio",
+      "command": ["python3", "-m", "engine.nuclei_runner"],
+      "tools": ["nuclei_plan", "nuclei_run", "nuclei_coverage"]
+    },
+    "browser-verify": {
+      "description": "Headless Chromium verification for client-side findings (XSS, clickjacking, open redirect).",
+      "transport": "stdio",
+      "command": ["python3", "-m", "engine.browser_verify"],
+      "tools": ["verify_xss", "verify_clickjacking", "verify_redirect"],
+      "optional": true
+    }
+  }
 }

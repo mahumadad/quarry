@@ -1,12 +1,12 @@
 ---
-name: pt:retest
+name: quarry:retest
 description: Run a remediation verification engagement against a prior report
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:retest — Engagement de verificación de remediación
+# /quarry:retest — Engagement de verificación de remediación
 
-Uso: `/pt:retest <engagement_original_dir>`
+Uso: `/quarry:retest <engagement_original_dir>`
 
 ## Qué hace
 
@@ -46,5 +46,5 @@ previo: el cliente aplicó fixes y hay que probar que los exploits murieron.
 ## Ejemplo
 
 ```
-/pt:retest engagements/acme-2026-09
+/quarry:retest engagements/acme-2026-09
 ```

@@ -1,10 +1,10 @@
 ---
-name: pt:hunt
+name: quarry:hunt
 description: Fase de hunting por clase de vulnerabilidad — todas las clases/assets o un subconjunto filtrado
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:hunt [class] [--asset <asset>]
+# /quarry:hunt [class] [--asset <asset>]
 
 Ejecuta las skills `*` contra el scope. Sin argumentos, corre TODAS
 las clases contra TODOS los assets, breadth-first (regla de `CLAUDE.md`
@@ -15,7 +15,7 @@ asset sobre todas las clases (o la clase dada, si ambos se combinan).
 ## Precondición
 
 - Fase `MAPPED` o `HUNTING`. Si el engagement está en `RECON` sin pasar
-  por `/pt:map`, advertir que hunting sin mapas pierde contexto de
+  por `/quarry:map`, advertir que hunting sin mapas pierde contexto de
   trust/identity/capability — permitir si el operador insiste (target
   trivial), pero dejarlo registrado.
 - Releer `coverage.json` y `findings.json` existentes antes de arrancar
@@ -129,7 +129,7 @@ interrumpir el flujo innecesariamente.
 - **Mismo root cause en múltiples celdas** (ej. falta de output
   encoding afecta 3 endpoints distintos bajo xss-reflected): registrar
   como findings separados por ahora — la deduplicación formal es trabajo
-  de `/pt:validate` (paso de `dedup`), no de hunt.
+  de `/quarry:validate` (paso de `dedup`), no de hunt.
 - **Hallazgo que claramente pertenece a otra clase** (ej. buscando SSRF
   se encuentra un IDOR): registrarlo en la clase correcta
   inmediatamente, no forzarlo en la celda que se estaba probando.
@@ -142,5 +142,5 @@ interrumpir el flujo innecesariamente.
   status).
 - Ratio de cobertura actualizado (`CoverageTracker.summary()`).
 - Próximo paso recomendado: si quedan ≥2 findings `CONFIRMED` o
-  `EXPLOITED`, `/pt:chain`; si no, seguir con celdas pendientes o
-  `/pt:validate` sobre lo que ya hay.
+  `EXPLOITED`, `/quarry:chain`; si no, seguir con celdas pendientes o
+  `/quarry:validate` sobre lo que ya hay.

@@ -84,7 +84,7 @@ These start as non-findings but CAN be upgraded with evidence:
 
 ## Application
 
-- The `finding-validator` agent and `/pt:validate` command MUST check
+- The `finding-validator` agent and `/quarry:validate` command MUST check
   findings against this list before VALIDATED status.
 - A finding on this list gets status KILLED with reason "never-submit: {item}".
 - Operator can override with explicit justification — the override and its

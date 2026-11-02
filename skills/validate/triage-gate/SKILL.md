@@ -1,7 +1,7 @@
 ---
 name: triage-gate
 description: >
-  Stage 4 of the validation pipeline (`/pt:validate`) — the 7-Question Gate. A final,
+  Stage 4 of the validation pipeline (`/quarry:validate`) — the 7-Question Gate. A final,
   bug-bounty-style triage checklist run after the 4 structural gates and before the blind
   adversarial rebuttal loop, asking the questions any external reviewer or client triager would
   ask first. Use on every finding/chain after finding-validation has passed it, as the last
@@ -22,7 +22,7 @@ feeds_into: []
 - A finding/chain just passed all four gates in `finding-validation` and is queued for the
   adversarial rebuttal loop.
 - Preparing a batch for `--all` validation and wanting a fast, structural pre-check before
-  spending rebuttal-loop budget per `/pt:validate`'s cost warning.
+  spending rebuttal-loop budget per `/quarry:validate`'s cost warning.
 - A finding resembles something already reported earlier in the same engagement, or matches a
   pattern commonly rejected by clients as "best practice, not a vulnerability."
 
@@ -90,7 +90,7 @@ below; any "no" blocks the output from `ACCEPTED`.
      question and reason.
 4. Record the outcome and the per-question answers on the finding record — `report-writing`
    and any future retest will need this trail.
-5. On `ACCEPTED`, hand off to the rebuttal loop per `/pt:validate` stage 5 — note that triage-
+5. On `ACCEPTED`, hand off to the rebuttal loop per `/quarry:validate` stage 5 — note that triage-
    gate's "yes" answers are operator-context judgments and carry no weight with the blind
    checker, which re-derives everything from the evidence alone.
 

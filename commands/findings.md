@@ -1,10 +1,10 @@
 ---
-name: pt:findings
+name: quarry:findings
 description: Lista findings con filtros por status, clase y opcionalmente su análisis de cadenas
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:findings [--status <status>] [--class <class>] [--chains]
+# /quarry:findings [--status <status>] [--class <class>] [--chains]
 
 Lista findings del engagement activo, con filtros combinables. Comando
 de solo lectura — no modifica `findings.json` ni `chains.json`.
@@ -12,7 +12,7 @@ de solo lectura — no modifica `findings.json` ni `chains.json`.
 ## Precondición
 
 - Debe existir `.pentest-state/findings.json`. Si no existe o está
-  vacío, decirlo ("0 findings registrados") y sugerir `/pt:hunt` — no es
+  vacío, decirlo ("0 findings registrados") y sugerir `/quarry:hunt` — no es
   un error, puede ser simplemente el estado temprano del engagement.
 
 ## Argumentos
@@ -44,7 +44,7 @@ de solo lectura — no modifica `findings.json` ni `chains.json`.
    búsqueda directa en `list_chains()` por si el finding aparece en una
    cadena sin que `chain_refs` se haya actualizado todavía (no asumir
    que `chain_refs` siempre está sincronizado — es responsabilidad de
-   `/pt:chain` y `/pt:validate` mantenerlo, pero verificar aquí de todas
+   `/quarry:chain` y `/quarry:validate` mantenerlo, pero verificar aquí de todas
    formas).
 4. Renderizar tabla.
 
@@ -69,7 +69,7 @@ F-A1B2C3D4  IDOR en /api/orders/:id  high  confirmed  inferred  api.target.com
   filtros"), no mostrar tabla vacía sin contexto — y sugerir correr sin
   `--class` para ver si el status existe en otras clases.
 - **Finding con `chain_refs` apuntando a un ID que ya no existe en
-  `chains.json`** (ej. una cadena se fusionó/depuró en `/pt:validate`):
+  `chains.json`** (ej. una cadena se fusionó/depuró en `/quarry:validate`):
   señalarlo como referencia rota en vez de omitirlo silenciosamente —
   es una señal de que el estado necesita limpieza.
 - **Muchos findings (>30)**: paginar o agrupar por severidad con

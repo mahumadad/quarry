@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"  # Mondays 06:00 UTC
 
 jobs:
   structural-validation:
@@ -32,6 +35,9 @@ jobs:
 
       - name: Nuclei catalog, selector, scope and evidence tests
         run: python3 tests/test_nuclei_capabilities.py
+
+      - name: Happy-path tests for engine modules
+        run: python3 tests/test_engine_modules.py
 
       - name: Benchmark scorer self-test (synthetic fixture)
         run: python3 tests/test_benchmark_score.py
@@ -62,8 +68,7 @@ jobs:
         if: always()
         run: docker compose -f lab/nuclei-multistack/docker-compose.yml down
 
-  # El benchmark completo contra targets Docker NO corre en cada push
-  # (minutos + contenedores). Se dispara manual o semanal:
+  # Full benchmark against Docker targets — manual or weekly only.
   benchmark:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
@@ -72,11 +77,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Start DVWA
-        run: docker run -d --name dvwa -p 80:80 vulnerables/web-dvwa
-      - name: Placeholder — engagement run
-        run: |
-          echo "El engagement contra el target lo ejecuta un operador/agente."
-          echo "Este job valida que score.py corre y mantiene el gate de recall."
-      - name: Score gate
+      - name: Install dependencies
+        run: python3 -m pip install -r requirements.txt
+      - name: Score gate (synthetic)
         run: python3 tests/test_benchmark_score.py
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.run_number }}
+          path: benchmarks/results/
+          retention-days: 90

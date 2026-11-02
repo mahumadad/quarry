@@ -4,7 +4,7 @@ description: >
   Build and walk the engagement's pivot graph using `chain_engine.py`'s `build_pivot_graph()`
   and `find_paths()` (BFS) to find every route from an initial-access node to a crown-jewel
   node (admin, RCE, full data access) across confirmed findings — the multi-hop complement to
-  chain-analysis's pairwise matrix mode. Use for `/pt:chain --graph` or `--full`, once crown
+  chain-analysis's pairwise matrix mode. Use for `/quarry:chain --graph` or `--full`, once crown
   jewels are defined and at least one CONFIRMED/EXPLOITED finding exists. Do NOT use for
   pairwise scoring of finding combinations — that's chain-analysis's matrix mode; this skill
   only operates on the graph once nodes/edges exist, and routes shape matches to the named
@@ -64,7 +64,7 @@ chains_with: [chain-custom, chain-multi-app]
 5. **Zero paths found is a valid, reportable result — not a failure.** State it plainly: with
    the findings confirmed so far, no known route reaches the defined crown jewels. This is
    coverage information (per project CLAUDE.md's "cobertura" rule) that should feed back into
-   `/pt:hunt` — specifically, identify which node class is missing an inbound edge and target
+   `/quarry:hunt` — specifically, identify which node class is missing an inbound edge and target
    that gap next.
 
 6. **Rank returned paths.** Shortest first (already BFS-guaranteed), then prefer paths where

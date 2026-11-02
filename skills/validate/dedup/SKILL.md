@@ -1,7 +1,7 @@
 ---
 name: dedup
 description: >
-  Stage 2 of the validation pipeline (`/pt:validate`). Collapse findings that share the same
+  Stage 2 of the validation pipeline (`/quarry:validate`). Collapse findings that share the same
   underlying root cause — including ones discovered on different endpoints, by different
   * skills, or in different sessions — into a single finding with multiple instances,
   before the 4 gates and triage-gate spend effort reviewing the same bug twice. Use after
@@ -24,7 +24,7 @@ feeds_into: [finding-validation]
 - A * skill's methodology was applied across multiple endpoints and surfaced the same
   flaw repeatedly (e.g. missing output encoding reflected in three different parameters of
   the same handler).
-- `/pt:chain`'s matrix mode flagged a pair as a suspected spurious chain between two symptoms
+- `/quarry:chain`'s matrix mode flagged a pair as a suspected spurious chain between two symptoms
   of the same bug (per `chain-analysis`'s gotchas).
 - Re-running validation after a prior engagement's findings were imported and may overlap with
   newly discovered ones.

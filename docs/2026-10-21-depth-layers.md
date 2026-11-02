@@ -45,11 +45,11 @@
 
 ## Workflows / comandos / presets
 
-- `workflows/retest.yaml` + `/pt:retest` — verificación de remediación:
+- `workflows/retest.yaml` + `/quarry:retest` — verificación de remediación:
   FIXED/PARTIAL/NOT_FIXED/REGRESSED con evidencia, + variant-sweep post-fix.
 - `workflows/pr-scan.yaml` + `presets/ci-scan.yaml` — modo CI: estático,
   sobre el diff del PR, SARIF a anotaciones, sin tráfico activo.
-- `/pt:export` — SARIF/JSON/CSV con custody logging.
+- `/quarry:export` — SARIF/JSON/CSV con custody logging.
 
 ## Benchmark harness
 

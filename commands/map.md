@@ -1,12 +1,12 @@
 ---
-name: pt:map
+name: quarry:map
 description: Genera los 5 mapas Bountyforge (asset, trust, identity, state, capability) para el chain-analyst
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:map
+# /quarry:map
 
-Construye los 5 mapas estructurados que `chain-analyst` (y `/pt:chain`)
+Construye los 5 mapas estructurados que `chain-analyst` (y `/quarry:chain`)
 usan como insumo. Son el puente entre recon (datos crudos) y hunting
 (prueba dirigida): sin mapas, hunting se vuelve ad-hoc y chain-analysis
 no tiene con qué trabajar.
@@ -14,7 +14,7 @@ no tiene con qué trabajar.
 ## Precondición
 
 - Fase del engagement debe ser `RECON` o posterior, con al menos un
-  asset registrado en `coverage.json`. Si `/pt:recon` no corrió nunca,
+  asset registrado en `coverage.json`. Si `/quarry:recon` no corrió nunca,
   detener y recomendarlo primero — los mapas sin datos de recon son
   especulación, no mapas.
 - Leer `asset-inventory.md` y los raw outputs en `<audit_dir>/raw/`
@@ -90,5 +90,5 @@ materializa como `<audit_dir>/report/maps/<nombre>.md`.
 
 - Los 5 archivos de mapa + README de índice, con rutas.
 - Lista de "SIN DATOS" si algún mapa quedó incompleto por falta de recon.
-- Próximo paso recomendado: `/pt:hunt` (breadth-first sobre todos los
+- Próximo paso recomendado: `/quarry:hunt` (breadth-first sobre todos los
   assets y clases).

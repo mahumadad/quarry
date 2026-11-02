@@ -1,10 +1,10 @@
 ---
-name: pt:chain
+name: quarry:chain
 description: Analiza combinaciones de findings — matriz pairwise, grafo de pivoteo, o ambos. El comando clave del plugin.
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:chain [--matrix|--graph|--full]
+# /quarry:chain [--matrix|--graph|--full]
 
 Este es el comando diferenciador del plugin (`engine/chain_engine.py`).
 Un pentest manual típico reporta findings aislados; este comando busca
@@ -18,9 +18,9 @@ Por defecto, sin argumento, corre `--full` (matrix + graph).
 
 - Debe haber al menos 2 findings con status `CONFIRMED`, `EXPLOITED` o
   `CHAINED` (`FindingsStore.list_chainable()`). Si hay 0 o 1, informar
-  que no hay material para encadenar y sugerir `/pt:hunt` primero — no
+  que no hay material para encadenar y sugerir `/quarry:hunt` primero — no
   es un error, es un estado normal temprano en el engagement.
-- Leer los 5 mapas de `/pt:map` si existen — el capability map en
+- Leer los 5 mapas de `/quarry:map` si existen — el capability map en
   particular define qué cuenta como "crown jewel" para el modo grafo.
 
 ## Modo matriz (`--matrix`)
@@ -41,7 +41,7 @@ Análisis combinatorio pairwise sobre todos los findings chainable:
 3. Cada `Chain` candidata queda persistida en `chains.json` con
    `status="candidate"` y `evidence_tag="inferred"` — **una cadena
    candidata NO es un hallazgo validado**. Es una hipótesis estructural
-   que debe pasar por `/pt:validate` antes de reportarse.
+   que debe pasar por `/quarry:validate` antes de reportarse.
 4. Para cada candidata con severidad `critical` o `high`, intentar
    verificar manualmente la combinación (encadenar los dos PoCs en la
    práctica) antes de pasarla a validación — si la combinación no
@@ -84,7 +84,7 @@ Construye el grafo de pivoteo y busca rutas hacia los crown jewels:
    evidence_tag, y — si aplica — el path completo del grafo.
 5. No transicionar automáticamente findings individuales a `CHAINED` —
    eso requiere que la cadena específica pase el gate humano y
-   `/pt:validate`. Aquí solo se registran como `chain_refs` candidatos.
+   `/quarry:validate`. Aquí solo se registran como `chain_refs` candidatos.
 
 ## Edge cases
 
@@ -95,12 +95,12 @@ Construye el grafo de pivoteo y busca rutas hacia los crown jewels:
 - **Dos findings con la misma causa raíz** (no deduplicados todavía):
   el modo matriz puede generar una "cadena" espuria entre dos síntomas
   del mismo bug. Señalar la sospecha de duplicado en el output y
-  recomendar `/pt:validate --all` (paso dedup) antes de confiar en esa
+  recomendar `/quarry:validate --all` (paso dedup) antes de confiar en esa
   cadena.
 - **Grafo sin acceso inicial claro** (todos los findings requieren
   autenticación previa): documentar esto explícitamente — es una señal
   de que falta un finding de autenticación/bypass para que el kill
-  chain completo sea viable, útil para dirigir el siguiente `/pt:hunt`.
+  chain completo sea viable, útil para dirigir el siguiente `/quarry:hunt`.
 - **Cadena que cruza fuera del scope original** (ej. el pivote llega a
   un asset no autorizado): detener esa rama de la cadena en el límite
   de scope, documentar hasta dónde llega dentro de lo autorizado, y
@@ -114,5 +114,5 @@ Construye el grafo de pivoteo y busca rutas hacia los crown jewels:
 - Rutas del grafo de pivoteo desde acceso inicial a crown jewels (si las
   hay), con longitud de cada ruta.
 - Ruta de `chains.md`.
-- Próximo paso recomendado: `/pt:validate` sobre las cadenas y findings
+- Próximo paso recomendado: `/quarry:validate` sobre las cadenas y findings
   candidatos antes de reportar nada como confirmado.

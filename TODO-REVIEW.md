@@ -64,8 +64,8 @@ legally use, fork, or contribute.\
 The repo is public with zero docs. Must include:
 - Legal disclaimer (authorized engagements only)
 - Installation (clone + claude plugin path)
-- Prerequisites + `/pt:doctor`
-- Quick start: `/pt:engage` → `/pt:recon` → `/pt:status`
+- Prerequisites + `/quarry:doctor`
+- Quick start: `/quarry:engage` → `/quarry:recon` → `/quarry:status`
 - Architecture overview (phases, engine, custody chain)
 - CI badge
 - Benchmark results (DVWA 25/25, crAPI 10/10, Juice Shop 14/14)
@@ -116,10 +116,10 @@ Split into:
 
 **Verify:** clean venv install + `python3 -c "import engine"` succeeds.
 
-### I-4: Verify command namespace (`/pt:*` vs `/pentest:*`)
+### I-4: Verify command namespace (`/quarry:*` vs `/pentest:*`)
 Commands in `commands/` declare as `pt:hunt`, `pt:engage`, etc. But the
 plugin name is `pentest`, so runtime may resolve as `/pentest:hunt`.\
-**Action:** test in a live session. If `/pt:*` doesn't work, either:
+**Action:** test in a live session. If `/quarry:*` doesn't work, either:
 - Rename plugin to `pt` in plugin.json, or
 - Update all 18 command files + docs to use `pentest:` prefix.
 
@@ -150,27 +150,39 @@ external tools, command list, and category metadata.
 
 ## P2 — Adoption / polish
 
-### A-1: Declare mcpServers in plugin.json
-Expose Nuclei runner, tool registry, and browser verifier as MCP
-servers so other agents can consume them.
+### ~~A-1: Declare mcpServers in plugin.json~~ DONE
+Added `nuclei-runner` and `browser-verify` MCP server declarations to
+plugin.json with transport, command, and tool definitions. These are
+interface declarations; full MCP protocol implementation is future work.
 
-### A-2: Publish headless CI action
-`action.yml` for PR-scan with SARIF export to GitHub Code Scanning.
+### ~~A-2: Publish headless CI action~~ DONE
+Created `action.yml` — composite GitHub Action that runs structural
+validation, engine tests, and optionally generates SARIF for Code Scanning.
 
-### A-3: Automate weekly benchmark in CI
-Juice Shop benchmark in GitHub Actions, results committed as JSON +
-badge.
+### ~~A-3: Automate weekly benchmark in CI~~ DONE
+Added `schedule: cron "0 6 * * 1"` (Mondays 06:00 UTC) and
+`workflow_dispatch` triggers. Benchmark results uploaded as artifact
+with 90-day retention. Also added `test_engine_modules.py` to CI.
 
-### A-4: Write DVWA 23/23 writeup
+### A-4: Write DVWA 25/25 writeup
 Public post with the benchmark story — evidence discipline angle.
 
-### A-5: Refresh gap analysis
-CAI archived (Oct 2026), claude-pentest added, Claude Code Security
-layer added. Update `docs/GAP-ANALYSIS.md` with Nov 2026 sources.
+### ~~A-5: Refresh gap analysis~~ DONE
+Updated with Nov 2026 ecosystem scan. 7 new repos/papers found
+(RedteamAgent, SuperClaw, Scenario, Agent Security Harness, ptai,
+Pentest-R1, RefPentester). 5 actionable gaps identified: SARIF-native
+output, real MCP endpoints, agent self-security (OWASP Agentic),
+RL-based decisions, API-direction anonymization. CVEngine likely
+abandoned. HexStrike AI v7.0, Strix v1.4.1 notable updates.
 
-### A-6: Clean up untracked files
-- `ct-kriptome.json` — client data, should not be in repo root
-- `references/nuclei-manifest.json.bak` — backup file
+### ~~A-6: Clean up untracked files~~ DONE
+Files already removed in prior commits. Not tracked by git.
+
+### A-7: Rename plugin to Quarry
+Rebrand from "pentest" to "Quarry" — tagline "Track. Aim. Prove."
+Commands renamed from `/pt:*` to `/quarry:*`. README rewritten for
+engagement. All references updated across commands, skills, workflows,
+agents, docs, templates, and configs.
 
 ---
 

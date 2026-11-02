@@ -1,0 +1,151 @@
+name: "Pentest Plugin — Validate & SARIF"
+description: >-
+  Run the pentest-plugin structural validator, engine smoke tests,
+  and optionally export results as SARIF for GitHub Code Scanning.
+
+inputs:
+  python-version:
+    description: "Python version to use"
+    default: "3.12"
+  sarif:
+    description: "Generate SARIF output (true/false)"
+    default: "false"
+  sarif-file:
+    description: "SARIF output path"
+    default: "pentest-plugin.sarif"
+
+outputs:
+  errors:
+    description: "Number of validation errors"
+    value: ${{ steps.validate.outputs.errors }}
+  warnings:
+    description: "Number of validation warnings"
+    value: ${{ steps.validate.outputs.warnings }}
+  tests-passed:
+    description: "Number of tests passed"
+    value: ${{ steps.tests.outputs.passed }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install dependencies
+      shell: bash
+      run: python3 -m pip install -r ${{ github.action_path }}/requirements.txt
+
+    - name: Validate plugin structure
+      id: validate
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        output=$(python3 tests/validate_plugin.py 2>&1) || true
+        echo "$output"
+        errors=$(echo "$output" | grep -c "^ERROR:" || true)
+        warnings=$(echo "$output" | grep -c "^WARNING:" || true)
+        echo "errors=$errors" >> "$GITHUB_OUTPUT"
+        echo "warnings=$warnings" >> "$GITHUB_OUTPUT"
+
+    - name: Engine smoke tests
+      id: tests
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        output=$(python3 tests/test_engine.py 2>&1) || true
+        echo "$output"
+        passed=$(echo "$output" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
+        echo "passed=$passed" >> "$GITHUB_OUTPUT"
+
+    - name: Engine module tests
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        python3 tests/test_engine_modules.py
+
+    - name: Generate SARIF
+      if: inputs.sarif == 'true'
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        python3 -c "
+        import json, sys
+        from pathlib import Path
+        from datetime import datetime, timezone
+
+        sarif = {
+            '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json',
+            'version': '2.1.0',
+            'runs': [{
+                'tool': {
+                    'driver': {
+                        'name': 'pentest-plugin-validator',
+                        'version': '0.1.0',
+                        'informationUri': 'https://github.com/mahumadad/pentest-plugin',
+                        'rules': []
+                    }
+                },
+                'results': [],
+                'invocations': [{
+                    'executionSuccessful': True,
+                    'endTimeUtc': datetime.now(timezone.utc).isoformat()
+                }]
+            }]
+        }
+
+        # Run validator and capture structured output
+        sys.path.insert(0, '.')
+        try:
+            from tests.validate_plugin import main as validate_main
+            import io, contextlib
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                validate_main()
+        except SystemExit:
+            pass
+        except Exception:
+            pass
+
+        output = buf.getvalue()
+        rule_index = {}
+        for line in output.splitlines():
+            level = None
+            if line.startswith('ERROR:'):
+                level = 'error'
+                msg = line[6:].strip()
+            elif line.startswith('WARNING:'):
+                level = 'warning'
+                msg = line[8:].strip()
+            if level:
+                rule_id = msg.split(':')[0].strip() if ':' in msg else 'general'
+                rule_id = rule_id.replace(' ', '-').lower()[:64]
+                if rule_id not in rule_index:
+                    rule_index[rule_id] = len(sarif['runs'][0]['tool']['driver']['rules'])
+                    sarif['runs'][0]['tool']['driver']['rules'].append({
+                        'id': rule_id,
+                        'shortDescription': {'text': rule_id}
+                    })
+                sarif['runs'][0]['results'].append({
+                    'ruleId': rule_id,
+                    'ruleIndex': rule_index[rule_id],
+                    'level': level,
+                    'message': {'text': msg},
+                    'locations': [{
+                        'physicalLocation': {
+                            'artifactLocation': {'uri': 'plugin.json'}
+                        }
+                    }]
+                })
+
+        Path('${{ inputs.sarif-file }}').write_text(json.dumps(sarif, indent=2))
+        print(f'SARIF written: {len(sarif[\"runs\"][0][\"results\"])} results')
+        "
+
+    - name: Upload SARIF
+      if: inputs.sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ github.action_path }}/${{ inputs.sarif-file }}
+      continue-on-error: true

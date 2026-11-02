@@ -1,8 +1,8 @@
 {
-  "name": "pentest",
-  "display_name": "Pentest Plugin",
+  "name": "quarry",
+  "display_name": "Quarry",
   "version": "0.1.0",
-  "description": "Full-cycle penetration testing plugin with evidence discipline. Covers recon, mapping, vulnerability hunting, finding chaining, adversarial validation, and reporting with MITRE/NIST/CVSS mapping.",
+  "description": "Track. Aim. Prove. Full-cycle penetration testing with evidence discipline — recon, hunting, chaining, validation, and reporting with custody-grade proof.",
   "author": {
     "name": "mahumadad"
   },
@@ -38,10 +38,10 @@
   },
   "external_tools": ["nmap", "nuclei", "ffuf", "httpx"],
   "commands": [
-    "pt:engage", "pt:recon", "pt:hunt", "pt:chain", "pt:validate",
-    "pt:report", "pt:scope", "pt:status", "pt:findings", "pt:map",
-    "pt:export", "pt:deliver", "pt:closeout", "pt:retest", "pt:resume",
-    "pt:run", "pt:notify", "pt:doctor"
+    "quarry:engage", "quarry:recon", "quarry:hunt", "quarry:chain", "quarry:validate",
+    "quarry:report", "quarry:scope", "quarry:status", "quarry:findings", "quarry:map",
+    "quarry:export", "quarry:deliver", "quarry:closeout", "quarry:retest", "quarry:resume",
+    "quarry:run", "quarry:notify", "quarry:doctor"
   ],
   "agent_count": 18,
   "skill_count": 124,

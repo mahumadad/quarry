@@ -53,5 +53,5 @@ phases:
       - walkthrough de findings críticos/altos con PoC en vivo (opcional)
       - revisión de gaps de cobertura (qué NO se probó — ver engagement report)
       - preguntas abiertas del cliente
-      - próximos pasos acordados: fix + /pt:retest, surface-watch,
+      - próximos pasos acordados: fix + /quarry:retest, surface-watch,
         purple-team session

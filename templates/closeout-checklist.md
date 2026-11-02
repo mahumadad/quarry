@@ -1,6 +1,6 @@
 # Closeout Checklist — {{engagement_name}}
 
-> Ver `workflows/closeout.yaml` y `/pt:closeout`. Un engagement termina
+> Ver `workflows/closeout.yaml` y `/quarry:closeout`. Un engagement termina
 > cuando esta checklist está completa, no cuando se entrega el reporte.
 
 ## 1. Limpieza de artefactos
@@ -22,7 +22,7 @@ ausencia (404, login rechazado, webhook eliminado).
 
 - [ ] `CustodyLog.verify()` → ÍNTEGRO (hash cabeza: `{{custody_head}}`)
 - [ ] Evento de cierre registrado en custody
-- [ ] Bundle generado con manifest SHA-256 (`/pt:deliver`)
+- [ ] Bundle generado con manifest SHA-256 (`/quarry:deliver`)
 - [ ] Bundle verificado contra su manifest
 
 ## 4. Retención / destrucción de datos

@@ -1,12 +1,12 @@
 ---
-name: pt:scope
+name: quarry:scope
 description: Muestra o modifica el scope del engagement activo — agregar/quitar reglas, ver estado actual
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:scope [--add|--remove|--show]
+# /quarry:scope [--add|--remove|--show]
 
-Único comando (junto con `/pt:engage`) que puede modificar
+Único comando (junto con `/quarry:engage`) que puede modificar
 `.pentest-state/scope.json`. Cualquier cambio de scope afecta
 inmediatamente al guard de `hooks/hooks.json` en la próxima llamada Bash
 — no requiere reiniciar sesión.
@@ -16,8 +16,8 @@ Sin argumento: equivalente a `--show`.
 ## Precondición
 
 - Debe existir un engagement activo con scope ya inicializado por
-  `/pt:engage`. Si no existe `.pentest-state/scope.json`, señalar que
-  falta `/pt:engage` — este comando no crea un engagement desde cero.
+  `/quarry:engage`. Si no existe `.pentest-state/scope.json`, señalar que
+  falta `/quarry:engage` — este comando no crea un engagement desde cero.
 
 ## `--show` (default)
 

@@ -1,12 +1,12 @@
 ---
-name: pt:export
+name: quarry:export
 description: Export findings to machine-readable formats (SARIF, JSON, CSV)
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:export — Exportar findings a formatos machine-readable
+# /quarry:export — Exportar findings a formatos machine-readable
 
-Uso: `/pt:export [sarif|json|csv] [ruta_salida] [--all]`
+Uso: `/quarry:export [sarif|json|csv] [ruta_salida] [--all]`
 
 ## Qué hace
 
@@ -29,16 +29,16 @@ Uso: `/pt:export [sarif|json|csv] [ruta_salida] [--all]`
 
 - Todo export es un evento de custody — sin excepciones.
 - Un export SARIF es además un artefacto para el loop fix→retest: el cliente
-  lo sube a code scanning, corrige, y `/pt:retest` verifica.
+  lo sube a code scanning, corrige, y `/quarry:retest` verifica.
 - Los campos EPSS/KEV se enriquecen antes del export si hay findings con CVE
   (ver `references/cvss4-epss-kev.md`).
-- Verificar el conteo de findings exportados contra `/pt:findings` — un
+- Verificar el conteo de findings exportados contra `/quarry:findings` — un
   export de 0 findings cuando hay validados es un bug, no un resultado.
 
 ## Ejemplos
 
 ```
-/pt:export sarif outputs/eng-2026-10/findings.sarif
-/pt:export json outputs/eng-2026-10/tickets.json
-/pt:export csv outputs/eng-2026-10/triage.csv --all
+/quarry:export sarif outputs/eng-2026-10/findings.sarif
+/quarry:export json outputs/eng-2026-10/tickets.json
+/quarry:export csv outputs/eng-2026-10/triage.csv --all
 ```

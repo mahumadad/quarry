@@ -1,10 +1,10 @@
 ---
-name: pt:run
+name: quarry:run
 description: Crea o continua una corrida determinística y auditable de un workflow
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:run [workflow] [--resume <run_id>]
+# /quarry:run [workflow] [--resume <run_id>]
 
 Usa `engine/orchestrator.py` como única entrada de ejecución. El workflow por
 defecto es `workflows/full-pentest.yaml`; no ejecutar fases por memoria ni

@@ -1,10 +1,10 @@
 ---
-name: pt:recon
+name: quarry:recon
 description: Ejecuta la fase de reconocimiento — pasivo, activo o ambos (full, default)
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:recon [--passive|--active|--full]
+# /quarry:recon [--passive|--active|--full]
 
 Ejecuta descubrimiento sistemático de superficie contra el scope del
 engagement activo. Por defecto corre `--full`: pasivo primero, activo
@@ -15,10 +15,10 @@ agresivo puede ser el activo).
 
 - Debe existir un engagement con fase `SCOPED` o posterior
   (`.pentest-state/engagement.json`). Si no existe o la fase es `INIT`,
-  detener y señalar que falta `/pt:engage`.
+  detener y señalar que falta `/quarry:engage`.
 - Releer el scope desde `.pentest-state/scope.json` antes de cualquier
   comando — no reutilizar scope de memoria de turnos anteriores, pudo
-  cambiar con `/pt:scope`.
+  cambiar con `/quarry:scope`.
 - El guard de `hooks/hooks.json` (`engine/guard.py`) ya valida cada
   comando Bash contra scope automáticamente; aun así, antes de construir
   el comando, confirmar mentalmente que el target es el correcto.
@@ -44,7 +44,7 @@ Pasiva (`skills/recon/passive-recon`, orden sugerido):
    cloud providers
 
 Activa (`skills/recon/active-recon`, requiere scope confirmado y gate
-de tasa/horario de `/pt:engage`):
+de tasa/horario de `/quarry:engage`):
 7. `port-scan` — nmap con `-oX` para output estructurado (ver
    `CLAUDE.md`: `--help` antes del primer uso de cualquier herramienta)
 8. `service-enumeration` — banner grabbing, versiones, fingerprint sobre
@@ -84,7 +84,7 @@ contenido, no bloquear el recon por eso.
   SHA-256, tamaño, tecnología y criterios de selección en el run/task. No improvisar `wordlist.txt`.
 - Cada asset nuevo se registra con `CoverageTracker.add_asset(asset)`. Cada
   endpoint descubierto se agrega con `add_surface`, incluyendo método,
-  parámetros e identidades conocidas; así `/pt:hunt` no colapsa toda una
+  parámetros e identidades conocidas; así `/quarry:hunt` no colapsa toda una
   aplicación en una sola celda por host.
 - Guardar output crudo completo mediante `ArtifactStore`, con SHA-256 e índice; no depender de
   vistas truncadas del terminal.
@@ -97,7 +97,7 @@ contenido, no bloquear el recon por eso.
 Al final de la corrida, imprimir qué sub-técnicas de recon se ejecutaron
 y cuáles no (ej. "cloud-recon: skipped — no se detectó uso de cloud
 provider en DNS/certs"). Esto no es opcional — es la cobertura que
-`/pt:status` reporta después.
+`/quarry:status` reporta después.
 
 ## Edge cases
 
@@ -107,7 +107,7 @@ provider en DNS/certs"). Esto no es opcional — es la cobertura que
 - **Subdominio descubierto fuera del scope original** (ej. wildcard no
   incluía ese apex): NO escanearlo. Registrarlo como "descubierto,
   pendiente de autorización" y reportarlo al operador — puede ser una
-  ampliación de scope legítima que requiere `/pt:scope --add` explícito
+  ampliación de scope legítima que requiere `/quarry:scope --add` explícito
   primero.
 - **WAF/rate-limit agresivo detectado**: bajar velocidad, documentar el
   umbral observado, no reintentar ciegamente (máx. 3 reintentos idénticos
@@ -127,5 +127,5 @@ Al terminar, si la fase actual es `SCOPED`, transicionar a `RECON`
 - Tabla de assets descubiertos (tipo, valor, fuente).
 - Resumen pasivo vs activo ejecutado, con lo que se omitió y por qué.
 - Ruta de `asset-inventory.md` y de los raw outputs.
-- Próximo paso recomendado: `/pt:map` (para construir los 5 mapas antes
-  de hunting) o directamente `/pt:hunt` si el target es simple.
+- Próximo paso recomendado: `/quarry:map` (para construir los 5 mapas antes
+  de hunting) o directamente `/quarry:hunt` si el target es simple.

@@ -37,4 +37,4 @@ phases:
       valor contractual).
 
 # Schedule sugerido: semanal para assets críticos, mensual para el resto.
-# Fuera de cron, el comando manual es /pt:status --watch.
+# Fuera de cron, el comando manual es /quarry:status --watch.

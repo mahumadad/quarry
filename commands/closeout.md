@@ -1,12 +1,12 @@
 ---
-name: pt:closeout
+name: quarry:closeout
 description: Close engagement with final coverage summary and deliverable checklist
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:closeout — Cierre formal del engagement
+# /quarry:closeout — Cierre formal del engagement
 
-Uso: `/pt:closeout`
+Uso: `/quarry:closeout`
 
 Lanza `workflows/closeout.yaml`. La regla: un engagement NO está terminado
 cuando se entrega el reporte — está terminado cuando el closeout se completa.
@@ -19,7 +19,7 @@ cuando se entrega el reporte — está terminado cuando el closeout se completa.
 2. **Higiene de credenciales** — vault rotado/revocado, tokens del
    engagement muertos, ninguna credencial fuera del vault.
 3. **Sello de evidencia** — `CustodyLog.verify()` final (debe estar ÍNTEGRA),
-   evento de cierre, y bundle con manifest SHA-256 vía `/pt:deliver`.
+   evento de cierre, y bundle con manifest SHA-256 vía `/quarry:deliver`.
 4. **Retención de datos** — destino contractual de los datos del engagement;
    la destrucción se registra en custody como último evento. `knowledge.py`
    solo conserva técnicas anonimizadas — verificar.

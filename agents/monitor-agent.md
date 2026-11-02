@@ -66,7 +66,7 @@ You do NOT execute any offensive actions — you only read and report.
 
 - After each phase completion
 - When budget hits 50% and 80% thresholds
-- On operator request (`/pt:status`)
+- On operator request (`/quarry:status`)
 - Every 30 minutes during active engagement
 
 ## Rules

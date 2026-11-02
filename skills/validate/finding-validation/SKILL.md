@@ -1,7 +1,7 @@
 ---
 name: finding-validation
 description: >
-  Stage 3 of the validation pipeline (`/pt:validate`). Run every finding/chain through four
+  Stage 3 of the validation pipeline (`/quarry:validate`). Run every finding/chain through four
   explicit gates — Refutation, Reachability, Trigger, Impact — each of which must PASS on its
   own merits or the finding is downgraded (severity/evidence tag) or killed outright. Use after
   evidence-hygiene and dedup have cleaned the candidate set, and before triage-gate. Do NOT use
@@ -18,11 +18,11 @@ feeds_into: [triage-gate]
 
 ## Signals
 
-- A finding/chain passed `evidence-hygiene` and `dedup` and is next in the `/pt:validate`
+- A finding/chain passed `evidence-hygiene` and `dedup` and is next in the `/quarry:validate`
   pipeline, before triage-gate and the adversarial rebuttal loop.
 - Re-validating a finding after new counter-evidence surfaced (a WAF rule that actually blocks
   the PoC, a precondition that turned out not to hold in prod).
-- A chain candidate from `/pt:chain` needs its *combined* impact validated independently of
+- A chain candidate from `/quarry:chain` needs its *combined* impact validated independently of
   whether its component findings already passed these gates individually.
 
 ## Prerequisites

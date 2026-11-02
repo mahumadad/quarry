@@ -1,10 +1,10 @@
 ---
-name: pt:engage
+name: quarry:engage
 description: Inicia un nuevo engagement de pentest — scope, directorio de auditoría, target card
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /pt:engage <target>
+# /quarry:engage <target>
 
 Inicializa un engagement nuevo. Es el único comando que puede crear un
 engagement desde cero; todos los demás comandos requieren que este haya
@@ -122,10 +122,10 @@ corrido primero y haya scope confirmado.
 - Confirmación en una tabla: target, slug, audit dir, fase actual (SCOPED),
   scope in/out, referencia de autorización.
 - Ruta de la target card escrita.
-- Próximo paso recomendado: `/pt:recon` (full, por defecto).
+- Próximo paso recomendado: `/quarry:recon` (full, por defecto).
 
 No ejecutar ningún scan, request HTTP, ni herramienta de descubrimiento en
-este comando — `/pt:engage` solo establece scope y estado. Cualquier
+este comando — `/quarry:engage` solo establece scope y estado. Cualquier
 tentación de "adelantar" recon aquí se rechaza explícitamente: eso es
-trabajo de `/pt:recon` y debe correr con el scope ya persistido y el guard
+trabajo de `/quarry:recon` y debe correr con el scope ya persistido y el guard
 de `hooks/hooks.json` activo.

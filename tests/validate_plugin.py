@@ -514,7 +514,7 @@ def check_readme():
     checks = [
         ("authorized", "legal disclaimer"),
         ("install", "installation instructions"),
-        ("pt:engage", "quick start"),
+        ("quarry:engage", "quick start"),
         ("benchmark", "benchmark results"),
     ]
     for keyword, label in checks:

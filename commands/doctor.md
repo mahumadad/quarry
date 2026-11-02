@@ -1,10 +1,10 @@
 ---
-name: pt:doctor
+name: quarry:doctor
 description: Audita integridad, tareas huérfanas, artefactos y referencias del engagement
 allowed-tools: Bash(*), Read(*)
 ---
 
-# /pt:doctor
+# /quarry:doctor
 
 Ejecuta `python3 -m engine.orchestrator doctor --audit-dir <audit_dir>` y
 revisa además que todos los JSON de `.pentest-state` sean parseables.
