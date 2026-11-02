@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""Validate pentest plugin structure and completeness."""
+"""Validate pentest plugin structure, content correctness and completeness."""
 
 import json
+import re
 import sys
 from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 ROOT = Path(__file__).resolve().parent.parent
 ERRORS = []
@@ -24,6 +30,27 @@ def ok(msg):
     print(f"  OK:    {msg}")
 
 
+def _parse_frontmatter(path: Path) -> dict | None:
+    text = path.read_text(encoding="utf-8")
+    match = re.match(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
+    if not match:
+        return None
+    raw = match.group(1)
+    if yaml:
+        safe_raw = re.sub(r"\[\*\]", '["*"]', raw)
+        safe_raw = re.sub(r"- \*\s*$", '- "*"', safe_raw, flags=re.MULTILINE)
+        try:
+            return yaml.safe_load(safe_raw) or {}
+        except yaml.YAMLError:
+            pass
+    result = {}
+    for line in raw.splitlines():
+        if ":" in line and not line.startswith(" "):
+            key, _, val = line.partition(":")
+            result[key.strip()] = val.strip()
+    return result
+
+
 def check_plugin_json():
     print("\n=== plugin.json ===")
     p = ROOT / ".claude-plugin" / "plugin.json"
@@ -31,13 +58,31 @@ def check_plugin_json():
         error("Missing .claude-plugin/plugin.json")
         return
     data = json.loads(p.read_text())
-    for key in ("name", "version", "private"):
+    for key in ("name", "version", "description"):
         if key not in data:
-            error(f"plugin.json missing key: {key}")
+            error(f"plugin.json missing required key: {key}")
         else:
-            ok(f"plugin.json has {key}={data[key]}")
-    if not data.get("private"):
-        warn("plugin.json should be private:true")
+            ok(f"plugin.json has {key}={data[key]!r:.60}")
+    if "private" in data:
+        error("plugin.json contains 'private' (not in Claude Code schema)")
+    author = data.get("author")
+    if isinstance(author, str):
+        error("plugin.json 'author' must be an object {name:...}, not a string")
+    elif isinstance(author, dict) and "name" in author:
+        ok(f"plugin.json author={author}")
+    else:
+        warn("plugin.json missing author.name")
+    if "license" not in data:
+        warn("plugin.json missing 'license'")
+    elif data["license"] != "MIT":
+        warn(f"plugin.json license is {data['license']!r}, expected 'MIT'")
+    else:
+        ok("plugin.json license=MIT")
+    for opt in ("repository", "homepage", "keywords", "documentationUrl"):
+        if opt in data:
+            ok(f"plugin.json has {opt}")
+        else:
+            warn(f"plugin.json missing optional field: {opt}")
 
 
 def check_claude_md():
@@ -65,8 +110,155 @@ def check_hooks():
         error("Missing hooks/hooks.json")
         return
     data = json.loads(p.read_text())
-    hook_types = [h.get("event") for h in data] if isinstance(data, list) else list(data.keys())
-    ok(f"hooks.json has events: {hook_types}")
+    if not isinstance(data, dict) or "hooks" not in data:
+        error("hooks.json must have top-level 'hooks' object (official schema)")
+        return
+    hooks_obj = data["hooks"]
+    if not isinstance(hooks_obj, dict):
+        error("hooks.json 'hooks' must be an object keyed by event name")
+        return
+    valid_events = {"SessionStart", "PreToolUse", "PostToolUse", "Notification",
+                    "Stop", "SubagentTool"}
+    for event, configs in hooks_obj.items():
+        if event not in valid_events:
+            warn(f"hooks.json: unknown event '{event}'")
+        if not isinstance(configs, list):
+            error(f"hooks.json: event '{event}' value must be an array")
+            continue
+        for i, config in enumerate(configs):
+            if not isinstance(config, dict):
+                error(f"hooks.json: {event}[{i}] must be an object")
+                continue
+            if "hooks" not in config:
+                error(f"hooks.json: {event}[{i}] missing 'hooks' array")
+            elif not isinstance(config["hooks"], list):
+                error(f"hooks.json: {event}[{i}].hooks must be an array")
+            else:
+                for j, hook in enumerate(config["hooks"]):
+                    if not isinstance(hook, dict) or "type" not in hook:
+                        error(f"hooks.json: {event}[{i}].hooks[{j}] missing 'type'")
+                    elif hook["type"] == "command" and "command" not in hook:
+                        error(f"hooks.json: {event}[{i}].hooks[{j}] type=command but missing 'command'")
+    ok(f"hooks.json schema validated (events: {list(hooks_obj.keys())})")
+
+
+def check_agents():
+    print("\n=== Agents ===")
+    agents_dir = ROOT / "agents"
+    if not agents_dir.exists():
+        error("Missing agents/ directory")
+        return
+    for agent_file in sorted(agents_dir.glob("*.md")):
+        fm = _parse_frontmatter(agent_file)
+        if fm is None:
+            error(f"agents/{agent_file.name}: missing YAML frontmatter")
+            continue
+        if "name" not in fm:
+            error(f"agents/{agent_file.name}: frontmatter missing 'name'")
+        if "description" not in fm:
+            error(f"agents/{agent_file.name}: frontmatter missing 'description' (runtime cannot delegate)")
+        else:
+            ok(f"agents/{agent_file.name}: name={fm.get('name')}, has description")
+
+
+def check_commands():
+    print("\n=== Commands ===")
+    expected = [
+        "engage.md", "recon.md", "map.md", "hunt.md", "chain.md",
+        "validate.md", "report.md", "scope.md", "status.md", "findings.md",
+        "export.md", "retest.md", "closeout.md", "notify.md", "deliver.md",
+        "run.md", "resume.md", "doctor.md"
+    ]
+    cmd_dir = ROOT / "commands"
+    for f in expected:
+        p = cmd_dir / f
+        if not p.exists():
+            error(f"Missing commands/{f}")
+            continue
+        fm = _parse_frontmatter(p)
+        if fm is None:
+            error(f"commands/{f}: missing YAML frontmatter (invisible to runtime)")
+        elif "name" not in fm:
+            error(f"commands/{f}: frontmatter missing 'name'")
+        elif "description" not in fm:
+            warn(f"commands/{f}: frontmatter missing 'description'")
+        else:
+            ok(f"commands/{f}: name={fm['name']}")
+
+
+def check_skills():
+    print("\n=== Skills ===")
+    skills_dir = ROOT / "skills"
+    total = 0
+    no_frontmatter = []
+    no_name = []
+    no_description = []
+    prefixed = []
+    for skill_md in sorted(skills_dir.rglob("SKILL.md")):
+        total += 1
+        category = skill_md.parent.parent.name
+        skill_name = skill_md.parent.name
+        fm = _parse_frontmatter(skill_md)
+        rel = skill_md.relative_to(ROOT)
+        if fm is None:
+            no_frontmatter.append(str(rel))
+            continue
+        if "name" not in fm:
+            no_name.append(str(rel))
+        else:
+            name_val = fm["name"]
+            if name_val.startswith(f"{category}-"):
+                prefixed.append(f"{rel}: name={name_val!r} has category prefix")
+        if "description" not in fm:
+            no_description.append(str(rel))
+    if no_frontmatter:
+        for p in no_frontmatter:
+            error(f"{p}: missing YAML frontmatter (invisible to runtime)")
+    if no_name:
+        for p in no_name:
+            error(f"{p}: frontmatter missing 'name'")
+    if no_description:
+        for p in no_description:
+            error(f"{p}: frontmatter missing 'description'")
+    if prefixed:
+        for msg in prefixed:
+            warn(msg)
+    ok(f"Total skills: {total} ({total - len(no_frontmatter)} with valid frontmatter)")
+
+
+def check_workflow_skill_refs():
+    print("\n=== Workflow skill references ===")
+    if yaml is None:
+        warn("PyYAML not installed, skipping workflow reference checks")
+        return
+    skills_dir = ROOT / "skills"
+    existing_skills = {p.parent.name for p in skills_dir.rglob("SKILL.md")}
+    wf_dir = ROOT / "workflows"
+    if not wf_dir.exists():
+        error("Missing workflows/ directory")
+        return
+    for wf_file in sorted(wf_dir.glob("*.yaml")):
+        text = wf_file.read_text()
+        text_safe = re.sub(r"- \*\s*$", "- __GLOB__", text, flags=re.MULTILINE)
+        try:
+            data = yaml.safe_load(text_safe)
+        except Exception as exc:
+            error(f"workflows/{wf_file.name}: YAML parse error: {exc}")
+            continue
+        unresolved = []
+        for phase in data.get("phases", []):
+            for key in ("skills", "priority_classes", "secondary_classes",
+                        "hunt_classes", "platform_skills"):
+                for skill_ref in (phase.get(key) or []):
+                    if skill_ref == "__GLOB__":
+                        continue
+                    if skill_ref not in existing_skills:
+                        unresolved.append(skill_ref)
+        if unresolved:
+            for ref in sorted(set(unresolved)):
+                warn(f"workflows/{wf_file.name}: skill '{ref}' not found in skills/")
+        else:
+            ok(f"workflows/{wf_file.name}: all skill references resolve")
 
 
 def check_engine():
@@ -149,39 +341,6 @@ def check_engine_imports():
         error(f"Engine import failed: {e}")
 
 
-def check_agents():
-    print("\n=== Agents ===")
-    expected = [
-        "engagement-planner.md", "recon-agent.md", "exploit-researcher.md",
-        "chain-analyst.md", "finding-validator.md", "finding-checker.md",
-        "report-writer.md", "network-analyst.md"
-    ]
-    agents_dir = ROOT / "agents"
-    for f in expected:
-        p = agents_dir / f
-        if p.exists():
-            ok(f"agents/{f}")
-        else:
-            error(f"Missing agents/{f}")
-
-
-def check_commands():
-    print("\n=== Commands ===")
-    expected = [
-        "engage.md", "recon.md", "map.md", "hunt.md", "chain.md",
-        "validate.md", "report.md", "scope.md", "status.md", "findings.md",
-        "export.md", "retest.md", "closeout.md", "notify.md", "deliver.md",
-        "run.md", "resume.md", "doctor.md"
-    ]
-    cmd_dir = ROOT / "commands"
-    for f in expected:
-        p = cmd_dir / f
-        if p.exists():
-            ok(f"commands/{f}")
-        else:
-            error(f"Missing commands/{f}")
-
-
 def check_workflows():
     print("\n=== Workflows ===")
     expected = [
@@ -227,73 +386,6 @@ def check_templates():
             ok(f"templates/{f}")
         else:
             error(f"Missing templates/{f}")
-
-
-def check_skills():
-    print("\n=== Skills ===")
-    expected_categories = {
-        "core": ["engagement-flow", "scope-discipline", "finding-discipline", "opsec-discipline",
-                 "oob-interactions", "session-context"],
-        "recon": [
-            "passive-recon", "active-recon", "dns-enumeration", "subdomain-discovery",
-            "port-scan", "service-enumeration", "web-crawling", "js-analysis",
-            "api-discovery", "osint", "cloud-recon", "email-harvesting",
-            "github-dorking", "waf-fingerprint", "tech-stack-fingerprint", "nuclei-reviewed"
-        ],
-        "mapping": ["asset-map", "trust-map", "identity-map", "state-map", "capability-map"],
-        "hunt": [
-            "sqli", "xss", "ssrf", "idor", "csrf", "rce", "ssti", "xxe",
-            "lfi-rfi", "auth-bypass", "race-condition", "cors", "open-redirect",
-            "info-disclosure", "deserialization", "graphql", "websocket", "jwt",
-            "fuzzing", "grpc",
-            "oauth", "api-abuse", "file-upload", "cache-poisoning",
-            "http-smuggling", "subdomain-takeover", "crlf-injection",
-            "clickjacking", "host-header", "parameter-pollution",
-            "prototype-pollution", "mass-assignment", "broken-access-control",
-            "business-logic", "rate-limiting", "password-reset",
-            "2fa-bypass", "session-management", "email-injection",
-            "css-injection", "cryptographic-oracle",
-        ],
-        "chain": [
-            "chain-analysis", "chain-web-to-rce", "chain-auth-to-takeover",
-            "chain-info-to-exploit", "chain-ssrf-to-cloud", "chain-custom",
-            "chain-graph-walk", "chain-multi-app"
-        ],
-        "validate": ["finding-validation", "triage-gate", "evidence-hygiene", "dedup",
-                     "triage-brocards", "browser-verify"],
-        "report": ["report-writing", "framework-mapping", "executive-brief",
-                   "detection-opportunities", "report-qc"],
-        "sast": ["code-review", "supply-chain-audit", "variant-analysis",
-                 "static-analysis-toolkit"],
-        "platform": [
-            "aws-attack", "azure-attack", "gcp-attack", "active-directory",
-            "kubernetes-attack", "docker-attack", "mobile-android", "mobile-ios",
-            "iot-ics", "wordpress-attack", "windows-privesc", "linux-privesc",
-            "network-infra"
-        ],
-        "ai-security": [
-            "ai-agent-recon", "prompt-injection", "indirect-injection",
-            "rag-poisoning", "tool-abuse", "exfiltration-via-ai", "ai-supply-chain",
-            "llm-fuzzing"
-        ],
-    }
-
-    total_expected = 0
-    total_found = 0
-    for category, skills in expected_categories.items():
-        found = 0
-        for skill in skills:
-            p = ROOT / "skills" / category / skill / "SKILL.md"
-            if p.exists():
-                found += 1
-                total_found += 1
-            else:
-                warn(f"Missing skills/{category}/{skill}/SKILL.md")
-        total_expected += len(skills)
-        status = "OK" if found == len(skills) else f"{found}/{len(skills)}"
-        print(f"  {'OK' if found == len(skills) else 'PARTIAL'}: {category}: {status}")
-
-    print(f"\n  TOTAL SKILLS: {total_found}/{total_expected}")
 
 
 def check_references():
@@ -399,6 +491,39 @@ def check_nuclei():
             error("Nuclei multistack lab must expose exactly six loopback-only services")
 
 
+def check_license():
+    print("\n=== LICENSE ===")
+    p = ROOT / "LICENSE"
+    if not p.exists():
+        error("Missing LICENSE file")
+    else:
+        text = p.read_text()
+        if "MIT" in text:
+            ok("LICENSE file present (MIT)")
+        else:
+            warn("LICENSE file exists but does not mention MIT")
+
+
+def check_readme():
+    print("\n=== README ===")
+    p = ROOT / "README.md"
+    if not p.exists():
+        error("Missing README.md")
+        return
+    text = p.read_text()
+    checks = [
+        ("authorized", "legal disclaimer"),
+        ("install", "installation instructions"),
+        ("pt:engage", "quick start"),
+        ("benchmark", "benchmark results"),
+    ]
+    for keyword, label in checks:
+        if keyword.lower() in text.lower():
+            ok(f"README has {label}")
+        else:
+            warn(f"README missing {label}")
+
+
 def check_tests():
     print("\n=== Tests ===")
     for f in ["validate_plugin.py", "test_engine.py", "test_benchmark_score.py",
@@ -424,14 +549,17 @@ def main():
     check_plugin_json()
     check_claude_md()
     check_hooks()
-    check_engine()
-    check_engine_imports()
+    check_license()
+    check_readme()
     check_agents()
     check_commands()
+    check_skills()
+    check_workflow_skill_refs()
+    check_engine()
+    check_engine_imports()
     check_workflows()
     check_presets()
     check_templates()
-    check_skills()
     check_references()
     check_benchmarks()
     check_nuclei()
