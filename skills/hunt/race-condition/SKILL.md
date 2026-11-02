@@ -1,5 +1,5 @@
 ---
-name: hunt-race-condition
+name: race-condition
 description: >
   Hunt for race conditions: TOCTOU (time-of-check-to-time-of-use) gaps, limit/quota bypass
   via concurrent requests, and double-spend/double-redeem scenarios. Use when a workflow

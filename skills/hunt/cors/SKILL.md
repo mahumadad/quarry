@@ -1,5 +1,5 @@
 ---
-name: hunt-cors
+name: cors
 description: >
   Hunt for CORS misconfiguration: origin reflection with credentials, null-origin
   acceptance, and overly broad subdomain wildcard trust. Use when evaluating any API that
@@ -9,9 +9,9 @@ description: >
   reflection, null origin, credentialed request, subdomain takeover CORS trust,
   access-control-allow-credentials.
   Do NOT use for CSRF (CORS misconfig is a read-primitive, CSRF is a write-forgery primitive
-  — they're related but distinct; cross-reference hunt-csrf when a CORS gap also enables
+  — they're related but distinct; cross-reference csrf when a CORS gap also enables
   state-changing cross-origin writes). Do NOT use for generic missing-security-header
-  findings unrelated to CORS — use hunt-info-disclosure.
+  findings unrelated to CORS — use info-disclosure.
 metadata:
   type: hunt
   phase: hunting
@@ -190,8 +190,8 @@ tested/not-applicable/blocked with the reason.
 - CORS misconfig + credentials → direct session/data theft, feeds `session-hijack`/
   `chain-analysis`.
 - CORS misconfig allowing credentialed reads of a CSRF-token-bearing page → defeats
-  **hunt-csrf** token protections by letting the attacker read the token cross-origin before
+  **csrf** token protections by letting the attacker read the token cross-origin before
   forging the write request.
-- CORS misconfig on an endpoint also reachable via stored **hunt-xss** compounds severity
+- CORS misconfig on an endpoint also reachable via stored **xss** compounds severity
   (two independent paths to the same data theft) — note both but don't double-count as a single
   finding.

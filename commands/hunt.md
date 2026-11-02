@@ -6,7 +6,7 @@ allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 
 # /pt:hunt [class] [--asset <asset>]
 
-Ejecuta las skills `hunt-*` contra el scope. Sin argumentos, corre TODAS
+Ejecuta las skills `*` contra el scope. Sin argumentos, corre TODAS
 las clases contra TODOS los assets, breadth-first (regla de `CLAUDE.md`
 del plugin: cubrir ancho antes que profundidad). Con `[class]`, limita a
 esa clase sobre todos los assets. Con `--asset <asset>`, limita a ese
@@ -30,43 +30,43 @@ cuando son variantes de la misma técnica:
 
 | Skill (`skills/hunt/<x>`)   | Vuln classes cubiertas                              |
 |------------------------------|------------------------------------------------------|
-| hunt-sqli                   | sqli                                                 |
-| hunt-xss                    | xss-reflected, xss-dom, xss-stored                  |
-| hunt-ssrf                   | ssrf                                                |
-| hunt-idor                   | idor                                                |
-| hunt-csrf                   | csrf                                                |
-| hunt-rce                    | rce                                                  |
-| hunt-ssti                   | ssti                                                 |
-| hunt-xxe                    | xxe                                                   |
-| hunt-lfi-rfi                | lfi, rfi                                             |
-| hunt-auth-bypass            | auth-bypass                                          |
-| hunt-race-condition         | race-condition                                       |
-| hunt-cors                   | cors                                                  |
-| hunt-open-redirect          | open-redirect                                        |
-| hunt-info-disclosure        | info-disclosure                                      |
-| hunt-deserialization        | deserialization                                       |
-| hunt-graphql                | graphql                                              |
-| hunt-websocket              | websocket                                            |
-| hunt-jwt                    | jwt                                                   |
-| hunt-oauth                  | oauth                                                 |
-| hunt-api-abuse              | api-abuse                                            |
-| hunt-file-upload            | file-upload                                          |
-| hunt-cache-poisoning        | cache-poisoning                                      |
-| hunt-http-smuggling         | http-smuggling                                        |
-| hunt-subdomain-takeover     | subdomain-takeover                                    |
-| hunt-crlf-injection         | crlf-injection                                        |
-| hunt-clickjacking           | clickjacking                                          |
-| hunt-host-header            | host-header-injection                                 |
-| hunt-parameter-pollution    | parameter-pollution                                   |
-| hunt-prototype-pollution    | prototype-pollution                                   |
-| hunt-mass-assignment        | mass-assignment                                       |
-| hunt-broken-access-control  | broken-access-control                                 |
-| hunt-business-logic         | business-logic                                        |
-| hunt-rate-limiting          | rate-limiting                                         |
-| hunt-password-reset         | password-reset                                        |
-| hunt-2fa-bypass             | 2fa-bypass                                            |
-| hunt-session-management     | session-management                                    |
-| hunt-email-injection        | email-injection                                        |
+| sqli                   | sqli                                                 |
+| xss                    | xss-reflected, xss-dom, xss-stored                  |
+| ssrf                   | ssrf                                                |
+| idor                   | idor                                                |
+| csrf                   | csrf                                                |
+| rce                    | rce                                                  |
+| ssti                   | ssti                                                 |
+| xxe                    | xxe                                                   |
+| lfi-rfi                | lfi, rfi                                             |
+| auth-bypass            | auth-bypass                                          |
+| race-condition         | race-condition                                       |
+| cors                   | cors                                                  |
+| open-redirect          | open-redirect                                        |
+| info-disclosure        | info-disclosure                                      |
+| deserialization        | deserialization                                       |
+| graphql                | graphql                                              |
+| websocket              | websocket                                            |
+| jwt                    | jwt                                                   |
+| oauth                  | oauth                                                 |
+| api-abuse              | api-abuse                                            |
+| file-upload            | file-upload                                          |
+| cache-poisoning        | cache-poisoning                                      |
+| http-smuggling         | http-smuggling                                        |
+| subdomain-takeover     | subdomain-takeover                                    |
+| crlf-injection         | crlf-injection                                        |
+| clickjacking           | clickjacking                                          |
+| host-header            | host-header-injection                                 |
+| parameter-pollution    | parameter-pollution                                   |
+| prototype-pollution    | prototype-pollution                                   |
+| mass-assignment        | mass-assignment                                       |
+| broken-access-control  | broken-access-control                                 |
+| business-logic         | business-logic                                        |
+| rate-limiting          | rate-limiting                                         |
+| password-reset         | password-reset                                        |
+| 2fa-bypass             | 2fa-bypass                                            |
+| session-management     | session-management                                    |
+| email-injection        | email-injection                                        |
 
 Si se pasa `[class]` y no matchea ni el nombre de skill ni una clase de
 `ALL_VULN_CLASSES` (comparar con normalización `lower().replace('_','-')`),
@@ -119,7 +119,7 @@ interrumpir el flujo innecesariamente.
 
 ## Edge cases
 
-- **Clase no aplicable a la tecnología del asset** (ej. `hunt-ssti` en
+- **Clase no aplicable a la tecnología del asset** (ej. `ssti` en
   un asset que sirve solo JSON estático sin motor de templates): marcar
   `skipped` con razón concreta ("no se detectó motor de templates en
   tech-stack-fingerprint"), no "tested_clean" — son estados distintos.

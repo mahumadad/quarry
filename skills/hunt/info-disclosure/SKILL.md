@@ -1,5 +1,5 @@
 ---
-name: hunt-info-disclosure
+name: info-disclosure
 description: >
   Hunt for information disclosure: verbose error messages/stack traces, sensitive response
   headers, exposed source code/backup files, and directory listing. Use as a breadth-first
@@ -9,7 +9,7 @@ description: >
   listing, .git exposure, .env exposure, backup file, source map leak, server banner,
   X-Powered-By, sensitive header, swagger/openapi exposure, exception leak.
   Do NOT use for data leaked specifically through a broken authorization check (that's
-  hunt-idor) or through a confirmed injection vector (sqli/xxe/ssrf own their specific data-
+  idor) or through a confirmed injection vector (sqli/xxe/ssrf own their specific data-
   leak findings) — this skill covers disclosure that requires no exploitation primitive at
   all, just observation of what the app exposes by default/misconfiguration.
 metadata:
@@ -33,7 +33,7 @@ chains_with: [sqli, auth-bypass, ssrf, deserialization]
 - Verbose headers: `Server`, `X-Powered-By`, `X-AspNet-Version` revealing exact software
   versions.
 - Exposed API documentation/schema (`/swagger.json`, `/openapi.json`, `/graphql` introspection
-  — cross-ref hunt-graphql) revealing internal endpoints not meant for public consumption.
+  — cross-ref graphql) revealing internal endpoints not meant for public consumption.
 - Source maps (`*.js.map`) shipped in production, letting you reconstruct original source from
   minified bundles.
 - Comments in HTML/JS left in from development (`TODO`, `FIXME`, internal hostnames, commented-
@@ -168,7 +168,7 @@ chains_with: [sqli, auth-bypass, ssrf, deserialization]
   control working, not a finding.
 - **Common N/A:** version banners present but with no further exploitation attempted — per
   project anti-fabrication rules, "Server: Apache/2.4.49" alone is not a reportable
-  vulnerability; it's reconnaissance data that should feed hunt-rce/other skills for an actual
+  vulnerability; it's reconnaissance data that should feed rce/other skills for an actual
   exploit attempt, not be reported standalone as a CVE finding.
 - **Overclaim trap:** directory listing on a folder containing only genuinely public static
   assets (CSS/JS/images meant to be public anyway) is a cosmetic/best-practice note, not a

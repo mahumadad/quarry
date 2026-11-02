@@ -1,5 +1,8 @@
 ---
 name: finding-checker
+description: >
+  Adversarial blind reviewer that attempts to disprove each finding based
+  solely on the evidence record, without engagement context.
 model: opus
 layer: analysis
 phases: [validation]

@@ -1,5 +1,8 @@
 ---
 name: finding-validator
+description: >
+  Converts exploitation evidence into complete, well-formed finding records
+  ready for adversarial review by the finding checker.
 model: sonnet
 layer: analysis
 phases: [analysis, validation]

@@ -22,7 +22,7 @@ de solo lectura — no modifica `findings.json` ni `chains.json`.
   `FindingStatus`). Si el valor no matchea ninguno, listar los válidos y
   pedir que se repita.
 - `--class <class>` — uno de los 38 `ALL_VULN_CLASSES` de
-  `engine/coverage.py`, o el nombre de skill `hunt-*` (normalizar antes
+  `engine/coverage.py`, o el nombre de skill `*` (normalizar antes
   de comparar). Si no matchea, listar valores cercanos (coincidencia
   parcial) antes de fallar.
 - `--chains` — además de la lista, para cada finding mostrado, resolver

@@ -64,7 +64,7 @@ feeds_into: [report-writing, executive-brief]
    access-control issue.
 
 6. **Map to OWASP Top 10** (current revision) per finding, for readers who expect that specific
-   framing — this is usually the easiest mapping since most hunt-* skills target OWASP-named
+   framing — this is usually the easiest mapping since most * skills target OWASP-named
    categories directly, but verify the current revision's category numbering hasn't shifted
    from what the finding's original classification assumed.
 

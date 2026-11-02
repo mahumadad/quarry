@@ -1,5 +1,5 @@
 ---
-name: hunt-xss
+name: xss
 description: >
   Hunt for Cross-Site Scripting: reflected, stored, and DOM-based XSS. Use when user input
   is echoed into HTML, JS, attributes, or URLs — search boxes, comment fields, profile
@@ -8,7 +8,7 @@ description: >
   document.write, sink, source, polyglot payload, CSP bypass, mXSS, dompurify bypass.
   Excludes self-XSS (requires victim to paste payload into their own console/field with no
   realistic delivery path) — note as Unproven, not a finding, unless combined with clickjacking
-  or CSRF to force the paste. Do NOT use for server-side template execution — use hunt-ssti.
+  or CSRF to force the paste. Do NOT use for server-side template execution — use ssti.
 metadata:
   type: hunt
   phase: hunting
@@ -188,4 +188,4 @@ tested/not-applicable/blocked with the reason.
 - XSS → CSRF token theft (read token from DOM) → bypasses **csrf** protections entirely.
 - XSS → forced open-redirect chain for phishing credibility.
 - DOM XSS via postMessage → cross-origin **cswsh**-adjacent trust abuse if combined with
-  **hunt-websocket** origin issues.
+  **websocket** origin issues.

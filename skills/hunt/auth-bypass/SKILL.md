@@ -1,5 +1,5 @@
 ---
-name: hunt-auth-bypass
+name: auth-bypass
 description: >
   Hunt for authentication bypass: default/weak credentials, forced browsing to protected
   resources, and token/session manipulation. Use when mapping login flows, session
@@ -7,9 +7,9 @@ description: >
   and authenticated states.
   Keywords: auth bypass, default credentials, forced browsing, broken authentication,
   session fixation, token manipulation, password reset poisoning, MFA bypass, JWT none alg
-  (cross-ref hunt-jwt), credential stuffing, account lockout bypass.
-  Do NOT use for object-level authorization once already authenticated — use hunt-idor.
-  Do NOT use for deep JWT-specific attacks (alg confusion, kid injection) — use hunt-jwt for
+  (cross-ref jwt), credential stuffing, account lockout bypass.
+  Do NOT use for object-level authorization once already authenticated — use idor.
+  Do NOT use for deep JWT-specific attacks (alg confusion, kid injection) — use jwt for
   those; this skill covers the broader auth-flow bypass surface.
 metadata:
   type: hunt
@@ -45,7 +45,7 @@ chains_with: [idor, jwt, csrf, race-condition]
 - Explicit scope clearance for credential-guessing activity (project rule: default-creds/
   brute-force needs the engagement scope to clearly cover it — these can trigger lockouts
   affecting real users on multi-tenant systems).
-- Test accounts at relevant privilege levels already provisioned (reuse from hunt-idor setup
+- Test accounts at relevant privilege levels already provisioned (reuse from idor setup
   where applicable).
 
 ## Methodology
@@ -218,5 +218,5 @@ tested/not-applicable/blocked with the reason.
 - Session fixation / token reuse → **account-takeover**, flag immediately for operator
   awareness given severity.
 - Reset-token/MFA weaknesses chain directly into full account takeover — document as such.
-- Default credentials found on an internal admin panel reached via **hunt-ssrf** → escalate
+- Default credentials found on an internal admin panel reached via **ssrf** → escalate
   severity (external attacker reaching an "internal-only" panel through the web app).

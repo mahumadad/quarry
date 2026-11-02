@@ -1,5 +1,5 @@
 ---
-name: hunt-csrf
+name: csrf
 description: >
   Hunt for Cross-Site Request Forgery on state-changing actions, and for token validation
   bypasses (missing check, token not tied to session, method/content-type bypass). Use when
@@ -9,7 +9,7 @@ description: >
   double-submit cookie, SameSite bypass, referer check bypass, state-changing GET.
   Do NOT use for read-only GET endpoints with no state change (no CSRF impact by definition —
   note as N/A, not a finding). Do NOT use for session fixation — that is a related but distinct
-  hunt-auth-bypass scenario.
+  auth-bypass scenario.
 metadata:
   type: hunt
   phase: hunting
@@ -183,9 +183,9 @@ tested/not-applicable/blocked with the reason.
 
 - CSRF + no `SameSite` → **account-takeover** when chained with password/email change endpoints.
 - XSS (reads anti-CSRF token from DOM) → defeats token-based CSRF defenses entirely — see
-  hunt-xss; report as "CSRF defense bypassed via XSS," a distinct and more severe finding than
+  xss; report as "CSRF defense bypassed via XSS," a distinct and more severe finding than
   bare CSRF.
-- CORS misconfiguration (hunt-cors) allowing credentialed cross-origin reads can let an attacker
+- CORS misconfiguration (cors) allowing credentialed cross-origin reads can let an attacker
   *read* the CSRF token via JS, upgrading a token-protected endpoint to forgeable — check this
   interaction explicitly when both weaknesses are present.
 - Login CSRF (forcing a victim into the attacker's session) → session-fixation-flavored

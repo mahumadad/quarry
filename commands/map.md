@@ -35,20 +35,20 @@ materializa como `<audit_dir>/report/maps/<nombre>.md`.
    assets: qué llama a qué, qué cruza una frontera de confianza (ej.
    frontend público → API interna → base de datos), qué asume
    confianza implícita en un header, IP interna, o token sin validar
-   origen. Esto es lo que después alimenta `hunt-ssrf`, `hunt-cors`,
-   `hunt-host-header`.
+   origen. Esto es lo que después alimenta `ssrf`, `cors`,
+   `host-header`.
 
 3. **Identity map** (`identity-map`) — modelo de autenticación completo:
    mecanismos (sesión, JWT, OAuth, API key), roles y sus privilegios,
    dónde se emiten y validan los tokens, si hay múltiples tenants y cómo
-   se aíslan. Alimenta `hunt-auth-bypass`, `hunt-jwt`, `hunt-oauth`,
-   `hunt-idor`.
+   se aíslan. Alimenta `auth-bypass`, `jwt`, `oauth`,
+   `idor`.
 
 4. **State map** (`state-map`) — qué mantiene estado y dónde: sesiones
    (server-side vs JWT stateless), caches (CDN, app-level, Redis),
    colas, websockets persistentes. Dónde el estado puede ser envenenado
-   o leído entre usuarios. Alimenta `hunt-cache-poisoning`,
-   `hunt-race-condition`, `hunt-session-management`.
+   o leído entre usuarios. Alimenta `cache-poisoning`,
+   `race-condition`, `session-management`.
 
 5. **Capability map** (`capability-map`) — qué puede hacer cada
    componente/rol: qué endpoints mutan datos, cuáles son de solo lectura,

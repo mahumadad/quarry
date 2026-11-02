@@ -1,5 +1,5 @@
 ---
-name: hunt-lfi-rfi
+name: lfi-rfi
 description: >
   Hunt for Local and Remote File Inclusion: path traversal to read/include local files,
   null-byte/truncation tricks on legacy stacks, and PHP wrapper abuse (php://filter,
@@ -10,8 +10,8 @@ description: >
   directory traversal, ../../, null byte, php://filter, php wrapper, log poisoning,
   zip wrapper RCE, phar deserialization.
   Do NOT use for pure directory-listing/misconfiguration with no traversal primitive — use
-  hunt-info-disclosure. Do NOT use once a wrapper chain reaches code execution — continue
-  under hunt-rce for that half of the write-up.
+  info-disclosure. Do NOT use once a wrapper chain reaches code execution — continue
+  under rce for that half of the write-up.
 metadata:
   type: hunt
   phase: hunting
@@ -149,7 +149,7 @@ chains_with: [rce, info-disclosure, ssrf]
 - Actual file content from a known system file (`/etc/passwd` contents, `win.ini` `[fonts]`
   section) returned in the response, or via a wrapper-decoded response (base64 decode shown in
   the writeup).
-- For RCE escalation: command output reflected or OOB callback received, same bar as hunt-rce.
+- For RCE escalation: command output reflected or OOB callback received, same bar as rce.
 - Document exact traversal depth/encoding and wrapper string used — these are highly
   stack-specific and must be reproducible verbatim.
 
@@ -192,7 +192,7 @@ tested/not-applicable/blocked with the reason.
 - LFI → **rce** via log poisoning, `php://input`, `data://`, or `zip://` wrapper chains (see
   steps 5-6 above).
 - LFI → **info-disclosure** (source code, config files, credentials in flat files).
-- SSTI's template-engine `include` directive abuse (hunt-ssti) overlaps with this when the
+- SSTI's template-engine `include` directive abuse (ssti) overlaps with this when the
   underlying primitive is a path-traversal-capable template loader.
 - RFI chains directly into **rce** the moment a remote payload is fetched and executed —
   there's no meaningful intermediate state to report separately.

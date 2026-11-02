@@ -1,3 +1,9 @@
+---
+name: pt:notify
+description: Immediately escalate a critical finding to stakeholders
+allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
+---
+
 # /pt:notify — Escalación inmediata de hallazgo crítico
 
 Uso: `/pt:notify <finding_id>`

@@ -1,5 +1,8 @@
 ---
 name: recon-agent
+description: >
+  Executes breadth-first reconnaissance against assigned targets, producing
+  asset inventories, service maps, and technology stack profiles.
 model: sonnet
 layer: execution
 phases: [recon]

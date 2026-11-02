@@ -3,7 +3,7 @@ name: tech-stack-fingerprint
 description: >
   Identify the target's technology stack — language/framework, web server, CMS, CDN, and
   notable libraries/versions — via Wappalyzer, whatweb, and manual response-header/markup
-  analysis. Use after subdomain-discovery/active-recon confirm live hosts, before hunt-*
+  analysis. Use after subdomain-discovery/active-recon confirm live hosts, before *
   skills pick techniques specific to a framework/CMS. Do NOT use for WAF/edge-security vendor
   identification — that's waf-fingerprint; this skill is about the application's own
   technology, even though both are often run back to back on the same host.
@@ -19,7 +19,7 @@ feeds_into: []
 
 - A live host list exists from `active-recon`/`subdomain-discovery` and the specific
   framework/CMS/server behind each one hasn't been confirmed yet.
-- About to choose which hunt-* skills are worth running against a target — framework-specific
+- About to choose which * skills are worth running against a target — framework-specific
   techniques (e.g. a known CMS plugin vuln class) only apply once the stack is known.
 - A finding references a version-specific behavior and the exact running version needs
   independent confirmation beyond a banner string.
@@ -83,7 +83,7 @@ feeds_into: []
 
 9. **Record version numbers with their confidence level explicitly** — a version from a banner/
    header is a *lead* (per `finding-evidence-standards.md`'s Regla 2 equivalent for recon), not
-   a confirmed-exploitable fact; it informs which hunt-* skill and which known-CVE checks are
+   a confirmed-exploitable fact; it informs which * skill and which known-CVE checks are
    worth attempting, but does not itself become a finding without a real trigger.
 
 ## Tooling
@@ -97,10 +97,10 @@ inspection, BuiltWith (web/API) for historical cross-check.
       framework/CMS/version is recorded with high confidence — a single Wappalyzer hit alone
       is noted as provisional.
 - [ ] Version numbers are explicitly flagged as unconfirmed leads, not findings, until a
-      hunt-* skill actually triggers version-specific behavior.
+      * skill actually triggers version-specific behavior.
 - [ ] CDN/edge-layer technology is recorded separately from origin-application technology, with
       a note to run `waf-fingerprint` for the security-vendor-specific layer.
-- [ ] Output is consolidated into a per-host stack summary usable by hunt-* skills to prioritize
+- [ ] Output is consolidated into a per-host stack summary usable by * skills to prioritize
       technique selection.
 
 ## Gotchas
@@ -121,4 +121,4 @@ inspection, BuiltWith (web/API) for historical cross-check.
   `opsec-discipline`.
 - A confirmed CMS/framework doesn't mean its default/well-known vulnerabilities apply — most
   production deployments patch or disable risky defaults; this skill's output narrows which
-  hunt-* techniques are *worth trying*, it doesn't itself confirm exploitability.
+  * techniques are *worth trying*, it doesn't itself confirm exploitability.

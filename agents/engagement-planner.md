@@ -1,5 +1,8 @@
 ---
 name: engagement-planner
+description: >
+  Turns scope documents and rules of engagement into an executable pentest
+  plan, assigns work to recon and exploitation agents.
 model: opus
 layer: planning
 phases: [scoping, planning, re-planning]

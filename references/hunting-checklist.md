@@ -338,17 +338,17 @@
 | Sección | vuln_class(es) del plugin |
 |---|---|
 | Recon | `info-disclosure` |
-| Session management | `hunt-session-management` |
-| Cookies | `hunt-session-management` |
-| Auth/Login | `auth-bypass`, `hunt-rate-limiting` |
+| Session management | `session-management` |
+| Cookies | `session-management` |
+| Auth/Login | `auth-bypass`, `rate-limiting` |
 | SQLi | `sqli` |
 | XSS | `xss` |
 | SSTI | `ssti` |
 | Command injection | `rce` |
 | CSRF | `csrf` |
-| IDOR/BAC | `idor`, `hunt-broken-access-control` |
+| IDOR/BAC | `idor`, `broken-access-control` |
 | LFI/RFI | `lfi-rfi` |
-| File upload | `hunt-file-upload` |
+| File upload | `file-upload` |
 | XXE | `xxe` |
 | SSRF | `ssrf` |
 | Open redirect | `open-redirect` |

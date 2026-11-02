@@ -1,5 +1,5 @@
 ---
-name: hunt-idor
+name: idor
 description: >
   Hunt for Insecure Direct Object References: horizontal (access peer users' data),
   vertical (access higher-privilege data/actions), and parameter manipulation (IDs,
@@ -8,9 +8,9 @@ description: >
   Keywords: idor, broken object level authorization, BOLA, horizontal privilege escalation,
   vertical privilege escalation, sequential ID enumeration, UUID guessing, forced browsing
   by ID, mass assignment via ID.
-  Do NOT use for session/token forgery — use hunt-auth-bypass. Do NOT use for missing
+  Do NOT use for session/token forgery — use auth-bypass. Do NOT use for missing
   CSRF protection on state-changing IDOR-adjacent endpoints — note that separately via
-  hunt-csrf if the IDOR also lacks a token.
+  csrf if the IDOR also lacks a token.
 metadata:
   type: hunt
   phase: hunting

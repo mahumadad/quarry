@@ -91,12 +91,27 @@ def check_command(command: str, scope_file: str | None = None,
 
 def main():
     parser = argparse.ArgumentParser(description="Pentest command guard")
-    parser.add_argument("--command", required=True)
+    parser.add_argument("--command", default=None)
     parser.add_argument("--scope-file")
     parser.add_argument("--audit-dir", default=".")
     parser.add_argument("--approval", default="")
     args = parser.parse_args()
-    result = check_command(args.command, args.scope_file, args.audit_dir, args.approval)
+
+    command = args.command
+    if command is None:
+        try:
+            stdin_data = json.loads(sys.stdin.read())
+            command = stdin_data.get("tool_input", {}).get("command", "")
+            if not command:
+                command = stdin_data.get("command", "")
+        except (json.JSONDecodeError, AttributeError):
+            command = ""
+
+    if not command:
+        print(json.dumps({"allowed": True, "warnings": []}))
+        sys.exit(0)
+
+    result = check_command(command, args.scope_file, args.audit_dir, args.approval)
     print(json.dumps(result))
     if not result["allowed"]:
         print(result["blocked_reason"], file=sys.stderr)

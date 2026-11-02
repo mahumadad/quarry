@@ -1,5 +1,8 @@
 ---
 name: report-writer
+description: >
+  Assembles final deliverables from validated findings, chains, and coverage
+  data into executive summaries and detailed engagement reports.
 model: sonnet
 layer: planning
 phases: [reporting]

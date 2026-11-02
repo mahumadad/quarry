@@ -314,11 +314,8 @@ class Orchestrator:
         expanded: list[str] = []
         skill_root = Path(__file__).resolve().parent.parent / "skills"
         for skill in skills:
-            pattern = "hunt/*/SKILL.md" if skill == "hunt-*" else f"*/{skill}/SKILL.md"
+            pattern = "hunt/*/SKILL.md" if skill == "*" else f"*/{skill}/SKILL.md"
             matches = sorted(skill_root.glob(pattern))
-            if not matches and skill.startswith("hunt-"):
-                # Legacy workflow names such as hunt-sqli map to canonical skills/hunt/sqli.
-                matches = sorted(skill_root.glob(f"*/{skill.removeprefix('hunt-')}/SKILL.md"))
             candidates = [p.parent.name for p in matches] if matches else [skill]
             for candidate in candidates:
                 if candidate not in expanded:

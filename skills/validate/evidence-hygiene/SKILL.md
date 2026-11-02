@@ -19,7 +19,7 @@ feeds_into: [dedup]
 
 ## Signals
 
-- A finding/chain just arrived from a hunt-*/chain-* skill with status `DETECTED` or
+- A finding/chain just arrived from a */chain-* skill with status `DETECTED` or
   `CONFIRMED` and is about to enter `/pt:validate`.
 - Reviewing a batch of findings before `--all` validation to catch evidence gaps cheaply,
   before spending rebuttal-loop budget on something that was never going to survive.

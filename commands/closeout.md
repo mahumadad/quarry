@@ -1,3 +1,9 @@
+---
+name: pt:closeout
+description: Close engagement with final coverage summary and deliverable checklist
+allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
+---
+
 # /pt:closeout — Cierre formal del engagement
 
 Uso: `/pt:closeout`

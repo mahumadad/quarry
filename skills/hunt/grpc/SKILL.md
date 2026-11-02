@@ -7,7 +7,7 @@ description: >
   grpc-web proxies) or a mobile/microservices backend with protobuf APIs.
   Keywords: grpc, protobuf, grpcurl, reflection, grpc-web, HTTP/2, metadata auth,
   server reflection, protoset, microservices.
-  Do NOT use for plain REST/JSON APIs (use hunt-api-abuse) or GraphQL (use graphql).
+  Do NOT use for plain REST/JSON APIs (use api-abuse) or GraphQL (use graphql).
 metadata:
   type: hunt
   phase: hunting
@@ -120,5 +120,5 @@ chains_with: [idor, auth-bypass, info-disclosure, rce]
    map which mutate state (operator gate before invoking).
 2. Metadata-confusion possible → test cross-service token reuse for lateral
    movement between microservices (chain-multi-app).
-3. Injection in a string field → hand to hunt-sqli/hunt-rce with the working
+3. Injection in a string field → hand to sqli/rce with the working
    gRPC transport as the delivery mechanism (payload via `-d`).

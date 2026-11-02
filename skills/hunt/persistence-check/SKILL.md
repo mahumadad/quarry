@@ -1,3 +1,9 @@
+---
+name: persistence-check
+description: >-
+  Detect pre-existing persistence mechanisms on compromised assets using MITRE ATT&CK TA0003 techniques.
+---
+
 # Persistence Mechanism Detection
 
 > MITRE ATT&CK: TA0003 (Persistence)

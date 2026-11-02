@@ -1,5 +1,5 @@
 ---
-name: hunt-websocket
+name: websocket
 description: >
   Hunt for WebSocket security issues: Cross-Site WebSocket Hijacking (CSWSH) from missing
   origin validation, missing/weak authentication on the upgrade handshake, unvalidated
@@ -9,7 +9,7 @@ description: >
   editing).
   Keywords: WebSocket, CSWSH, cross-site websocket hijacking, ws upgrade, origin
   validation, websocat, Sec-WebSocket-Protocol, message tampering, socket.io auth.
-  Do NOT use for generic CSRF on standard HTTP forms (hunt-csrf) — CSWSH is the WebSocket-
+  Do NOT use for generic CSRF on standard HTTP forms (csrf) — CSWSH is the WebSocket-
   specific variant with its own handshake mechanics covered here.
 metadata:
   type: hunt
@@ -19,7 +19,7 @@ metadata:
   tools: [websocat, burpsuite, curl, "browser devtools"]
 depends_on: [active-recon, web-crawling]
 feeds_into: [chain-analysis, auth-bypass]
-chains_with: [hunt-csrf, hunt-broken-access-control, hunt-auth-bypass]
+chains_with: [csrf, broken-access-control, auth-bypass]
 ---
 
 ## Signals
@@ -179,8 +179,8 @@ tested/not-applicable/blocked with the reason.
 - Confirmed CSWSH delivering authenticated data to a cross-origin page → combine with a
   hosted PoC page requiring **explicit operator authorization** before any delivery
   mechanism beyond a controlled test is used (per human-gate rules).
-- Message-level authorization bypass → feeds **hunt-broken-access-control** for the broader
+- Message-level authorization bypass → feeds **broken-access-control** for the broader
   cross-account access assessment, and **auth-bypass** if it grants elevated session
   capabilities.
-- Mismatch against REST-layer authorization already mapped in **hunt-csrf**/
-  **hunt-broken-access-control** passes — cross-reference before closing either skill.
+- Mismatch against REST-layer authorization already mapped in **csrf**/
+  **broken-access-control** passes — cross-reference before closing either skill.

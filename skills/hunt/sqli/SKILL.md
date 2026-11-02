@@ -1,5 +1,5 @@
 ---
-name: hunt-sqli
+name: sqli
 description: >
   Hunt for SQL injection vulnerabilities: classic (error/union-based), blind boolean,
   blind time-based, second-order, and NoSQL injection (MongoDB, etc). Use when a parameter
@@ -7,8 +7,8 @@ description: >
   query params, JSON bodies, headers (X-Forwarded-For, User-Agent) logged to DB.
   Keywords: sqli, SQL injection, union select, sqlmap, blind sqli, NoSQL injection,
   MongoDB operator injection, second-order sqli, mysql error, ORM injection.
-  Do NOT use for command injection at OS level — use hunt-rce. Do NOT use for template
-  expression injection — use hunt-ssti. Do NOT use for XML-based injection — use hunt-xxe.
+  Do NOT use for command injection at OS level — use rce. Do NOT use for template
+  expression injection — use ssti. Do NOT use for XML-based injection — use xxe.
 metadata:
   type: hunt
   phase: hunting

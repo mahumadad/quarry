@@ -1,5 +1,5 @@
 ---
-name: hunt-rce
+name: rce
 description: >
   Hunt for Remote Code Execution: OS command injection, eval/code injection in dynamic
   languages (PHP, Python, Node, Ruby), and deserialization-driven RCE gadget chains. Use
@@ -7,9 +7,9 @@ description: >
   an unsafe deserializer. Keywords: rce, command injection, os command injection, eval
   injection, code injection, shell metacharacters, blind command injection, ysoserial,
   gadget chain, unsafe deserialization to RCE, SSTI-to-RCE.
-  Do NOT use for template-only injection with no further code-exec primitive — use hunt-ssti
+  Do NOT use for template-only injection with no further code-exec primitive — use ssti
   first, then return here once a code-exec sink is found. Do NOT use for pure deserialization
-  without demonstrated code execution — use hunt-deserialization for that narrower scope, this
+  without demonstrated code execution — use deserialization for that narrower scope, this
   skill for when the chain is pushed through to actual command/code execution.
 metadata:
   type: hunt
@@ -17,7 +17,7 @@ metadata:
   cwe: [CWE-78, CWE-94, CWE-502]
   mitre_attack: [T1190, T1059]
   tools: [curl, ffuf, commix, nuclei, ysoserial, metasploit]
-depends_on: [active-recon, web-crawling, hunt-ssti, hunt-deserialization]
+depends_on: [active-recon, web-crawling, ssti, deserialization]
 feeds_into: [chain-analysis, post-exploitation]
 chains_with: [ssti, deserialization, sqli, lfi-rfi, ssrf]
 ---
@@ -34,7 +34,7 @@ chains_with: [ssti, deserialization, sqli, lfi-rfi, ssrf]
 - Deserialization endpoints accepting serialized blobs: Java (`rO0AB` magic bytes / base64
   `rO0...`), PHP (`O:8:"ClassName"`), Python pickle (`\x80\x04` opcode header), .NET
   (`AAEAAAD` base64 / `BinaryFormatter`, `ViewState` without MAC validation).
-- Confirmed SSTI (hunt-ssti) in Jinja2/Twig/FreeMarker/Velocity — these commonly escalate
+- Confirmed SSTI (ssti) in Jinja2/Twig/FreeMarker/Velocity — these commonly escalate
   straight to RCE via sandbox-escape payloads.
 - Response timing anomalies on params that look like they might shell out (ping/traceroute
   tools, DNS lookup tools).
@@ -43,7 +43,7 @@ chains_with: [ssti, deserialization, sqli, lfi-rfi, ssrf]
 
 - An identified sink candidate (param feeding a shell call, eval, or deserializer) from source
   review, error messages, or behavioral signals.
-- An OOB listener (same as hunt-ssrf) for blind command injection confirmation.
+- An OOB listener (same as ssrf) for blind command injection confirmation.
 - For deserialization RCE: knowledge of the server's language/framework and library versions
   (from banners, error stack traces, `Server`/`X-Powered-By` headers, dependency manifests) to
   pick the right `ysoserial` gadget chain.
@@ -139,7 +139,7 @@ chains_with: [ssti, deserialization, sqli, lfi-rfi, ssrf]
      --apppath="/" --path="/vulnerable.aspx"
    ```
 
-7. **SSTI-to-RCE escalation** — if hunt-ssti confirmed template execution, push to OS commands
+7. **SSTI-to-RCE escalation** — if ssti confirmed template execution, push to OS commands
    using the engine-specific sandbox-escape primitives documented in that skill's payload list
    (e.g. Jinja2 `{{ cycler.__init__.__globals__.os.popen('id').read() }}`).
 
@@ -200,7 +200,7 @@ chains_with: [ssti, deserialization, sqli, lfi-rfi, ssrf]
 - **Common N/A:** a `ysoserial` payload sent but the target returns a generic deserialization
   exception without any OOB hit — the sink likely exists but the classpath lacks a gadget for
   that chain; this is Unproven for RCE (the deserialization sink itself may still be a distinct
-  finding — see hunt-deserialization), not a confirmed RCE.
+  finding — see deserialization), not a confirmed RCE.
 - **Overclaim trap:** a detected outdated software version with a *known public RCE CVE* is not
   itself a finding without an actual fired payload — per project anti-fabrication rules, label
   "vulnerable version detected, exploit not yet attempted" as Inferred at most, never report
@@ -226,11 +226,11 @@ tested/not-applicable/blocked with the reason.
 
 ## Chains & Compositions
 
-- SSTI → RCE (direct escalation — see hunt-ssti for the template-engine-specific sandbox escape
+- SSTI → RCE (direct escalation — see ssti for the template-engine-specific sandbox escape
   payloads that feed into this skill's OS-command step).
-- Deserialization → RCE (this skill is the "push it to execution" half of hunt-deserialization).
-- SQLi (stacked queries, `xp_cmdshell`, `COPY TO PROGRAM`) → RCE — see hunt-sqli chains.
-- LFI (log poisoning, PHP wrapper chains) → RCE — see hunt-lfi-rfi chains.
+- Deserialization → RCE (this skill is the "push it to execution" half of deserialization).
+- SQLi (stacked queries, `xp_cmdshell`, `COPY TO PROGRAM`) → RCE — see sqli chains.
+- LFI (log poisoning, PHP wrapper chains) → RCE — see lfi-rfi chains.
 - Confirmed RCE is near-always critical severity and the natural handoff point to
   `chain-analysis`/post-exploitation planning — flag immediately per the Gates humanos rule
   before taking any further action on the host.

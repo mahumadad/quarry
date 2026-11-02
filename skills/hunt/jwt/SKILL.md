@@ -1,5 +1,5 @@
 ---
-name: hunt-jwt
+name: jwt
 description: >
   Hunt for JWT attacks: alg=none acceptance, weak/brute-forceable HMAC secrets, kid-header
   injection (path traversal/SQLi via the kid claim), and jku/x5u header injection (pointing
@@ -8,8 +8,8 @@ description: >
   Keywords: jwt, json web token, alg none, hs256 to rs256 confusion, weak secret brute force,
   kid injection, jku injection, x5u injection, jwt_tool, hashcat jwt crack, signature bypass.
   Do NOT use for session cookies that are opaque server-side session IDs with no JWT
-  structure — that's hunt-auth-bypass territory instead. Do NOT use for OAuth flow-level
-  issues (redirect_uri, authorization code theft) — use hunt-open-redirect/hunt-auth-bypass;
+  structure — that's auth-bypass territory instead. Do NOT use for OAuth flow-level
+  issues (redirect_uri, authorization code theft) — use open-redirect/auth-bypass;
   this skill is specifically about the JWT's own cryptographic/structural validation.
 metadata:
   type: hunt

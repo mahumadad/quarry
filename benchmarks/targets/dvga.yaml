@@ -48,26 +48,26 @@ expected:
   # --- Denial of Service (GraphQL-specific) ---
 
   - id: dvga-dos-batch
-    vuln_class: hunt-dos
+    vuln_class: dos
     severity: medium
     title: "Batch query attack — múltiples operaciones en un request"
     keywords: [batch, query, multiple, operaciones]
 
   - id: dvga-dos-deep-recursion
-    vuln_class: hunt-dos
+    vuln_class: dos
     severity: medium
     title: "Deep recursion query — anidamiento sin límite de profundidad"
     keywords: [deep, recursion, depth, nested, anidamiento]
 
   - id: dvga-dos-resource-intensive
-    vuln_class: hunt-dos
+    vuln_class: dos
     severity: medium
     title: "Resource intensive query — consultas costosas sin throttling"
     keywords: [resource, intensive, expensive, costly]
     optional: true
 
   - id: dvga-dos-aliases
-    vuln_class: hunt-dos
+    vuln_class: dos
     severity: medium
     title: "Alias-based attack — multiplicación de trabajo via aliases"
     keywords: [alias, aliases, multiplicación, duplication]
@@ -138,7 +138,7 @@ expected:
   # --- Miscellaneous ---
 
   - id: dvga-weak-password
-    vuln_class: hunt-rate-limiting
+    vuln_class: rate-limiting
     severity: medium
     title: "Weak password protection — brute force viable"
     keywords: [password, brute, weak, force]

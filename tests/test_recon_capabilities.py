@@ -111,11 +111,11 @@ def test_memory_retention_archives_before_pruning():
 
 
 def test_workflow_expansion_drops_no_skill_lists():
-    expanded = Orchestrator._expand_skills(["hunt-*"])
+    expanded = Orchestrator._expand_skills(["*"])
     assert {"sqli", "xss", "css-injection", "cryptographic-oracle"} <= set(expanded)
-    assert "hunt-business-logic" in expanded
+    assert "business-logic" in expanded
     web = Router("web_app").get_phase_skills("hunting")
-    assert "sqli" in web and "css-injection" in web and "hunt-sqli" not in web
+    assert "sqli" in web and "css-injection" in web
     cloud = Router(workflow_path=str(ROOT / "workflows" / "cloud-pentest.yaml"))
     assert "aws-attack" in cloud.get_phase_skills("hunting")
     mobile = Router(workflow_path=str(ROOT / "workflows" / "mobile-pentest.yaml"))

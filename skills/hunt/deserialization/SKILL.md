@@ -1,5 +1,5 @@
 ---
-name: hunt-deserialization
+name: deserialization
 description: >
   Hunt for insecure deserialization: identify serialization formats in transit (Java
   ObjectInputStream, PHP serialize/unserialize, Python pickle, .NET BinaryFormatter/
@@ -12,8 +12,8 @@ description: >
   Keywords: deserialization, ObjectInputStream, gadget chain, ysoserial, PHP unserialize,
   Python pickle, .NET BinaryFormatter, ViewState, Java RMI, Marshal.load, ACE via
   deserialization.
-  Do NOT use for generic object-injection in templating engines (that's hunt-ssti) or for
-  prototype pollution in JS (hunt-prototype-pollution) — this skill is specifically about
+  Do NOT use for generic object-injection in templating engines (that's ssti) or for
+  prototype pollution in JS (prototype-pollution) — this skill is specifically about
   native serialization formats reconstructing objects/state from untrusted bytes.
 metadata:
   type: hunt

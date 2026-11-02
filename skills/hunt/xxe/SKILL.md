@@ -1,5 +1,5 @@
 ---
-name: hunt-xxe
+name: xxe
 description: >
   Hunt for XML External Entity injection: classic (in-band file/data disclosure), blind
   (out-of-band exfil via external DTD), and parameter entity techniques (error-based exfil,
@@ -9,7 +9,7 @@ description: >
   Keywords: xxe, xml external entity, DOCTYPE, SYSTEM entity, billion laughs, XML bomb,
   SOAP injection, SVG XXE, DOCX XXE, SAML XXE, parameter entity OOB exfil.
   Do NOT use for plain JSON APIs with no XML parsing anywhere in the stack. Do NOT use for
-  SSRF via non-XML vectors — use hunt-ssrf (though blind XXE is itself an SSRF delivery
+  SSRF via non-XML vectors — use ssrf (though blind XXE is itself an SSRF delivery
   mechanism — document under both when the vector is XML-based).
 metadata:
   type: hunt
@@ -100,7 +100,7 @@ chains_with: [ssrf, info-disclosure, lfi-rfi]
    <root><name>&xxe;</name></root>'
    ```
    A hit on your listener confirms the parser makes outbound requests — cross-reference with
-   hunt-ssrf for cloud metadata/internal network escalation from here.
+   ssrf for cloud metadata/internal network escalation from here.
 
 5. **Error-based exfil** when OOB egress is blocked by network controls (data-in-error-message
    technique, no outbound connection needed):

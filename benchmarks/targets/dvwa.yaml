@@ -37,7 +37,7 @@ expected:
     keywords: [command, exec, inyección, cmd]
 
   - id: dvwa-file-upload
-    vuln_class: hunt-file-upload
+    vuln_class: file-upload
     severity: high
     title: "Upload de webshell sin validación"
     keywords: [upload, shell, archivo]
@@ -55,7 +55,7 @@ expected:
     keywords: [csrf]
 
   - id: dvwa-brute
-    vuln_class: hunt-rate-limiting
+    vuln_class: rate-limiting
     severity: low
     title: "Brute force sin lockout en login"
     keywords: [brute, fuerza, lockout]
@@ -70,7 +70,7 @@ expected:
     keywords: [dom, xss, client-side]
 
   - id: dvwa-weak-session
-    vuln_class: hunt-session-management
+    vuln_class: session-management
     severity: medium
     title: "Weak session IDs (dvwaSession incremental predecible)"
     keywords: [session, predecible, incremental, weak]
@@ -89,7 +89,7 @@ expected:
     optional: true   # puede requerir origen externo permitido por la policy
 
   - id: dvwa-javascript
-    vuln_class: hunt-business-logic
+    vuln_class: business-logic
     severity: low
     title: "JavaScript challenge (token generado en cliente)"
     keywords: [javascript, token, cliente]
@@ -107,7 +107,7 @@ expected:
     keywords: [authorisation, authorization, admin, usuario]
 
   - id: dvwa-bac
-    vuln_class: hunt-broken-access-control
+    vuln_class: broken-access-control
     severity: high
     title: "Broken access control"
     keywords: [access control, bac, idor, ajeno]
@@ -119,7 +119,7 @@ expected:
     keywords: [cryptography, cifrado, decode, xor]
 
   - id: dvwa-api
-    vuln_class: hunt-api-abuse
+    vuln_class: api-abuse
     severity: medium
     title: "API sin autorización robusta"
     keywords: [api, rest, json]
@@ -145,7 +145,7 @@ expected:
     keywords: [md5, unsalted, rainbow]
 
   - id: dvwa-cookie-flags
-    vuln_class: hunt-session-management
+    vuln_class: session-management
     severity: low
     title: "Cookies de sesión sin HttpOnly/Secure/SameSite"
     keywords: [httponly, cookie, samesite, secure flag]

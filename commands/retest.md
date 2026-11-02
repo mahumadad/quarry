@@ -1,3 +1,9 @@
+---
+name: pt:retest
+description: Run a remediation verification engagement against a prior report
+allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
+---
+
 # /pt:retest — Engagement de verificación de remediación
 
 Uso: `/pt:retest <engagement_original_dir>`

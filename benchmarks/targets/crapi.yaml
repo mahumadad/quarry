@@ -25,13 +25,13 @@ expected:
     keywords: [jwt, token, alg]
 
   - id: crapi-rate-limit
-    vuln_class: hunt-rate-limiting
+    vuln_class: rate-limiting
     severity: medium
     title: "Sin rate limiting en OTP/login"
     keywords: [otp, rate, brute]
 
   - id: crapi-mass-assignment
-    vuln_class: hunt-mass-assignment
+    vuln_class: mass-assignment
     severity: high
     title: "Mass assignment en profile/order"
     keywords: [mass, assignment, role, campo]
@@ -61,7 +61,7 @@ expected:
     keywords: [admin, role, function]
 
   - id: crapi-reset
-    vuln_class: hunt-password-reset
+    vuln_class: password-reset
     severity: medium
     title: "Password reset predecible / OTP débil"
     keywords: [reset, otp, password]

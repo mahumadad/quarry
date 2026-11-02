@@ -1,5 +1,5 @@
 ---
-name: hunt-open-redirect
+name: open-redirect
 description: >
   Hunt for open redirect: parameter-based redirects, header-based redirects (Location
   injection), and meta-refresh/JS-based redirect sinks. Use when a URL/param controls
@@ -10,7 +10,7 @@ description: >
   bypass, phishing pivot.
   Do NOT use for redirects that are purely internal/relative-path-only with no way to point
   off-domain (not exploitable — note as N/A). Do NOT use for SSRF where the *server* follows
-  the redirect — that's hunt-ssrf; this skill is about the *victim's browser* being redirected.
+  the redirect — that's ssrf; this skill is about the *victim's browser* being redirected.
 metadata:
   type: hunt
   phase: hunting

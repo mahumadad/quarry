@@ -5,7 +5,7 @@ description: >
   and GraphQL introspection. Use after web-crawling and js-analysis have produced endpoint
   candidates, to confirm and fully enumerate the API attack surface before vuln hunting.
   Do NOT use for exploiting discovered endpoints (auth bypass, IDOR, injection) — that's
-  hunt-phase work; this skill only maps what exists and what it accepts.
+  hunt phase work; this skill only maps what exists and what it accepts.
 metadata:
   type: recon
   phase: mapped
@@ -98,7 +98,7 @@ spec-driven exploration.
   as a recon convenience and forget to note the exposure itself.
 - GraphQL introspection being disabled doesn't mean the schema is hidden — field suggestion
   via error messages, or a batched/aliased query, can still reveal structure; this is a
-  hunt-phase technique, not something to force through during mapping.
+  hunt phase technique, not something to force through during mapping.
 - Hidden/internal API versions (`/internal/`, `/admin/api/`) found via js-analysis are
   frequently unauthenticated by oversight — map them here, exploit them only after
   confirming scope and getting any required sign-off for auth-bypass testing.

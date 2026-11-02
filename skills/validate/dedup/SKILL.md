@@ -3,7 +3,7 @@ name: dedup
 description: >
   Stage 2 of the validation pipeline (`/pt:validate`). Collapse findings that share the same
   underlying root cause — including ones discovered on different endpoints, by different
-  hunt-* skills, or in different sessions — into a single finding with multiple instances,
+  * skills, or in different sessions — into a single finding with multiple instances,
   before the 4 gates and triage-gate spend effort reviewing the same bug twice. Use after
   evidence-hygiene has confirmed the candidate set has real evidence, and before
   finding-validation. Do NOT use this to merge two genuinely distinct vulnerabilities that
@@ -21,7 +21,7 @@ feeds_into: [finding-validation]
 
 - Two or more findings in the current batch share a `vuln_class`/CWE and were found on
   related endpoints or via similar techniques.
-- A hunt-* skill's methodology was applied across multiple endpoints and surfaced the same
+- A * skill's methodology was applied across multiple endpoints and surfaced the same
   flaw repeatedly (e.g. missing output encoding reflected in three different parameters of
   the same handler).
 - `/pt:chain`'s matrix mode flagged a pair as a suspected spurious chain between two symptoms
@@ -120,7 +120,7 @@ feeds_into: [finding-validation]
   evidence-standards.md`'s transversal rules flag this explicitly as a quality defect (Regla 7,
   anti-fabrication rules).
 - A finding discovered independently in two different engagement phases (e.g. once during
-  `js-analysis`, once during `hunt-api-abuse`) is a legitimate dedup candidate even though the
+  `js-analysis`, once during `api-abuse`) is a legitimate dedup candidate even though the
   discovery paths look unrelated — check root cause, not discovery method.
 - Don't dedup across different environments (staging vs. prod) even if the root cause is
   identical — document the delta per `finding-evidence-standards.md`'s N/A scenarios instead of

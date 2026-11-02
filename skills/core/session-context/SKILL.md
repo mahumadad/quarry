@@ -15,8 +15,8 @@ metadata:
   mitre_attack: [T1078]
   tools: [curl, browser]
 depends_on: [identity-map, scope-discipline]
-feeds_into: [idor, broken-access-control, hunt-broken-access-control, hunt-session-management, privilege-escalation]
-chains_with: [idor, auth-bypass, hunt-business-logic]
+feeds_into: [idor, broken-access-control, broken-access-control, session-management, privilege-escalation]
+chains_with: [idor, auth-bypass, business-logic]
 ---
 
 ## Purpose

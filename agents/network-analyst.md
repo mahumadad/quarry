@@ -1,5 +1,8 @@
 ---
 name: network-analyst
+description: >
+  Analyzes captured network traffic and MITM sessions for credential exposure,
+  insecure protocols, and exploitable protocol-level anomalies.
 model: sonnet
 layer: execution
 phases: [recon, analysis]

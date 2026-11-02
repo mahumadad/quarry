@@ -1,5 +1,5 @@
 ---
-name: hunt-ssrf
+name: ssrf
 description: >
   Hunt for Server-Side Request Forgery: basic (response reflected), blind (out-of-band only),
   and cloud metadata access (AWS/GCP/Azure IMDS). Use when the app fetches a URL on the server
@@ -7,7 +7,7 @@ description: >
   metadata fetch, PDF-to-HTML converters, avatar-from-URL, server-side rendering fetchers.
   Keywords: ssrf, server-side request forgery, metadata service, 169.254.169.254, OOB,
   Burp Collaborator, webhook abuse, DNS rebinding, internal network pivot, cloud IMDS.
-  Do NOT use for client-triggered redirects a victim's browser follows — use hunt-open-redirect.
+  Do NOT use for client-triggered redirects a victim's browser follows — use open-redirect.
 metadata:
   type: hunt
   phase: hunting
@@ -23,7 +23,7 @@ chains_with: [info-disclosure, rce, auth-bypass]
 
 - Any feature that takes a URL as input and the server fetches it: webhooks, "import avatar from
   URL", link preview/unfurl, PDF generation from a URL, XML parsers resolving external entities
-  (overlaps with hunt-xxe), server-side screenshot services, SSO metadata URL config.
+  (overlaps with xxe), server-side screenshot services, SSO metadata URL config.
 - Parameters named `url`, `uri`, `path`, `dest`, `redirect`, `image`, `src`, `callback`,
   `webhook`, `feed`, `endpoint`.
 - API integrations that proxy requests server-side (e.g., "fetch this image and resize it").
@@ -219,4 +219,4 @@ tested/not-applicable/blocked with the reason.
   injection).
 - SSRF reaching internal auth endpoints → **auth-bypass** (internal-only admin routes often skip
   authentication, trusting network position).
-- SSRF via XXE external entity fetch — see **hunt-xxe** for the XML-specific delivery vector.
+- SSRF via XXE external entity fetch — see **xxe** for the XML-specific delivery vector.

@@ -1,2 +1,4 @@
 cryptography>=42,<48
 PyYAML>=6,<7
+requests>=2.31,<3
+urllib3>=2,<3

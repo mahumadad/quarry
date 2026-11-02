@@ -1,3 +1,9 @@
+---
+name: pt:deliver
+description: Package and deliver engagement artifacts with optional GPG encryption
+allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
+---
+
 # /pt:deliver — Empaquetar y entregar los artefactos del engagement
 
 Uso: `/pt:deliver <dir_entregable> [--gpg RECIPIENT | --gpg-symmetric]`

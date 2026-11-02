@@ -27,7 +27,7 @@ chains_with: [chain-auth-to-takeover, chain-graph-walk, chain-custom]
   whose validity/acceptance by a *second* app hasn't been tested yet.
 - The engagement explicitly covers multiple applications/products under one client (common in
   platform/suite engagements), not a single monolithic app.
-- `hunt-oauth`'s client-confusion check (same Authorization Server, multiple `client_id`s)
+- `oauth`'s client-confusion check (same Authorization Server, multiple `client_id`s)
   surfaced a candidate — this skill is where that candidate gets built into a full chain.
 
 ## Prerequisites
@@ -54,7 +54,7 @@ chains_with: [chain-auth-to-takeover, chain-graph-walk, chain-custom]
    - **Shared SSO/OIDC Authorization Server** — verify whether app B validates that a token/code
      was issued specifically for *its* `client_id` + registered `redirect_uri`, or accepts any
      valid token from the shared IdP regardless of audience (classic OAuth "mix-up"/client-
-     confusion, per `hunt-oauth`'s methodology step 6).
+     confusion, per `oauth`'s methodology step 6).
    - **Shared static secret/API key** — verify whether the secret is scoped per-app server-side,
      or whether possessing it (leaked from app A, e.g. via `js-analysis`/`github-dorking`) grants
      equivalent access against app B's API.

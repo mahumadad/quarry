@@ -1,3 +1,9 @@
+---
+name: credential-testing
+description: >-
+  Test authentication strength: hash cracking feasibility, default credentials, password policy compliance, and credential spraying.
+---
+
 # Credential Testing
 
 > Test authentication strength: hash cracking feasibility, default

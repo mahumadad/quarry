@@ -52,13 +52,13 @@ expected:
     keywords: [admin, administration, role]
 
   - id: js-forged-feedback
-    vuln_class: hunt-broken-access-control
+    vuln_class: broken-access-control
     severity: medium
     title: "Feedback/review en nombre de otro usuario (roken access control)"
     keywords: [feedback, review, otro usuario, forged]
 
   - id: js-file-upload
-    vuln_class: hunt-file-upload
+    vuln_class: file-upload
     severity: high
     title: "Upload de archivo con extensión/tipo no permitido"
     keywords: [upload, archivo, file, extensión, xxe]
@@ -72,19 +72,19 @@ expected:
     keywords: [exposure, leak, sensitive, metrics, directory]
 
   - id: js-business-logic
-    vuln_class: hunt-business-logic
+    vuln_class: business-logic
     severity: medium
     title: "Business logic: cupones infinitos / precios negativos"
     keywords: [coupon, cupón, negative, logic, lógica]
 
   - id: js-rate-limit
-    vuln_class: hunt-rate-limiting
+    vuln_class: rate-limiting
     severity: low
     title: "Sin rate limiting en login (brute force)"
     keywords: [rate, brute, fuerza bruta, lockout]
 
   - id: js-password-reset
-    vuln_class: hunt-password-reset
+    vuln_class: password-reset
     severity: medium
     title: "Reset de password con respuesta de seguridad débil"
     keywords: [reset, security answer, pregunta]

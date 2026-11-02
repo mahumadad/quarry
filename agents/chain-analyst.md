@@ -1,5 +1,8 @@
 ---
 name: chain-analyst
+description: >
+  Discovers attack chains by combining individual findings into multi-step
+  exploitation paths and assessing their combined impact.
 model: opus
 layer: analysis
 phases: [analysis, chain-analysis, pre-report]

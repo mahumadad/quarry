@@ -49,7 +49,7 @@ class Router:
         suggestions = {s.get("vuln_class", "") for s in brain_suggestions}
         prioritized, rest = [], []
         for skill in skills:
-            skill_class = skill.split("/")[-1].removeprefix("hunt-")
+            skill_class = skill.split("/")[-1]
             if skill_class in suggestions:
                 prioritized.insert(0, skill)
             elif skill_class in gaps:
@@ -59,7 +59,7 @@ class Router:
         return prioritized + rest
 
     def skip_skill(self, skill: str, exhausted_classes: set[str]) -> bool:
-        return skill.split("/")[-1].removeprefix("hunt-") in exhausted_classes
+        return skill.split("/")[-1] in exhausted_classes
 
     def available_types(self) -> list[str]:
         return list(WORKFLOW_BY_TYPE)

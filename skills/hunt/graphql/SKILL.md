@@ -1,5 +1,5 @@
 ---
-name: hunt-graphql
+name: graphql
 description: >
   Hunt for GraphQL-specific vulnerabilities: introspection exposure, batch query/alias
   abuse for rate-limit bypass, deeply nested query DoS, and authorization bypass at the
@@ -7,8 +7,8 @@ description: >
   (or similarly named) endpoint.
   Keywords: GraphQL, introspection query, batching, query depth, field-level authorization,
   resolver, aliasing, IDOR via GraphQL, InQL, graphql-voyager, DoS via nested query.
-  Do NOT use for generic REST IDOR (hunt-idor covers that pattern on REST) or generic rate
-  limiting outside GraphQL batching (hunt-rate-limiting) — this skill is specifically about
+  Do NOT use for generic REST IDOR (idor covers that pattern on REST) or generic rate
+  limiting outside GraphQL batching (rate-limiting) — this skill is specifically about
   the GraphQL query language's own structural features as an attack surface.
 metadata:
   type: hunt
@@ -18,7 +18,7 @@ metadata:
   tools: [burpsuite, InQL, graphql-voyager, curl, "graphql-cop"]
 depends_on: [active-recon, api-discovery]
 feeds_into: [chain-analysis, idor]
-chains_with: [hunt-idor, hunt-broken-access-control, hunt-rate-limiting]
+chains_with: [idor, broken-access-control, rate-limiting]
 ---
 
 ## Signals
@@ -182,8 +182,8 @@ tested/not-applicable/blocked with the reason.
 ## Chains & Compositions
 
 - Field-level authorization bypass exposing another user's data → feeds **idor** /
-  **hunt-broken-access-control** for the broader cross-account access-control assessment.
-- Batching bypassing rate limiting → combine with **hunt-rate-limiting** on the same
+  **broken-access-control** for the broader cross-account access-control assessment.
+- Batching bypassing rate limiting → combine with **rate-limiting** on the same
   mutation (e.g., login, OTP verification) for a credential-stuffing or brute-force chain.
 - Newly discovered types/fields from introspection → feed back into **api-discovery** to
   expand the overall endpoint/data map before closing this pass.

@@ -1,3 +1,9 @@
+---
+name: lateral-movement
+description: >-
+  Assess lateral movement paths between compromised and adjacent assets using MITRE ATT&CK TA0008 techniques.
+---
+
 # Lateral Movement Assessment
 
 > MITRE ATT&CK: TA0008 (Lateral Movement)

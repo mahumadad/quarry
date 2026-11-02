@@ -4,7 +4,7 @@ description: >
   Identify whether a WAF/CDN edge sits in front of the target, which vendor it is, and which
   generic bypass techniques apply to that vendor — via wafw00f and manual response-header/
   behavioral analysis. Use right after active-recon confirms liveness and before port-scan/
-  hunt-* skills invest effort assuming they're reaching the real origin. Do NOT use for general
+  * skills invest effort assuming they're reaching the real origin. Do NOT use for general
   technology fingerprinting (framework, CMS, server) — that's tech-stack-fingerprint; this
   skill is specifically about the WAF/edge layer and whether it is intercepting traffic before
   reaching the real backend.
@@ -23,7 +23,7 @@ feeds_into: []
 - A request with an intentionally suspicious payload (test SQLi/XSS string) returns a
   generic-looking block page or an unusual status code (403, 406, 429, 503) instead of the
   app's normal error handling.
-- Before starting any hunt-* skill that sends attack-shaped payloads — knowing the WAF vendor
+- Before starting any * skill that sends attack-shaped payloads — knowing the WAF vendor
   up front changes payload encoding strategy and avoids burning attempts on techniques that
   vendor already blocks by default.
 - Response headers show vendor-identifying artifacts (`cf-ray`, `x-sucuri-id`, `x-akamai-*`,
@@ -76,10 +76,10 @@ feeds_into: []
 
 6. **Once a vendor is identified, note the generic bypass techniques known for that vendor**
    (case variation, encoding tricks, HTTP parameter pollution, chunked transfer, alternate
-   content-types) as hypotheses for later hunt-* skills to try if a direct payload gets
+   content-types) as hypotheses for later * skills to try if a direct payload gets
    blocked — but do not run exploitation-grade bypass attempts here; this skill identifies the
    WAF, it doesn't defeat it. Record the vendor and suspected bypass angle for the relevant
-   hunt-* skill to pick up.
+   * skill to pick up.
 
 7. **Record whether the WAF appears to be in block mode or detect/log-only mode.** A payload
    that returns 200 with no visible effect but logs server-side (unobservable from outside)
@@ -97,7 +97,7 @@ ssl-cert,http-waf-detect,http-waf-fingerprint`.
       explicit "inconclusive after both automated and manual checks") — never assumed from a
       single wafw00f run alone.
 - [ ] If a WAF is present, the vendor (or "unidentified vendor, confirmed present") is recorded
-      for every subsequent hunt-* skill to reference before assuming raw payloads will land.
+      for every subsequent * skill to reference before assuming raw payloads will land.
 - [ ] Block-mode vs. detect/log-only-mode distinction is stated, not assumed.
 - [ ] Probing stayed within `opsec-discipline`'s rate policy — this skill sends several
       deliberately suspicious requests, which is exactly the kind of traffic that policy
@@ -115,7 +115,7 @@ ssl-cert,http-waf-detect,http-waf-fingerprint`.
   IP-based blocking/rate-limiting that then reads as "everything is blocked" — pace probing per
   `opsec-discipline`, and don't mistake a self-inflicted IP ban for WAF behavior.
 - A WAF blocking the obvious test payload does not mean the underlying vulnerability doesn't
-  exist — it means the direct, unencoded PoC needs a bypass technique before the hunt-* skill
+  exist — it means the direct, unencoded PoC needs a bypass technique before the * skill
   can demonstrate it; never report "not vulnerable" purely because the first naive payload was
   blocked.
 - Origin IP exposure (via historical DNS, SPF/MX records, or a misconfigured subdomain

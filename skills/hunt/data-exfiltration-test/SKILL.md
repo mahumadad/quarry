@@ -1,3 +1,9 @@
+---
+name: data-exfiltration-test
+description: >-
+  Test whether DLP and monitoring controls detect data exfiltration using MITRE ATT&CK TA0010 techniques.
+---
+
 # Data Exfiltration Control Testing
 
 > MITRE ATT&CK: TA0010 (Exfiltration)

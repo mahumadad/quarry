@@ -1,19 +1,26 @@
 {
-  "hooks": [
-    {
-      "matcher": "startup|resume|clear|compact",
-      "event": "SessionStart",
-      "commands": [
-        "cat ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md"
-      ]
-    },
-    {
-      "matcher": "",
-      "event": "PreToolUse",
-      "tool_name": "Bash",
-      "commands": [
-        "python3 ${CLAUDE_PLUGIN_ROOT}/engine/guard.py --audit-dir \"$PWD\" --command \"$TOOL_INPUT\""
-      ]
-    }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/engine/guard.py --audit-dir \"$PWD\""
+          }
+        ]
+      }
+    ]
+  }
 }

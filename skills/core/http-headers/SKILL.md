@@ -5,7 +5,7 @@ description: >
   HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy,
   Permissions-Policy, COOP, COEP, CORP, Cache-Control (sensitive pages),
   and deprecated/redundant headers (X-XSS-Protection). Run after tech
-  fingerprinting and before hunt-xss/hunt-clickjacking — missing headers
+  fingerprinting and before xss/clickjacking — missing headers
   widen the attack surface for those vulns.
 metadata:
   type: core
@@ -13,7 +13,7 @@ metadata:
   cwe: [CWE-693, CWE-1021, CWE-614, CWE-524]
   tools: [curl, httpx, nuclei, securityheaders.com]
 depends_on: [tech-fingerprint, active-recon]
-feeds_into: [hunt-xss, hunt-clickjacking, hunt-csrf, report-writing]
+feeds_into: [xss, clickjacking, csrf, report-writing]
 ---
 
 ## Signals

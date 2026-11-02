@@ -15,7 +15,7 @@ metadata:
   tools: [curl, httpx]
   mandatory: true
 depends_on: [recon/port-scan, recon/api-discovery, web-crawling]
-feeds_into: [hunt-*]
+feeds_into: [*]
 chains_with: []
 ---
 

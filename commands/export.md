@@ -1,3 +1,9 @@
+---
+name: pt:export
+description: Export findings to machine-readable formats (SARIF, JSON, CSV)
+allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
+---
+
 # /pt:export — Exportar findings a formatos machine-readable
 
 Uso: `/pt:export [sarif|json|csv] [ruta_salida] [--all]`

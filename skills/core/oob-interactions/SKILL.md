@@ -76,7 +76,7 @@ machinery. Without OOB confirmation, blind findings cap at `Inferred`.
 |---|---|---|
 | 1 | HTTP request received with unique token + expected remote_addr belonging to target infra | Full proof |
 | 2 | HTTP request with unique token, source IP is a known egress proxy/NAT of target | Full proof (note the proxy) |
-| 3 | DNS lookup only, unique token | Strong — but confirm the app actually fetched (some validators resolve-only; see hunt-ssrf gotchas) |
+| 3 | DNS lookup only, unique token | Strong — but confirm the app actually fetched (some validators resolve-only; see ssrf gotchas) |
 | 4 | Interaction without token match | Background noise — discard |
 
 ## Gotchas

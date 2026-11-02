@@ -90,7 +90,7 @@ chains_with: [rce, deserialization, sqli, ssrf, dos]
 
 ## Gotchas
 
-- **Rate limits and WAFs:** fuzzing is loud. Check hunt-rate-limiting first;
+- **Rate limits and WAFs:** fuzzing is loud. Check rate-limiting first;
   throttle, and expect WAF blocks to create coverage holes — log them as gaps.
 - **State destruction:** fuzzing state-changing endpoints (POST/PUT/DELETE)
   can pollute or damage data. Fuzz against staging where possible; in prod,
