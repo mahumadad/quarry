@@ -50,7 +50,7 @@ Scored against known-vulnerable applications with versioned ground truth:
 | Juice Shop v20.3.0 | Web (Node) | 14 | 14 | **100%** | 100% |
 | DVGA | GraphQL | 20 | — | pending | — |
 | VAmPI | REST API (OWASP API Top 10) | 9 | — | pending | — |
-| WebGoat | Web (Java) | 21 | — | pending | — |
+| WebGoat | Web (Java) | 21 | 21 | **100%** | 100% |
 
 Full results: [`benchmarks/results/`](benchmarks/results/). Target definitions: [`benchmarks/targets/`](benchmarks/targets/). Weekly CI runs on Mondays.
 
