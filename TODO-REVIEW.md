@@ -164,8 +164,13 @@ Added `schedule: cron "0 6 * * 1"` (Mondays 06:00 UTC) and
 `workflow_dispatch` triggers. Benchmark results uploaded as artifact
 with 90-day retention. Also added `test_engine_modules.py` to CI.
 
-### A-4: Write DVWA 25/25 writeup
+### ~~A-4: Write DVWA 25/25 writeup~~ DONE
 Public post with the benchmark story — evidence discipline angle.
+Written to `docs/writeup-dvwa-25-25.md`: setup, engagement narrative,
+25-finding table (class/CWE/severity/evidence tag), custody-chain +
+hash-integrity walkthrough, volume-vs-proof contrast, repro instructions.
+All hard numbers verified against `benchmarks/results/2026-10-22-dvwa.json`
+and the run's `findings.json`/`custody.jsonl`.
 
 ### ~~A-5: Refresh gap analysis~~ DONE
 Updated with Nov 2026 ecosystem scan. 7 new repos/papers found

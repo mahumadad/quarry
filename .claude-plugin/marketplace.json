@@ -1,50 +1,15 @@
 {
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
   "name": "quarry",
-  "display_name": "Quarry",
-  "version": "0.1.0",
-  "description": "Track. Aim. Prove. Full-cycle penetration testing with evidence discipline — recon, hunting, chaining, validation, and reporting with custody-grade proof.",
-  "author": {
-    "name": "mahumadad"
+  "owner": {
+    "name": "mahumadad",
+    "url": "https://github.com/mahumadad"
   },
-  "license": "MIT",
-  "repository": "https://github.com/mahumadad/quarry",
-  "homepage": "https://github.com/mahumadad/quarry",
-  "keywords": [
-    "pentest",
-    "security",
-    "offensive-security",
-    "vulnerability-assessment",
-    "recon",
-    "OWASP",
-    "MITRE",
-    "nuclei",
-    "evidence-chain",
-    "red-team"
-  ],
-  "categories": ["security", "testing"],
-  "install": {
-    "type": "git",
-    "url": "https://github.com/mahumadad/quarry.git"
-  },
-  "requirements": {
-    "python": ">=3.11",
-    "pip": ["cryptography>=42,<48", "PyYAML>=6,<7", "requests>=2.31,<3", "urllib3>=2,<3"]
-  },
-  "optional_requirements": {
-    "browser_verification": {
-      "pip": ["playwright"],
-      "post_install": "playwright install chromium"
+  "plugins": [
+    {
+      "name": "quarry",
+      "source": "./",
+      "description": "Track. Aim. Prove. Full-cycle penetration testing with evidence discipline — recon, hunting, chaining, validation, and reporting with custody-grade proof."
     }
-  },
-  "external_tools": ["nmap", "nuclei", "ffuf", "httpx"],
-  "commands": [
-    "quarry:engage", "quarry:recon", "quarry:hunt", "quarry:chain", "quarry:validate",
-    "quarry:report", "quarry:scope", "quarry:status", "quarry:findings", "quarry:map",
-    "quarry:export", "quarry:deliver", "quarry:closeout", "quarry:retest", "quarry:resume",
-    "quarry:run", "quarry:notify", "quarry:doctor"
-  ],
-  "agent_count": 18,
-  "skill_count": 124,
-  "workflow_count": 14,
-  "documentation_url": "https://github.com/mahumadad/quarry#readme"
+  ]
 }
