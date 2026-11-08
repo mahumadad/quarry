@@ -15,7 +15,7 @@ Herramientas instaladas en la máquina del operador. El runner:
 Sin configuración necesaria. Ideal para web/API testing con curl, ffuf,
 nuclei, sqlmap instalados localmente.
 
-## Backend `kali` (Kali remoto vía REST)
+## Backend `kali` (Kali remoto vía REST) — EXPERIMENTAL
 
 Para tooling pesado (nmap masivo, Metasploit, herramientas que no corren en
 macOS del operador) en una Kali box dedicada.
@@ -58,7 +58,7 @@ El runner envuelve cada comando en `docker run --rm --network host {image}`.
 Montar el directorio del engagement como volumen si las herramientas deben
 escribir outputs: extender `_run_local` según necesidad.
 
-## Backend `anonlab` (Docker+Tor anonymous lab)
+## Backend `anonlab` (Docker+Tor anonymous lab) — EXPERIMENTAL
 
 Para engagements que requieren anonimato del operador: red team con
 evasión, bug bounty donde no se quiere exponer la IP, o targets que
@@ -111,6 +111,20 @@ Ver `references/anon-lab.md` para el detalle completo de la arquitectura.
 - Mullvad VPN es la capa externa (conectar manualmente antes de `anonlab up`).
 - El runner verifica Tor activo con `check.torproject.org/api/ip` antes
   de aceptar el backend como disponible.
+
+## Maturity levels
+
+| Backend   | Status       | Policy shared | Tests |
+|-----------|-------------|---------------|-------|
+| `local`   | Stable      | Yes           | Yes   |
+| `docker`  | Stable      | Yes           | Yes   |
+| `kali`    | Experimental| Yes           | No    |
+| `anonlab` | Experimental| Yes           | No    |
+
+Experimental backends share the policy engine (`command_policy()` runs
+before every execution regardless of backend) and custody logging, but
+lack dedicated test coverage. Use them in engagements where their
+capabilities are needed, but be aware they are less battle-tested.
 
 ## Reglas transversales
 

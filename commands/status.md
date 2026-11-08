@@ -1,6 +1,7 @@
 ---
 name: quarry:status
 description: Engagement dashboard — phase, findings, coverage, budget, gaps, next steps
+argument-hint: ""
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

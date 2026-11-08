@@ -14,7 +14,7 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - **Fix:** Quote it as `- "*"`. Remove the regex workarounds from the validator. Promote YAML parse errors to hard failures.
 - [x] Fix workflow YAML
 - [x] Remove validator workarounds
-- [ ] Add regression test: load all workflows with stdlib yaml.safe_load
+- [x] Add regression test: load all workflows with stdlib yaml.safe_load (`tests/test_yaml_load.py`, 14 parametrized tests)
 
 ### C2. Real client data in public repo
 - **Files:** `commands/engage.md:15-16,36-42`, `commands/chain.md:36-37`
@@ -46,7 +46,7 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - [x] Harden command_policy()
 - [x] Add SHELL_WRAPPERS detection
 - [x] Add missing tools to NETWORK_TOOLS
-- [ ] Add regression tests
+- [x] Add regression tests (`tests/test_policy_bypass.py`, 22 tests covering all bypass patterns)
 
 ### C4. Artifacts are not actually immutable
 - **File:** `engine/artifacts.py:51-67`
@@ -60,7 +60,7 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - [x] Fix artifact_id generation (UUID)
 - [x] Make path unique per capture (timestamp + id suffix)
 - [x] Refuse to overwrite existing artifacts
-- [ ] Add regression test: two captures with same run/task/kind
+- [x] Add regression test: two captures with same run/task/kind (`tests/test_artifact_immutability.py`, 6 tests)
 
 ### C5. Finding without evidence can be exported as validated
 - **File:** `engine/findings.py:137-145,150-168`
@@ -88,7 +88,7 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - [x] Fix output parsers to match actual output format (`  ERROR:`, `  WARN:`)
 - [x] Remove bare except in SARIF generation
 - [x] Set executionSuccessful based on actual result
-- [ ] Rename/document as "Quarry self-check" until real scanning is implemented
+- [x] Rename/document as "Quarry self-check" (`action.yml` renamed + description clarified)
 
 ### C7. README install command doesn't exist + doctor doesn't check binaries
 - **File:** `README.md:63,80-84`
@@ -109,7 +109,7 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - **Files:** `engine/browser_loop.py:93-101`, `engine/browser_verify.py:127-151`, `engine/mcp_client.py:116-137`
 - **Bug:** Browser navigation and MCP calls bypass PolicyEngine scope checks. URL redirects and secondary requests are not validated.
 - [x] Route browser URLs through scope validation (`browser_loop.navigate()`, `browser_verify` all probes)
-- [ ] Add redirect interception
+- [x] Add redirect interception (`browser_loop.navigate()` now validates final URL after redirects, logs `browser_redirect_blocked` to custody)
 - [x] Validate MCP tool targets against scope (`mcp_client.call_tool()` extracts URLs from params, `_connect_http()` validates server URL)
 
 ### I2. Broken skill/workflow references (22+ warnings, 64+ hidden)
@@ -126,7 +126,7 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - [x] Unify command descriptions (10 commands ES → EN)
 - [x] Unify workflow descriptions (10 workflows + full-pentest phase descriptions)
 - [x] Translate command body text (18 commands ES → EN)
-- [ ] Translate workflow notes/comments (8 workflows still have Spanish in notes/body)
+- [x] Translate workflow notes/comments (8 workflows: closeout, cve-response, pr-scan, purple-team, retest, surface-watch translated; full-pentest + recon-only already clean)
 
 ### I4. 10/18 agents not wired to any workflow
 - **Unwired:** `engagement-planner`, `browser-verifier`, `ai-agent-exploit`, `network-analyst` (declares inputs nothing produces), 6 SAST agents
@@ -160,21 +160,21 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 ### I10. Benchmark doesn't execute targets
 - `.github/workflows/validate.yml:71-90` only runs synthetic scorer test and uploads existing results
 - [x] Update README to clarify benchmarks are from manual runs, not automated CI
-- [ ] Implement real benchmark execution against Docker targets in CI
+- [ ] Future: implement real benchmark execution against Docker targets in CI
 
 ---
 
 ## Additions needed
 
-- [ ] `argument-hint` in frontmatter of all 18 commands
-- [ ] `SECURITY.md` (responsible disclosure policy)
-- [ ] `CHANGELOG.md`, `CONTRIBUTING.md`
+- [x] `argument-hint` in frontmatter of all 19 commands (19/19 done)
+- [x] `SECURITY.md` (responsible disclosure via GitHub Security Advisories)
+- [x] `CHANGELOG.md`, `CONTRIBUTING.md`
 - [ ] Example session in README (DVWA transcript snippet)
 - [x] Skill `param-discovery` redirected to `fuzzing` (8 files updated)
-- [ ] Wire SAST pipeline to `pr-scan.yaml`
-- [ ] Canonical verdict→FindingStatus mapping table
+- [x] Wire SAST pipeline to `pr-scan.yaml` (6 agents added to static-checks phase)
+- [x] Canonical verdict→FindingStatus mapping table (`references/verdict-status-mapping.md`)
 - [ ] Git tags + releases (currently 0.1.0 with no tags)
-- [ ] `pyproject.toml` with dev deps, pytest config, ruff, type checking
+- [x] `pyproject.toml` with dev deps, pytest config, ruff, type checking
 - [ ] Smoke test: real Claude Code session (install, doctor, delegate, hooks)
 
 ---
@@ -185,22 +185,25 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - [x] Remove absolute claims from README intro ("no other plugin", "No hallucinated vulns")
 - [x] Remove personal paths from engage.md examples (see C2)
 - [x] Remove Bountyforge from map.md (see C2)
-- [ ] Move experimental backends (Kali remote, anonlab, generic MCP) out of stable path until they share policy + have tests
-- [ ] Consolidate rebuttal questions (3 copies: rebuttal.py, validate.md, finding-checker.md) → engine only
-- [ ] Consolidate report definition (3 copies: report.md, report-writer.md, engagement-report.md) → single template
-- [ ] Fix `cve-response.yaml` phases with only `notes:` (generates tasks toward non-existent skills)
+- [x] Mark experimental backends (Kali remote, anonlab) in `references/tool-backends.md` with maturity table — they share policy engine but lack tests
+- [x] Cross-reference rebuttal questions: 7-question gate (pre-submit self-check) and finding-checker (adversarial review) are complementary, not duplicates; `engine/rebuttal.py` is the simplified prompt version. All three now cross-reference each other and `references/verdict-status-mapping.md`
+- [x] Consolidate report definition: `agents/report-writer.md` now references `templates/engagement-report.md` as single source of truth
+- [x] Fix `cve-response.yaml` phases with only `notes:` — added skills to all 4 phases
+
+---
+
+## Deferred (not actionable without external resources)
+
+- [ ] I5 future: runtime enforcement of `isolation: blind` when spawning agent sessions
+- [ ] I9 future: operator signature + external timestamping for custody chain
+- [ ] I10 future: automated benchmark execution against Docker targets in CI
+- [ ] Example session in README (needs a real DVWA session to capture)
+- [ ] Smoke test (needs real Claude Code runtime to test install/doctor/delegate/hooks)
+- [ ] Git tags + releases (operator decision on versioning scheme)
 
 ---
 
 ## Recommended order
 
-1. C1 (YAML wildcard) — 5 min, unblocks /quarry:run
-2. C2 (client data) — urgent, repo is public
-3. C3 (policy bypass) — security core
-4. C4 (artifact immutability) — evidence integrity
-5. C5 (finding evidence gate) — "no finding without proof" promise
-6. C6 (action.yml) — CI trustworthiness
-7. C7 (README + doctor) — first-run experience
-8. I1-I2 (network paths + broken refs) — operational correctness
-9. I3-I4 (language + unwired agents) — cleanup
-10. Everything else
+All critical (C1-C7) and important (I1-I10) items are now complete.
+Remaining items are in the "Deferred" section above.

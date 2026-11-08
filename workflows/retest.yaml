@@ -6,9 +6,9 @@ phases:
     skills: [engagement-flow, scope-discipline]
     gate: human_approval
     notes: >
-      Scope = los findings del engagement original + los assets tocados por
-      los fixes. NO es un engagement nuevo; no abrir superficie nueva sin
-      autorización explícita.
+      Scope = findings from the original engagement + assets touched by
+      the fixes. NOT a new engagement; do not open new surface without
+      explicit authorization.
 
   - name: baseline
     skills: [active-recon]
@@ -23,28 +23,28 @@ phases:
     agent: re-exploit-agent
     budget: 100
     notes: >
-      Para CADA finding del reporte original, en sesión fría (cookie jar
-      nuevo): ejecutar el PoC exacto de los steps-to-reproduce.
-      Resultados posibles por finding:
-        FIXED     — el PoC falla; documentar el comportamiento observado
-                    (control nuevo visible: 403, validación, parámetro rechazado)
-        PARTIAL   — el PoC original falla pero una variante menor funciona
-                    (mismo root cause) → reabrir con evidencia nueva
-        NOT_FIXED — el PoC funciona igual → reabrir, misma severidad mínima
-        REGRESSED — el fix rompió otra cosa (nuevo finding separado)
+      For EACH finding from the original report, in a cold session (fresh
+      cookie jar): execute the exact PoC from steps-to-reproduce.
+      Possible results per finding:
+        FIXED     — PoC fails; document observed behavior
+                    (new control visible: 403, validation, parameter rejected)
+        PARTIAL   — original PoC fails but a minor variant works
+                    (same root cause) → reopen with new evidence
+        NOT_FIXED — PoC works the same → reopen, same minimum severity
+        REGRESSED — the fix broke something else (new separate finding)
 
   - name: variant-sweep
     skills: [variant-analysis]
     notes: >
-      Por cada finding FIXED cuyo patrón tenía siblings (variant-analysis del
-      engagement original): re-correr el barrido de variantes contra las
-      ubicaciones no reportadas. Un fix de instancia sin fix de patrón es
-      el resultado más común — verificar.
+      For each FIXED finding whose pattern had siblings (variant-analysis
+      from the original engagement): re-run the variant sweep against
+      unreported locations. An instance fix without a pattern fix is
+      the most common result — verify.
 
   - name: reporting
     skills: [report-writing]
     gate: human_approval
     notes: >
-      Retest report: tabla finding-original × estado (FIXED/PARTIAL/NOT_FIXED/
-      REGRESSED) × evidencia del re-test. Sin hallazgos nuevos de hunting —
-      eso corresponde a un engagement nuevo.
+      Retest report: original-finding × status (FIXED/PARTIAL/NOT_FIXED/
+      REGRESSED) × re-test evidence table. No new hunting findings —
+      that belongs to a new engagement.

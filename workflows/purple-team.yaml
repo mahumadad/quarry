@@ -1,41 +1,41 @@
 name: purple-team
 description: Joint session with the SOC — replay PoCs while observing live detections
 
-# Requiere: findings ya reportados + SOC del cliente disponible + acceso de
-# solo-lectura a su telemetría durante la sesión. Convierte la tabla
-# Detection Coverage del reporte (estimada) en realidad observada.
+# Requires: findings already reported + client SOC available + read-only
+# access to their telemetry during the session. Converts the report's
+# Detection Coverage table (estimated) into observed reality.
 
 phases:
   - name: session-setup
     gate: human_approval
     notes: >
-      - Acordar agenda: qué findings se re-ejecutan (típicamente
-        críticos/altos + los más sigilosos)
-      - Confirmar acceso del pentester al SIEM/dashboards en modo observador
-      - Reglas: replay solo de PoCs ya autorizados, en la ventana acordada
-        (timeguard aplica), ventana corta (2-4h típico)
+      - Agree on the agenda: which findings to replay (typically
+        critical/high + the stealthiest ones)
+      - Confirm pentester access to SIEM/dashboards in observer mode
+      - Rules: replay only previously authorized PoCs, within the agreed
+        window (timeguard applies), short window (2-4h typical)
 
   - name: replay-observe
     skills: [detection-opportunities]
     notes: >
-      Por cada finding seleccionado:
-      1. SOC silencia su monitoring del target (o anota la hora exacta)
-      2. Re-ejecutar el PoC paso a paso, narrando cada acción
-      3. SOC observa EN VIVO: ¿qué disparó? ¿dónde? ¿con qué latencia?
-      4. Registrar por técnica: detectado / detectado-tarde / no detectado
-         + el evento/log exacto que disparó (si hubo)
-      Todo queda en custody: es evidencia de la postura defensiva real.
+      For each selected finding:
+      1. SOC silences their target monitoring (or notes the exact time)
+      2. Re-execute the PoC step by step, narrating each action
+      3. SOC observes LIVE: what fired? where? with what latency?
+      4. Record per technique: detected / detected-late / not detected
+         + the exact event/log that fired (if any)
+      Everything goes into custody: it is evidence of the real defensive posture.
 
   - name: tune-verify
     notes: >
-      Para cada "no detectado": el SOC ajusta/crea la detección (usando la
-      idea de detección del finding como punto de partida) y se RE-EJECUTA
-      el PoC para verificar que ahora dispara. Ese ciclo detect→tune→verify
-      es el entregable central de la sesión.
+      For each "not detected": the SOC adjusts/creates the detection (using
+      the finding's detection idea as a starting point) and the PoC is
+      RE-EXECUTED to verify it now fires. That detect→tune→verify cycle
+      is the central deliverable of the session.
 
   - name: session-report
     notes: >
-      Actualizar la tabla Detection Coverage del engagement report con la
-      columna de realidad observada: qué detecta hoy el cliente, qué quedó
-      ciego, qué detecciones nuevas nacieron de la sesión. Este delta es el
-      ROI tangible del purple teaming.
+      Update the engagement report's Detection Coverage table with the
+      observed-reality column: what the client detects today, what remained
+      blind, what new detections were born from the session. This delta is
+      the tangible ROI of purple teaming.

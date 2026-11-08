@@ -1,6 +1,7 @@
 ---
 name: quarry:export
 description: Export findings to machine-readable formats (SARIF, JSON, CSV)
+argument-hint: "[sarif|json|csv] [output_path] [--all]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

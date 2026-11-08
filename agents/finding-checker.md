@@ -132,6 +132,18 @@ There is no fourth outcome. A finding you are unsure about is STALL, never a sof
 - Do not let a prior ACCEPTED verdict on a similar-looking finding bias this one. Every
   finding is reviewed on its own evidence, cold.
 
+## Relationship to the 7-question gate
+
+This adversarial review is downstream of the 7-question pre-submit gate
+(`references/seven-question-gate.md`). A finding reaches this agent only
+after passing that gate. The two are complementary: the gate catches
+obvious deficiencies early; this agent stress-tests what survived.
+
+The engine's simplified prompt version of these questions lives in
+`engine/rebuttal.py` (REFUTATION_QUESTIONS). The canonical mapping from
+verdicts to `FindingStatus` transitions is in
+`references/verdict-status-mapping.md`.
+
 ## Output format: review-verdict
 
 ```

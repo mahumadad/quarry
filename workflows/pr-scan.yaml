@@ -1,16 +1,16 @@
 name: pr-scan
 description: Lightweight security scan for CI — runs on pull requests without a full engagement
 
-# Modo de uso continuo, NO un pentest. Filosofía: minutos, no días; señal
-# alta, cero ruido. Todo lo que encuentra es LEAD hasta que un engagement
-# real lo valide (B3: el scanner es testigo, no juez).
+# Continuous-use mode, NOT a pentest. Philosophy: minutes, not days; high
+# signal, zero noise. Everything it finds is a LEAD until a real engagement
+# validates it (B3: the scanner is a witness, not a judge).
 
 phases:
   - name: diff-scope
     skills: [scope-discipline]
     notes: >
-      Scope automático = archivos/rutas tocadas por el PR. Nada fuera del
-      diff salvo configuración de seguridad global (middleware, CORS, auth).
+      Automatic scope = files/paths touched by the PR. Nothing outside the
+      diff except global security configuration (middleware, CORS, auth).
 
   - name: static-checks
     skills: [static-analysis-toolkit, supply-chain-audit]
@@ -23,23 +23,23 @@ phases:
       - sast-gap-analyzer
     budget: 30
     notes: >
-      - semgrep con packs del stack + reglas custom del repo (si existen)
-      - osv-scanner solo si el PR toca manifests/lockfiles
-      - detección de secretos en el diff (api keys, tokens)
-      Solo severidad alta con confianza alta — el resto se loguea.
+      - semgrep with stack packs + custom repo rules (if they exist)
+      - osv-scanner only if the PR touches manifests/lockfiles
+      - secret detection in the diff (api keys, tokens)
+      High severity with high confidence only — the rest is logged.
 
   - name: route-checks
     skills: [api-discovery]
     budget: 20
     condition: pr_touches_routes
     notes: >
-      Si el PR agrega/modifica endpoints: verificar que heredan los
-      middlewares de auth del router (comparación estructural, no tráfico).
+      If the PR adds/modifies endpoints: verify they inherit the router's
+      auth middlewares (structural comparison, not traffic).
 
   - name: output
     notes: >
-      - findings.sarif → anotaciones en el PR (engine/exporters.py to_sarif)
-      - comentario en PR: tabla lead × archivo × por-qué
-      - exit code: falla el check SOLO en leads críticos/altos confirmables
-        estáticamente (secretos, inyección con taint claro)
-      - NUNCA tráfico activo contra entornos en este modo — es estático.
+      - findings.sarif → PR annotations (engine/exporters.py to_sarif)
+      - PR comment: lead × file × reason table
+      - exit code: fail the check ONLY on critical/high leads confirmable
+        statically (secrets, injection with clear taint)
+      - NEVER active traffic against environments in this mode — static only.

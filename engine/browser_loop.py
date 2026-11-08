@@ -100,12 +100,25 @@ class BrowserSession:
             return {"url": url, "status": None, "title": None,
                     "error": f"Scope violation: {exc}"}
         response = self._page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        final_url = self._page.url
+        if final_url != url:
+            try:
+                url_policy(final_url, str(self.audit_dir))
+            except PolicyDenied as exc:
+                self._custody.append("browser_redirect_blocked", {
+                    "requested": url, "redirected_to": final_url})
+                return {"url": final_url, "status": None, "title": None,
+                        "error": f"Redirect scope violation: {exc}",
+                        "redirected_from": url}
         result = {
-            "url": self._page.url,
+            "url": final_url,
             "status": response.status if response else None,
             "title": self._page.title(),
         }
-        self._custody.append("browser_navigate", {"url": url, "status": result["status"]})
+        if final_url != url:
+            result["redirected_from"] = url
+        self._custody.append("browser_navigate", {
+            "url": url, "final_url": final_url, "status": result["status"]})
         return result
 
     def execute_exploit_step(self, step: ExploitStep) -> dict:

@@ -1,6 +1,7 @@
 ---
 name: quarry:resume
 description: Resume an engagement without repeating or losing tasks after an interruption
+argument-hint: "[run_id]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

@@ -1,11 +1,11 @@
 # Engagement Report — {{engagement_name}}
 
-**Cliente:** {{client_name}}
-**Fecha de inicio:** {{start_date}}
-**Fecha de cierre:** {{end_date}}
-**Tipo de engagement:** {{engagement_type}} (web app / API / cloud / AD / mobile / red team)
-**Equipo:** {{team_members}}
-**Clasificación del documento:** {{classification}} (ej. Confidencial — solo cliente)
+**Client:** {{client_name}}
+**Start date:** {{start_date}}
+**End date:** {{end_date}}
+**Engagement type:** {{engagement_type}} (web app / API / cloud / AD / mobile / red team)
+**Team:** {{team_members}}
+**Document classification:** {{classification}} (e.g. Confidential — client only)
 
 ---
 
@@ -13,78 +13,77 @@
 
 {{executive_summary}}
 
-Ver también `executive-summary.md` para la versión de una página destinada
-a audiencia no técnica. Esta sección debe ser consistente con esa, pero con
-más detalle: qué se probó, qué se encontró, cuál es el riesgo real (no el
-conteo de findings), y qué debería pasar primero.
+See also `executive-summary.md` for the one-page version aimed at
+non-technical stakeholders. This section must be consistent with that one,
+but with more detail: what was tested, what was found, what the real risk
+is (not just finding counts), and what should happen first.
 
-**Postura de riesgo general:** {{overall_risk_posture}} (ej. Crítica / Alta / Media / Baja)
+**Overall risk posture:** {{overall_risk_posture}} (e.g. Critical / High / Medium / Low)
 
 ## Scope
 
 ### In scope
 
-| Asset | Tipo | Notas |
+| Asset | Type | Notes |
 |---|---|---|
 | {{scope_asset_1}} | {{scope_type_1}} | {{scope_notes_1}} |
 | {{scope_asset_2}} | {{scope_type_2}} | {{scope_notes_2}} |
 
 ### Out of scope
 
-| Asset | Razón de exclusión |
+| Asset | Exclusion reason |
 |---|---|
 | {{oos_asset_1}} | {{oos_reason_1}} |
 
-### Reglas de engagement
+### Rules of engagement
 
-- **Ventana de testing:** {{testing_window}}
-- **Técnicas excluidas:** {{excluded_techniques}} (ej. DoS volumétrico, phishing a empleados sin autorización separada)
-- **Contacto de emergencia:** {{emergency_contact}}
-- **Autorización:** {{authorization_reference}} (documento/email que autoriza el engagement)
+- **Testing window:** {{testing_window}}
+- **Excluded techniques:** {{excluded_techniques}} (e.g. volumetric DoS, employee phishing without separate authorization)
+- **Emergency contact:** {{emergency_contact}}
+- **Authorization:** {{authorization_reference}} (document/email authorizing the engagement)
 
 ## Methodology
 
 {{methodology_summary}}
 
-Fases ejecutadas: {{phases_executed}} (recon → mapping → hunting → chaining →
-validación adversarial → reporting). Para cada fase, referenciar qué
-cobertura se logró — el detalle fino va en la Coverage Matrix más abajo.
+Phases executed: {{phases_executed}} (recon → mapping → hunting → chaining →
+adversarial validation → reporting). For each phase, reference what coverage
+was achieved — granular detail goes in the Coverage Matrix below.
 
-**Herramientas utilizadas:** {{tools_used}}
+**Tools used:** {{tools_used}}
 
 ## Target Card
 
 {{target_card_embed_or_ref}}
 
-Insertar aquí la target card completa (ver `target-card.md`) del target
-principal, o un link/referencia si el engagement cubrió múltiples targets
-con cards separadas.
+Embed the complete target card (see `target-card.md`) for the primary
+target here, or a link/reference if the engagement covered multiple targets
+with separate cards.
 
-## Findings (ordenados por severidad)
+## Findings (ordered by severity)
 
-| ID | Título | CVSS | Severity | Status | CWE |
+| ID | Title | CVSS | Severity | Status | CWE |
 |---|---|---|---|---|---|
 | {{finding_id_1}} | {{finding_title_1}} | {{cvss_1}} | Critical | {{status_1}} | {{cwe_1}} |
 | {{finding_id_2}} | {{finding_title_2}} | {{cvss_2}} | High | {{status_2}} | {{cwe_2}} |
 | {{finding_id_n}} | {{finding_title_n}} | {{cvss_n}} | {{severity_n}} | {{status_n}} | {{cwe_n}} |
 
-Cada finding referenciado acá tiene su reporte completo en formato
-`finding-template.md` en el Appendix o en archivo separado.
+Each finding referenced here has its full write-up in `finding-template.md`
+format in the Appendix or as a separate file.
 
 ## Chains
 
-| Chain ID | Findings combinados | Impacto combinado | CVSS combinado |
+| Chain ID | Combined findings | Combined impact | Combined CVSS |
 |---|---|---|---|
 | {{chain_id_1}} | {{chain_findings_1}} | {{chain_impact_1}} | {{chain_cvss_1}} |
 | {{chain_id_2}} | {{chain_findings_2}} | {{chain_impact_2}} | {{chain_cvss_2}} |
 
-Cada chain referenciada tiene su reporte completo en formato
-`chain-report.md`.
+Each chain referenced here has its full write-up in `chain-report.md` format.
 
 ## Coverage Matrix
 
-Matriz vuln_class × asset — qué se probó explícitamente, qué dio resultado,
-y qué quedó sin probar (y por qué).
+Vulnerability class × asset matrix — what was explicitly tested, what
+yielded results, and what was left untested (and why).
 
 | Vuln class | {{asset_1}} | {{asset_2}} | {{asset_n}} |
 |---|---|---|---|
@@ -95,63 +94,62 @@ y qué quedó sin probar (y por qué).
 | Auth bypass | {{coverage_auth_asset1}} | {{coverage_auth_asset2}} | {{coverage_auth_assetn}} |
 | ... | ... | ... | ... |
 
-Convención de celda: `Tested — Clean`, `Tested — Finding(s): {{ids}}`,
-`Not tested — {{razón}}`, `N/A — {{razón}}`.
+Cell convention: `Tested — Clean`, `Tested — Finding(s): {{ids}}`,
+`Not tested — {{reason}}`, `N/A — {{reason}}`.
 
 ## Gaps
 
 {{gaps_summary}}
 
-Listar explícitamente qué NO se probó, y por qué: fuera de scope, falta de
-tiempo, requería credenciales no provistas, requería acción destructiva sin
-autorización separada, etc. Esta sección es tan importante como los
-findings — un gap no reportado es un falso sentido de seguridad para el
-cliente.
+Explicitly list what was NOT tested, and why: out of scope, time
+constraint, required credentials not provided, required destructive action
+without separate authorization, etc. This section is as important as the
+findings — an unreported gap gives the client a false sense of security.
 
-| Gap | Razón | Riesgo residual estimado |
+| Gap | Reason | Estimated residual risk |
 |---|---|---|
 | {{gap_1}} | {{gap_reason_1}} | {{gap_risk_1}} |
 | {{gap_2}} | {{gap_reason_2}} | {{gap_risk_2}} |
 
 ## Recommendations
 
-Priorizadas por reducción de riesgo real, no solo por CVSS score individual
-(una chain de severidad media que es trivial de explotar puede priorizarse
-sobre un finding crítico que requiere condiciones improbables).
+Prioritized by real risk reduction, not just individual CVSS score (a
+medium-severity chain that is trivial to exploit may take priority over an
+isolated critical finding that requires unlikely preconditions).
 
-1. **{{recommendation_1}}** — aborda: {{recommendation_1_findings}}
-2. **{{recommendation_2}}** — aborda: {{recommendation_2_findings}}
-3. **{{recommendation_3}}** — aborda: {{recommendation_3_findings}}
+1. **{{recommendation_1}}** — addresses: {{recommendation_1_findings}}
+2. **{{recommendation_2}}** — addresses: {{recommendation_2_findings}}
+3. **{{recommendation_3}}** — addresses: {{recommendation_3_findings}}
 
-### Recomendaciones estructurales (más allá de los findings puntuales)
+### Structural recommendations (beyond individual findings)
 
 {{structural_recommendations}}
 
-## Detection Coverage (purple team — engagements contratados)
+## Detection Coverage (purple team — contracted engagements)
 
-> Ver `skills/report/detection-opportunities`. Omitir esta sección en modo
-> bug bounty (las plataformas no consumen consejo de detección).
+> See `skills/report/detection-opportunities`. Omit this section in bug
+> bounty mode (platforms do not consume detection advice).
 
-Tabla finding × data source × estado de detección — funciona como snapshot
-de madurez de logging del cliente:
+Finding × data source × detection status table — serves as a snapshot
+of the client's logging maturity:
 
-| Finding | ATT&CK Data Source | Telemetría esperada | Estado |
+| Finding | ATT&CK Data Source | Expected telemetry | Status |
 |---|---|---|---|
 | {{finding_id_1}} | {{ds_1}} | {{telemetry_1}} | {{detected_status_1}} |
 | {{finding_id_2}} | {{ds_2}} | {{telemetry_2}} | {{detected_status_2}} |
 
-Convención de estado: `Detectado`, `Esperado-ausente`, `No verificado`
-(nunca afirmar ausencia sin haber visto la telemetría del cliente).
+Status convention: `Detected`, `Expected-absent`, `Not verified`
+(never assert absence without having seen the client's telemetry).
 
-**Gaps estructurales de visibilidad:** {{detection_structural_gaps}}
-(un solo gap —ej. sin monitoreo de egreso— suele explicar el sigilo de N
-findings; ese gap es una recomendación headline del executive summary)
+**Structural visibility gaps:** {{detection_structural_gaps}}
+(a single gap — e.g. no egress monitoring — often explains the stealth of N
+findings; that gap is a headline recommendation for the executive summary)
 
 ## MITRE ATT&CK Heatmap
 
-Técnicas observadas durante el engagement, mapeadas a tactics.
+Techniques observed during the engagement, mapped to tactics.
 
-| Tactic | Técnicas observadas |
+| Tactic | Observed techniques |
 |---|---|
 | Reconnaissance | {{tactic_recon_techniques}} |
 | Initial Access | {{tactic_initial_access_techniques}} |
@@ -171,32 +169,32 @@ Técnicas observadas durante el engagement, mapeadas a tactics.
 - {{appendix_item_1}} — {{appendix_item_1_path}}
 - {{appendix_item_2}} — {{appendix_item_2_path}}
 
-Incluir: outputs crudos de herramientas (nmap -oX, nuclei -json, etc.),
-capturas de tráfico relevantes, listados completos de endpoints
-descubiertos, logs de la sesión de testing con timestamps.
+Include: raw tool outputs (nmap -oX, nuclei -json, etc.), relevant traffic
+captures, complete discovered endpoint listings, testing session logs with
+timestamps.
 
-### Cadena de custodia
+### Chain of custody
 
-> Generado desde `engine/custody.py` → `CustodyLog.attestation_block()`.
+> Generated from `engine/custody.py` → `CustodyLog.attestation_block()`.
 
-- Eventos registrados: {{custody_entries}}
-- Integridad de la cadena: {{custody_integrity}} (ÍNTEGRA / ROTA — verificar
-  con `CustodyLog.verify()` antes de emitir el reporte)
-- Hash cabeza (SHA-256): `{{custody_head_hash}}`
+- Registered events: {{custody_entries}}
+- Chain integrity: {{custody_integrity}} (INTACT / BROKEN — verify with
+  `CustodyLog.verify()` before emitting the report)
+- Head hash (SHA-256): `{{custody_head_hash}}`
 - Log: `.pentest-state/custody.jsonl` (append-only, hash-chained)
-- Exports emitidos: {{custody_exports}} (formato, ruta, fecha — qué se
-  entregó al cliente y cuándo)
+- Exports emitted: {{custody_exports}} (format, path, date — what was
+  delivered to the client and when)
 
-### Artefactos machine-readable
+### Machine-readable artifacts
 
-| Formato | Ruta | Uso |
+| Format | Path | Usage |
 |---|---|---|
 | SARIF | {{sarif_path}} | GitHub/GitLab code scanning (`/quarry:export sarif`) |
-| JSON | {{json_path}} | Ticketing / automatización |
-| CSV | {{csv_path}} | Triage en spreadsheet |
+| JSON | {{json_path}} | Ticketing / automation |
+| CSV | {{csv_path}} | Spreadsheet triage |
 
 ---
 
-**Documento preparado por:** {{report_author}}
-**Fecha del reporte:** {{report_date}}
-**Versión:** {{report_version}}
+**Report prepared by:** {{report_author}}
+**Report date:** {{report_date}}
+**Version:** {{report_version}}

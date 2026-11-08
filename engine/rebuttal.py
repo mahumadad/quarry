@@ -75,6 +75,10 @@ CHECKER_PROMPTS = {
     ),
 }
 
+# Simplified refutation questions used for prompt generation.
+# The canonical, detailed version lives in agents/finding-checker.md (10 questions).
+# The pre-submit self-check is in references/seven-question-gate.md (7 questions).
+# See references/verdict-status-mapping.md for how verdicts map to FindingStatus.
 REFUTATION_QUESTIONS = [
     "Is this reproducible by someone with no prior knowledge of the target?",
     "Could an existing security control (WAF, rate limiter, CSRF token) block this?",

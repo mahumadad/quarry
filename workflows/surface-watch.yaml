@@ -1,40 +1,40 @@
 name: surface-watch
 description: Continuous surface monitoring between engagements — periodic re-recon with diff and alerts
 
-# Diseñado para correr en schedule (cron). No es hunting: es recon pasivo +
-# diff contra el baseline del último engagement. Cambios detectados son
-# LEADS para el operador, nunca findings automáticos.
+# Designed to run on a schedule (cron). Not hunting: passive recon +
+# diff against the baseline from the last engagement. Detected changes are
+# LEADS for the operator, never automatic findings.
 
 phases:
   - name: passive-recon
     skills: [passive-recon, dns-enumeration, subdomain-discovery, tech-stack-fingerprint]
     budget: 30
     notes: >
-      Solo pasivo o de bajo ruido: CT logs, DNS, certificados, fingerprint
-      de headers. Sin fuzzing, sin tráfico pesado — corre sin aviso previo
-      dentro del scope del engagement original.
+      Passive or low-noise only: CT logs, DNS, certificates, header
+      fingerprinting. No fuzzing, no heavy traffic — runs without prior
+      notice within the original engagement scope.
 
   - name: diff
     notes: >
-      engine/target_diff.py contra el snapshot anterior:
-      - subdominios nuevos (cada uno es superficie no auditada)
-      - endpoints/rutas nuevas en assets conocidos
-      - cambios de stack/versiones (¿upgrade? ¿downgrade?)
-      - servicios/puertos nuevos expuestos
-      - certificados nuevos (¿nuevos ambientes? ¿phishing lookalike?)
+      engine/target_diff.py against the previous snapshot:
+      - new subdomains (each one is unaudited surface)
+      - new endpoints/routes on known assets
+      - stack/version changes (upgrade? downgrade?)
+      - new services/ports exposed
+      - new certificates (new environments? phishing lookalike?)
 
   - name: alert
     condition: changes_detected
     notes: >
-      Si hay cambios relevantes: nota al operador/cliente con el diff y la
-      recomendación (¿vale un retest dirigido? ¿esperar al próximo
-      engagement?). Si NO hay cambios: log silencioso — no generar ruido.
+      If relevant changes exist: note to the operator/client with the diff
+      and recommendation (is a targeted retest worth it? wait for the next
+      engagement?). If NO changes: silent log — do not generate noise.
 
   - name: baseline-update
     notes: >
-      El snapshot nuevo pasa a ser el baseline. Custody event por corrida
-      (aunque no haya cambios — el registro de "vigilado sin cambios" tiene
-      valor contractual).
+      The new snapshot becomes the baseline. Custody event per run
+      (even without changes — the "watched with no changes" record has
+      contractual value).
 
-# Schedule sugerido: semanal para assets críticos, mensual para el resto.
-# Fuera de cron, el comando manual es /quarry:status --watch.
+# Suggested schedule: weekly for critical assets, monthly for the rest.
+# Outside cron, the manual command is /quarry:status --watch.

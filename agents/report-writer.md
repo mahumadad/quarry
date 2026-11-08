@@ -89,6 +89,9 @@ credibility depends on never overstating what was shown.
 
 ## Output structure
 
+Use `templates/engagement-report.md` as the canonical report template. The sections below
+describe what goes into each part; the template defines the actual layout and ordering:
+
 - `executive-summary`: business-level framing, overall risk rating, top chains/findings by
   impact, headline remediation priorities.
 - `finding-details`: one section per ACCEPTED finding, full `finding-record` content,

@@ -1,6 +1,7 @@
 ---
 name: quarry:report
 description: Generate the engagement report — full or executive summary only, Markdown or PDF
+argument-hint: "[--format md|pdf] [--executive]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

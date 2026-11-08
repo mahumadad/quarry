@@ -1,6 +1,7 @@
 ---
 name: quarry:scope
 description: Show or modify the active engagement scope — add/remove rules, view current state
+argument-hint: "[--add|--remove|--show]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

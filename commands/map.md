@@ -1,6 +1,7 @@
 ---
 name: quarry:map
 description: Generate the 5 Quarry maps (asset, trust, identity, state, capability) for chain-analyst
+argument-hint: ""
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

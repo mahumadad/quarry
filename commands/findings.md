@@ -1,6 +1,7 @@
 ---
 name: quarry:findings
 description: List findings filtered by status, class, and optionally their chain analysis
+argument-hint: "[--status <status>] [--class <class>] [--chains]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: quarry:notify
 description: Immediately escalate a critical finding to stakeholders
+argument-hint: "<finding_id>"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

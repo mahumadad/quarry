@@ -1,6 +1,7 @@
 ---
 name: quarry:validate
 description: Finding validation pipeline — evidence hygiene, dedup, 4 gates, 7-Question Gate, adversarial rebuttal
+argument-hint: "[finding_id|--all]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

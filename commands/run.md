@@ -1,6 +1,7 @@
 ---
 name: quarry:run
 description: Create or continue a deterministic, auditable workflow run
+argument-hint: "[workflow] [--resume <run_id>]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

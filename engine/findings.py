@@ -2,6 +2,11 @@
 
 Status flow: DETECTED → CONFIRMED → EXPLOITED → CHAINED → VALIDATED → REPORTED
 
+Rebuttal verdict → FindingStatus mapping:
+  ACCEPTED  → advance to VALIDATED (evidence gate must pass)
+  STALL     → stays at current status, returns to finding-validator
+  KILLED    → transition to KILLED (terminal)
+
 Each finding carries evidence, CVSS, MITRE mapping, and chain references.
 """
 

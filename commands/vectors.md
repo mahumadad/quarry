@@ -1,6 +1,7 @@
 ---
 name: quarry:vectors
-description: Consulta providers alternativos para identificar vectores de ataque no explorados
+description: Query alternative providers to identify unexplored attack vectors
+argument-hint: "[--provider <name>] [--type <brainstorm|opinion|cve>]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

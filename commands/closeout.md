@@ -1,6 +1,7 @@
 ---
 name: quarry:closeout
 description: Close engagement with final coverage summary and deliverable checklist
+argument-hint: ""
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

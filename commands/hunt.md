@@ -1,6 +1,7 @@
 ---
 name: quarry:hunt
-description: Fase de hunting por clase de vulnerabilidad — todas las clases/assets o un subconjunto filtrado
+description: Hunt by vulnerability class — all classes/assets or a filtered subset
+argument-hint: "[class] [--asset <asset>]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

@@ -1,7 +1,9 @@
-name: "Quarry — Validate & SARIF"
+name: "Quarry — Self-check & SARIF"
 description: >-
-  Run the quarry structural validator, engine smoke tests,
-  and optionally export results as SARIF for GitHub Code Scanning.
+  Run the quarry structural validator and engine smoke tests against the
+  plugin itself (not a target scan). Optionally export results as SARIF
+  for GitHub Code Scanning. This action validates plugin integrity, not
+  target security.
 
 inputs:
   python-version:

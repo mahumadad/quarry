@@ -1,6 +1,7 @@
 ---
 name: quarry:chain
-description: Analiza combinaciones de findings — matriz pairwise, grafo de pivoteo, o ambos. El comando clave del plugin.
+description: Analyze finding combinations — pairwise matrix, pivot graph, or both
+argument-hint: "[--matrix|--graph|--full]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

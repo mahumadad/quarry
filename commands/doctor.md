@@ -1,6 +1,7 @@
 ---
 name: quarry:doctor
 description: Audit engagement integrity, orphaned tasks, artifacts and references
+argument-hint: ""
 allowed-tools: Bash(*), Read(*)
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: quarry:retest
 description: Run a remediation verification engagement against a prior report
+argument-hint: "<original_engagement_dir>"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

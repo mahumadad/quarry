@@ -1,6 +1,7 @@
 ---
 name: quarry:deliver
 description: Package and deliver engagement artifacts with optional GPG encryption
+argument-hint: "<deliverable_dir> [--gpg RECIPIENT | --gpg-symmetric]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

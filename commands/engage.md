@@ -1,6 +1,7 @@
 ---
 name: quarry:engage
 description: Start a new pentest engagement — scope, audit directory, target card
+argument-hint: "<target>"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 

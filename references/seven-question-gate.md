@@ -319,3 +319,22 @@ submission, not after a real rejection.
 - [ ] **Passes never-submit** — checked against all 15 hard rejects in `never-submit.md`; any match has a Demonstrated upgrade condition or an explicit, logged operator override.
 - [ ] **Severity justified** — every CVSS 4.0 metric traces to specific evidence; Inferred impact capped, not scored as Demonstrated.
 - [ ] **Passes the embarrassment test** — read cold as a triager would; no missing-impact, unclear-steps, severity-inflation, known-informational, or already-mitigated red flags.
+
+---
+
+## Relationship to adversarial review
+
+This 7-question gate is a **pre-submit self-check** — it runs before the
+finding enters the adversarial pipeline. It does not replace, and is not
+replaced by, the **10-question adversarial review** in
+`agents/finding-checker.md`, which runs blind (no engagement context) and
+produces the canonical verdict (ACCEPTED / STALL / KILLED).
+
+The two are complementary:
+- **This gate** catches obvious deficiencies early, saving a round-trip
+  through the adversarial pipeline.
+- **The finding-checker** independently stress-tests evidence and claims
+  without the operator's context or reasoning.
+
+See `references/verdict-status-mapping.md` for how verdicts map to
+`FindingStatus` transitions in the engine.

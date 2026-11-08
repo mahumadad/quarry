@@ -1,0 +1,26 @@
+[project]
+name = "quarry-pentest"
+version = "0.1.0"
+description = "Full-cycle penetration testing plugin for Claude Code"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "cryptography>=42,<48",
+    "PyYAML>=6,<7",
+    "requests>=2.31,<3",
+    "urllib3>=2,<3",
+    "litellm>=1.50,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.7",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100

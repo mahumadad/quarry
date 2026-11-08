@@ -1,6 +1,7 @@
 ---
 name: quarry:recon
 description: Run the reconnaissance phase — passive, active, or both (full, default)
+argument-hint: "[--passive|--active|--full]"
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
