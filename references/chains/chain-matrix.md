@@ -53,11 +53,11 @@ Estos patrones ya fueron observados y confirmados en engagements
 autorizados propios — se priorizan como hipótesis de chain de alta
 probabilidad cuando aparecen findings compatibles en un nuevo target.
 
-| Engagement | Finding A | Finding B | Cadena confirmada |
+| Pattern | Finding A | Finding B | Chain outcome |
 |---|---|---|---|
-| Syncfonía/GS1 México | F2 — IDOR en `/organizations` (expone RFC + PII de personas físicas) | F7 — ausencia de rate limiting | Dump del padrón completo en horas vía enumeración secuencial de IDs |
-| Amplifica | Token leak (token de sesión/API expuesto en respuesta o cliente) | Ausencia de invalidación/verificación adicional al reusar el token | Account Takeover (C5) |
-| Las Margaritas | CVE-2024-28000 (oracle verificado) | NF nonce leak + form chain | Cadena de compromiso vía explotación del CVE combinada con fuga de nonce que habilita el envío de formularios con autoridad ajena |
+| IDOR + no rate limit | IDOR on resource enumeration endpoint (exposes PII) | Absence of rate limiting | Bulk data exfiltration via sequential ID enumeration |
+| Token leak + no invalidation | Session/API token exposed in response or client-side | No token rotation or additional verification on reuse | Account Takeover |
+| Auth oracle + nonce leak | Authentication oracle (e.g. CVE-based) | Nonce/CSRF token leak + form chain | Privilege escalation via exploiting auth flaw combined with nonce leakage enabling unauthorized form submission |
 
 ## Cómo usar esta matriz
 

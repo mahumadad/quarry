@@ -19,7 +19,12 @@ except ImportError:
 
 NETWORK_TOOLS = {"curl", "wget", "nmap", "nc", "ncat", "nikto", "nuclei", "ffuf",
                  "gobuster", "dirsearch", "sqlmap", "hydra", "msfconsole", "wfuzz",
-                 "masscan", "httpx", "whatweb", "wappalyzer", "amass", "subfinder"}
+                 "masscan", "httpx", "whatweb", "wappalyzer", "amass", "subfinder",
+                 "ssh", "openssl", "socat", "telnet", "netcat", "rustscan",
+                 "feroxbuster", "ghauri", "katana", "gospider", "hakrawler"}
+SHELL_WRAPPERS = {"bash", "sh", "zsh", "dash", "env", "sudo", "xargs", "nice",
+                  "nohup", "timeout", "strace", "ltrace", "time", "doas"}
+SCRIPT_INTERPRETERS = {"python3", "python", "python2", "node", "ruby", "perl", "php"}
 DANGEROUS_MARKERS = {"rm -rf", "rm -r", "rmdir", "drop table", "drop database",
                      "delete from", "truncate", "mkfs", "dd if=", "chmod 777",
                      "iptables -f", "iptables --flush", "sqlmap --os-shell",
@@ -110,15 +115,68 @@ class PolicyEngine:
             atomic_write_json(self.approvals_file, data)
 
 
-def command_policy(command: str, audit_dir: str | Path, approved_digest: str = "") -> dict:
-    """Validate network-looking commands; local non-network commands remain usable."""
+def _extract_executables(command: str) -> set[str]:
+    """Extract all executable names from a command, unwrapping shells and wrappers."""
+    found: set[str] = set()
     try:
         argv = shlex.split(command)
-    except ValueError as exc:
-        raise PolicyDenied(f"Unparseable command: {exc}") from exc
-    executable = Path(argv[0]).name if argv else ""
+    except ValueError:
+        return found
+    if not argv:
+        return found
+
+    i = 0
+    while i < len(argv):
+        name = Path(argv[i]).name
+        if name in SHELL_WRAPPERS:
+            if name in {"bash", "sh", "zsh", "dash"} and i + 2 < len(argv) and argv[i + 1] == "-c":
+                found.update(_extract_executables(argv[i + 2]))
+                i += 3
+                continue
+            if name == "env":
+                i += 1
+                while i < len(argv) and "=" in argv[i]:
+                    i += 1
+                continue
+            if name in {"sudo", "doas"}:
+                i += 1
+                while i < len(argv) and argv[i].startswith("-"):
+                    if argv[i] in ("-u", "-g", "-C", "-D"):
+                        i += 1
+                    i += 1
+                continue
+            i += 1
+            continue
+        if name in SCRIPT_INTERPRETERS:
+            found.add(name)
+            if i + 2 < len(argv) and argv[i + 1] == "-c":
+                found.update(_extract_executables(argv[i + 2]))
+        else:
+            found.add(name)
+        break
+
+    for token in argv:
+        if token == "|" or token == "&&" or token == "||" or token == ";":
+            continue
+        name = Path(token).name
+        if name in NETWORK_TOOLS:
+            found.add(name)
+
+    return found
+
+
+def command_policy(command: str, audit_dir: str | Path, approved_digest: str = "") -> dict:
+    """Validate network-looking commands; local non-network commands remain usable.
+
+    Inspects the full command — not just argv[0] — to catch wrappers like
+    'bash -c "nmap ..."', 'env curl ...', 'sudo nmap ...', and pipelines.
+    This is a tripwire, not a sandbox: a determined attacker can bypass it.
+    """
+    executables = _extract_executables(command)
     dangerous = any(marker in command.lower() for marker in DANGEROUS_MARKERS)
-    network = executable in NETWORK_TOOLS or dangerous
+    network_hits = executables & NETWORK_TOOLS
+    interpreter_hits = executables & SCRIPT_INTERPRETERS
+    network = bool(network_hits) or dangerous or bool(interpreter_hits)
     if not network:
         return {"allowed": True, "targets": [], "dangerous": False}
     targets = Scope._extract_targets(command)

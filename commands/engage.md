@@ -12,8 +12,8 @@ corrido primero y haya scope confirmado.
 
 ## Argumento
 
-`<target>` — nombre o dominio principal del target (ej. `amplifica.io`,
-`fazt.cl`). Obligatorio. Si falta, pedirlo antes de continuar.
+`<target>` — nombre o dominio principal del target (ej. `target.example.com`,
+`acme-corp.test`). Obligatorio. Si falta, pedirlo antes de continuar.
 
 ## Edge cases primero
 
@@ -32,14 +32,14 @@ corrido primero y haya scope confirmado.
 
 ## Pasos exactos
 
-1. **Resolver directorio de auditoría.** Convención de este operador:
-   `~/Dev/personal/<slug>_audit/`, donde `<slug>` es el target en
+1. **Resolver directorio de auditoría.** Convención por defecto:
+   `$QUARRY_AUDIT_DIR/<slug>_audit/` (si `$QUARRY_AUDIT_DIR` no está
+   definida, preguntar al operador). `<slug>` es el target en
    minúsculas, sin protocolo, con `.` y caracteres no alfanuméricos
-   reemplazados por `-` (ej. `app.amplifica.io` → `amplifica-io_audit`,
-   pero preferir el nombre de marca corto si el operador lo da, ej.
-   `amplifica_audit`, `fazt_audit`, `portalnet_audit` — estos ya existen
-   como precedente). Preguntar al operador si quiere ese path u otro
-   antes de crear nada.
+   reemplazados por `-` (ej. `app.target.example.com` →
+   `target-example-com_audit`, pero preferir el nombre de marca corto si
+   el operador lo da, ej. `acme-corp_audit`). Preguntar al operador si
+   quiere ese path u otro antes de crear nada.
 
 2. **Pedir y confirmar scope — explícitamente, antes de tocar el target:**
    - Dominios/IPs/CIDRs **in-scope** (uno o más).

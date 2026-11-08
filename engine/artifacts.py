@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,22 +49,25 @@ class ArtifactStore:
         safe_run = self._safe(run_id)
         safe_task = self._safe(task_id)
         safe_kind = self._safe(kind)
-        relative = Path(safe_run) / safe_task / safe_kind
+        artifact_id = uuid.uuid4().hex[:20]
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        relative = Path(safe_run) / safe_task / f"{safe_kind}_{ts}_{artifact_id[:8]}"
         destination = self.root / relative
         record = Artifact(
-            artifact_id=hashlib.sha256(f"{run_id}:{task_id}:{kind}".encode()).hexdigest()[:20],
+            artifact_id=artifact_id,
             kind=kind, path=str(relative), sha256=hashlib.sha256(raw).hexdigest(),
             size=len(raw), content_type=content_type, complete=complete,
             truncated=truncated, metadata=redact(metadata or {}),
         )
         with engagement_lock(self.audit_dir):
+            if destination.exists():
+                raise ValueError(f"Artifact path already exists (immutability violation): {relative}")
             atomic_write_bytes(destination, raw)
             view = redact(raw.decode("utf-8", errors="replace")).encode("utf-8")
             redacted_destination = destination.with_name(destination.name + ".redacted.txt")
             atomic_write_bytes(redacted_destination, view)
             record.redacted_path = str(redacted_destination.relative_to(self.audit_dir))
             records = self.list()
-            records = [r for r in records if r["artifact_id"] != record.artifact_id]
             records.append(asdict(record))
             atomic_write_json(self.index_file, {"artifacts": records,
                 "updated_at": datetime.now(timezone.utc).isoformat()})

@@ -37,10 +37,8 @@ def _parse_frontmatter(path: Path) -> dict | None:
         return None
     raw = match.group(1)
     if yaml:
-        safe_raw = re.sub(r"\[\*\]", '["*"]', raw)
-        safe_raw = re.sub(r"- \*\s*$", '- "*"', safe_raw, flags=re.MULTILINE)
         try:
-            return yaml.safe_load(safe_raw) or {}
+            return yaml.safe_load(raw) or {}
         except yaml.YAMLError:
             pass
     result = {}
@@ -239,9 +237,8 @@ def check_workflow_skill_refs():
         return
     for wf_file in sorted(wf_dir.glob("*.yaml")):
         text = wf_file.read_text()
-        text_safe = re.sub(r"- \*\s*$", "- __GLOB__", text, flags=re.MULTILINE)
         try:
-            data = yaml.safe_load(text_safe)
+            data = yaml.safe_load(text)
         except Exception as exc:
             error(f"workflows/{wf_file.name}: YAML parse error: {exc}")
             continue
@@ -250,7 +247,7 @@ def check_workflow_skill_refs():
             for key in ("skills", "priority_classes", "secondary_classes",
                         "hunt_classes", "platform_skills"):
                 for skill_ref in (phase.get(key) or []):
-                    if skill_ref == "__GLOB__":
+                    if skill_ref == "*":
                         continue
                     if skill_ref not in existing_skills:
                         unresolved.append(skill_ref)

@@ -60,7 +60,9 @@ Full results: [`benchmarks/results/`](benchmarks/results/). Target definitions: 
 
 ```bash
 git clone https://github.com/mahumadad/quarry.git
-claude plugin add /path/to/quarry
+# Then add the plugin directory to your Claude Code settings:
+# In .claude/settings.json → "permissions" → "plugins" → ["/path/to/quarry"]
+# Or symlink into your Claude plugins directory.
 ```
 
 ```
@@ -77,11 +79,14 @@ claude plugin add /path/to/quarry
 
 **Required:** Python 3.11+ and `pip install -r requirements.txt`
 
-**External tools** (checked by `/quarry:doctor`):
+**External tools** (availability reported by `/quarry:doctor`):
 [nmap](https://nmap.org/) ·
 [nuclei](https://github.com/projectdiscovery/nuclei) ·
 [ffuf](https://github.com/ffuf/ffuf) ·
 [httpx](https://github.com/projectdiscovery/httpx)
+
+Missing tools are not fatal — the engine reports coverage gaps and suggests
+fallback tools from the registry (`engine/tool_registry.py`).
 
 **Optional:** [Playwright](https://playwright.dev/) for browser-based XSS/clickjacking verification
 

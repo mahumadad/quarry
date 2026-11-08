@@ -38,7 +38,8 @@ def _exportable(store: FindingsStore, include_all: bool = False):
     findings = store.list_by_status()
     if include_all:
         return findings
-    return [f for f in findings if f.status in EXPORTABLE_STATUSES]
+    return [f for f in findings
+            if f.status in EXPORTABLE_STATUSES and f.evidence]
 
 
 def to_sarif(store: FindingsStore, tool_name: str = "quarry",

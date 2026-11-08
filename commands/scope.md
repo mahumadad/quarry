@@ -73,7 +73,7 @@ Sin argumento: equivalente a `--show`.
   `CLAUDE.md` del plugin: sin scope, no hay acciones) y confirmar que es
   intencional (ej. engagement pausado).
 - **Patrón duplicado o que se superpone con uno existente** (ej.
-  agregar `*.amplifica.io` cuando ya existe `app.amplifica.io`):
+  agregar `*.target.example.com` cuando ya existe `app.target.example.com`):
   señalarlo, no bloquear — puede ser intencional (ampliar de un
   subdominio a todo el wildcard), pero el operador debe confirmarlo
   conscientemente.

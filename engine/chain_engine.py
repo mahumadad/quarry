@@ -1,7 +1,7 @@
 """Chain engine — the differentiator.
 
 Two modes:
-  1. Matrix mode (Syncfonía-style): combinatorial analysis of finding pairs
+  1. Matrix mode: combinatorial analysis of finding pairs
   2. Graph mode (kill chain): directed pivot graph from initial access to crown jewels
 
 Uses references/chains/chain-matrix.md as a lookup of known patterns, and

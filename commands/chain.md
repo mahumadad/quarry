@@ -33,8 +33,7 @@ Análisis combinatorio pairwise sobre todos los findings chainable:
      conocidos: IDOR+no-rate-limit→mass-exfil, XSS-stored+CSRF→ATO,
      SSRF+cloud-metadata→credential-theft, etc. — ver
      `references/chains/chain-matrix.md` para el catálogo completo, y
-     los patrones propios del operador: Syncfonía F2+F7, Amplifica
-     token-leak→ATO, Las Margaritas CVE-2024-28000+NF-nonce).
+     plus any operator-specific patterns from prior engagements).
    - También expande `ENABLES_MAP` (qué clase habilita la explotación
      de cuál otra, más allá de pares catalogados exactos).
    - Deduplica candidatos por `(findings frozenset, name)`.

@@ -135,6 +135,10 @@ class FindingsStore:
         })
 
     def add(self, finding: Finding) -> Finding:
+        if finding.status != FindingStatus.DETECTED.value:
+            raise ValueError(
+                f"New findings must start as '{FindingStatus.DETECTED.value}', "
+                f"got '{finding.status}'. Use update_status() to advance.")
         with engagement_lock(self.state_dir.parent):
             self._load()
             self._findings[finding.id] = finding
@@ -156,6 +160,13 @@ class FindingsStore:
             current = FindingStatus(f.status)
             if new_status not in STATUS_TRANSITIONS.get(current, []):
                 return False
+            if new_status == FindingStatus.VALIDATED:
+                if not f.evidence:
+                    raise ValueError(f"Cannot validate {finding_id}: no evidence attached")
+                if f.evidence_tag == EvidenceTag.UNPROVEN.value:
+                    raise ValueError(f"Cannot validate {finding_id}: evidence_tag is still 'unproven'")
+                if len(f.steps_to_reproduce) < 1:
+                    raise ValueError(f"Cannot validate {finding_id}: no steps_to_reproduce")
             previous = f.status
             f.status_history.append({"from": previous, "to": new_status.value,
                 "reason": reason, "at": datetime.now(timezone.utc).isoformat()})

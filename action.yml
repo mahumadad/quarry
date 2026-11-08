@@ -42,10 +42,14 @@ runs:
       shell: bash
       run: |
         cd "${{ github.action_path }}"
-        output=$(python3 tests/validate_plugin.py 2>&1) || true
+        output=$(python3 tests/validate_plugin.py 2>&1)
+        validate_exit=$?
         echo "$output"
-        errors=$(echo "$output" | sed -n '/^ERRORS (must fix):/,/^WARNINGS/p' | grep -c '^  - ' || true)
-        warnings=$(echo "$output" | sed -n '/^WARNINGS (should fix):/,$ p' | grep -c '^  - ' || true)
+        errors=$(echo "$output" | grep -c '  ERROR:' || true)
+        warnings=$(echo "$output" | grep -c '  WARN:' || true)
+        if [ "$validate_exit" -ne 0 ] || [ "$errors" -gt 0 ]; then
+          echo "::error::Validator found $errors error(s)"
+        fi
         echo "errors=$errors" >> "$GITHUB_OUTPUT"
         echo "warnings=$warnings" >> "$GITHUB_OUTPUT"
 
@@ -54,9 +58,13 @@ runs:
       shell: bash
       run: |
         cd "${{ github.action_path }}"
-        output=$(python3 tests/test_engine.py 2>&1) || true
+        output=$(python3 tests/test_engine.py 2>&1)
+        test_exit=$?
         echo "$output"
         passed=$(echo "$output" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
+        if [ "$test_exit" -ne 0 ]; then
+          echo "::error::Engine tests failed"
+        fi
         echo "passed=$passed" >> "$GITHUB_OUTPUT"
 
     - name: Engine module tests
@@ -89,7 +97,7 @@ runs:
                 },
                 'results': [],
                 'invocations': [{
-                    'executionSuccessful': True,
+                    'executionSuccessful': False,
                     'endTimeUtc': datetime.now(timezone.utc).isoformat()
                 }]
             }]
@@ -105,19 +113,18 @@ runs:
                 validate_main()
         except SystemExit:
             pass
-        except Exception:
-            pass
 
         output = buf.getvalue()
         rule_index = {}
         for line in output.splitlines():
             level = None
-            if line.startswith('ERROR:'):
+            stripped = line.strip()
+            if stripped.startswith('ERROR:'):
                 level = 'error'
-                msg = line[6:].strip()
-            elif line.startswith('WARNING:'):
+                msg = stripped[6:].strip()
+            elif stripped.startswith('WARN:'):
                 level = 'warning'
-                msg = line[8:].strip()
+                msg = stripped[5:].strip()
             if level:
                 rule_id = msg.split(':')[0].strip() if ':' in msg else 'general'
                 rule_id = rule_id.replace(' ', '-').lower()[:64]
@@ -139,8 +146,10 @@ runs:
                     }]
                 })
 
+        has_errors = any(r['level'] == 'error' for r in sarif['runs'][0]['results'])
+        sarif['runs'][0]['invocations'][0]['executionSuccessful'] = not has_errors
         Path('${{ inputs.sarif-file }}').write_text(json.dumps(sarif, indent=2))
-        print(f'SARIF written: {len(sarif[\"runs\"][0][\"results\"])} results')
+        print(f'SARIF written: {len(sarif[\"runs\"][0][\"results\"])} results, success={not has_errors}')
         "
 
     - name: Upload SARIF
@@ -148,4 +157,3 @@ runs:
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: ${{ github.action_path }}/${{ inputs.sarif-file }}
-      continue-on-error: true

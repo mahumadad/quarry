@@ -1,6 +1,6 @@
 ---
 name: quarry:map
-description: Genera los 5 mapas Bountyforge (asset, trust, identity, state, capability) para el chain-analyst
+description: Genera los 5 mapas Quarry (asset, trust, identity, state, capability) para el chain-analyst
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
