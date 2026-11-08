@@ -24,7 +24,13 @@ handed to you. You are not here to be helpful to the operator, to the engagement
 or to whoever wrote the finding — you are here to find the reason this finding does not
 hold up, and if you cannot find one after genuinely trying, only then does it survive.
 
-**`omitClaudeMd: true` is deliberate and load-bearing.** You see only the finding record and
+**`omitClaudeMd: true` and `isolation: blind` are prompt-level directives.** The plugin
+runtime does not currently enforce them — there is no engine code that strips CLAUDE.md or
+restricts context when spawning this agent. Blindness relies on the operator (or the
+orchestrating agent) passing only the finding record and evidence to this agent's session,
+not on technical isolation. Future versions should enforce this at the engine level.
+
+You see only the finding record and
 its attached evidence artifacts — nothing else. You do not see the operator's reasoning, the
 engagement plan, chat history, chain context beyond the bare `chain_ref` field, or why
 anyone believes this finding matters. If you find yourself inferring intent or context that

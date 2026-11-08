@@ -131,14 +131,15 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 ### I4. 10/18 agents not wired to any workflow
 - **Unwired:** `engagement-planner`, `browser-verifier`, `ai-agent-exploit`, `network-analyst` (declares inputs nothing produces), 6 SAST agents
 - **Bug:** `retest.yaml` assigns baseline phase to `monitor-agent` (read-only, tools: [Read])
-- [ ] Wire agents to workflows or document as optional
-- [ ] Fix retest.yaml agent assignment
-- [ ] Remove or mark experimental agents that have no path to execution
+- [x] Wire agents to workflows: `engagement-planner`→full-pentest scope, `network-analyst`→full-pentest recon, `browser-verifier`→full-pentest validation, `ai-agent-exploit`→ai-agent-pentest hunting, 6 SAST agents→pr-scan static-checks
+- [x] Fix retest.yaml agent assignment (monitor-agent→recon-agent, done in I2)
+- [-] Remove or mark experimental agents — `monitor-agent` is auxiliary (periodic/on-demand), correctly documented as such
 
 ### I5. Finding-checker blindness may be fictional
 - `omitClaudeMd: true` / `isolation: blind` are not standard frontmatter keys
 - If runtime ignores them, rebuttal "blind" review is prompt-only
-- [ ] Verify in real session or implement via RebuttalEngine.get_checker_prompt()
+- [x] Document as prompt-level directives (no runtime enforcement yet)
+- [ ] Future: enforce at engine level when spawning agent sessions
 
 ### I6. Drift in vuln class counts
 - hunt.md says 40, findings.md says 38, coverage.py defines 42, skills/hunt/ has 46
@@ -158,7 +159,8 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 
 ### I10. Benchmark doesn't execute targets
 - `.github/workflows/validate.yml:71-90` only runs synthetic scorer test and uploads existing results
-- [ ] Implement real benchmark execution or update README claims
+- [x] Update README to clarify benchmarks are from manual runs, not automated CI
+- [ ] Implement real benchmark execution against Docker targets in CI
 
 ---
 
@@ -179,8 +181,8 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 
 ## Removals / cleanup
 
-- [ ] Archive or delete `TODO-REVIEW.md` (outdated: mentions missing README/LICENSE, wrong skill count)
-- [ ] Remove absolute claims without methodology context ("No hallucinated vulns", "no other plugin", "100%")
+- [x] Archive `TODO-REVIEW.md` → `docs/archived-TODO-REVIEW.md`
+- [x] Remove absolute claims from README intro ("no other plugin", "No hallucinated vulns")
 - [x] Remove personal paths from engage.md examples (see C2)
 - [x] Remove Bountyforge from map.md (see C2)
 - [ ] Move experimental backends (Kali remote, anonlab, generic MCP) out of stable path until they share policy + have tests

@@ -5,9 +5,9 @@
 [![CI](https://github.com/mahumadad/quarry/actions/workflows/validate.yml/badge.svg)](https://github.com/mahumadad/quarry/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Quarry is a full-cycle penetration testing plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). It turns an AI coding agent into a methodical security tester — from recon through reporting — with a deterministic evidence chain that no other plugin in the ecosystem provides.
+Quarry is a full-cycle penetration testing plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). It turns an AI coding agent into a methodical security tester — from recon through reporting — with a deterministic evidence chain and locally tamper-evident custody log.
 
-Every finding is tracked, every claim is proven, every artifact is custody-logged. No hallucinated vulns. No unverified severity. No guesswork in your report.
+Every finding is tracked with reproducible evidence, scored against what was actually demonstrated (not theoretical worst-case), and passed through an adversarial validation pipeline before it reaches a report.
 
 > **Authorized engagements only.** Quarry is designed exclusively for penetration tests performed under written authorization (signed RoE / SoW). Never use it against systems you do not have explicit permission to test.
 
@@ -41,7 +41,7 @@ Most AI pentest tools optimize for **autonomy** — more tools, more actions, le
 
 ## Benchmarks
 
-Scored against known-vulnerable applications with versioned ground truth:
+Results from manual runs against known-vulnerable applications (not yet automated in CI):
 
 | Target | Type | Expected | Found | Recall | Evidence integrity |
 |--------|------|----------|-------|--------|--------------------|
@@ -52,7 +52,11 @@ Scored against known-vulnerable applications with versioned ground truth:
 | VAmPI | REST API (OWASP API Top 10) | 9 | — | pending | — |
 | WebGoat | Web (Java) | 21 | 21 | **100%** | 100% |
 
-Full results: [`benchmarks/results/`](benchmarks/results/). Target definitions: [`benchmarks/targets/`](benchmarks/targets/). Weekly CI runs on Mondays.
+Full results: [`benchmarks/results/`](benchmarks/results/). Target definitions: [`benchmarks/targets/`](benchmarks/targets/).
+
+> **Note:** CI currently runs a synthetic scoring test only. Automated benchmark execution
+> against Docker targets is planned but not yet implemented. The results above are from
+> operator-run sessions and may not reflect current plugin behavior after changes.
 
 ---
 

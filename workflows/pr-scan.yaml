@@ -14,6 +14,13 @@ phases:
 
   - name: static-checks
     skills: [static-analysis-toolkit, supply-chain-audit]
+    agents:
+      - sast-file-ranker
+      - sast-entry-mapper
+      - sast-sink-finder
+      - sast-flow-tracer
+      - sast-devils-advocate
+      - sast-gap-analyzer
     budget: 30
     notes: >
       - semgrep con packs del stack + reglas custom del repo (si existen)
