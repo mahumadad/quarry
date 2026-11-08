@@ -13,7 +13,7 @@ metadata:
   type: platform
   phase: hunting
   tools: [aws-cli, pacu, scoutsuite, cloudfox, s3scanner, prowler, enumerate-iam, bucket_finder]
-depends_on: [recon-subdomain-enum, cloud-asset-discovery]
+depends_on: [subdomain-discovery, cloud-recon]
 feeds_into: [chain-analysis, privesc-report]
 chains_with: [linux-privesc, windows-privesc, active-directory, kubernetes-attack]
 ---

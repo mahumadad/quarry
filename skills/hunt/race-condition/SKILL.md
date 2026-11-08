@@ -17,7 +17,7 @@ metadata:
   cwe: [CWE-362, CWE-367]
   mitre_attack: [T1499]
   tools: [turbo-intruder, curl, race-the-web, python-asyncio]
-depends_on: [active-recon, web-crawling, auth-mapping]
+depends_on: [active-recon, web-crawling, identity-map]
 feeds_into: [chain-analysis, business-logic-impact]
 chains_with: [idor, auth-bypass]
 ---

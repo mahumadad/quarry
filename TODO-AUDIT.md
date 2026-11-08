@@ -108,17 +108,17 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 ### I1. Network paths outside common policy
 - **Files:** `engine/browser_loop.py:93-101`, `engine/browser_verify.py:127-151`, `engine/mcp_client.py:116-137`
 - **Bug:** Browser navigation and MCP calls bypass PolicyEngine scope checks. URL redirects and secondary requests are not validated.
-- [ ] Route browser URLs through scope validation
+- [x] Route browser URLs through scope validation (`browser_loop.navigate()`, `browser_verify` all probes)
 - [ ] Add redirect interception
-- [ ] Validate MCP tool targets against scope
+- [x] Validate MCP tool targets against scope (`mcp_client.call_tool()` extracts URLs from params, `_connect_http()` validates server URL)
 
 ### I2. Broken skill/workflow references (22+ warnings, 64+ hidden)
 - **Missing skills referenced:** `gotchas`, `deliver`, `artifact-cleanup`, `credential-hygiene`, `evidence-seal`, `data-retention`, `target-diff` (is engine module, not skill), `param-discovery` (9 skills depend on it)
 - **Stale references:** `auth-mapping` (should be `identity-map`?), `tech-fingerprint`/`subdomain-enum` (deleted)
 - **Validator gap:** only checks workflows→skills, not skills→skills
-- [ ] Create or redirect missing skills
-- [ ] Fix stale references
-- [ ] Add skills→skills validation to validator
+- [x] Create or redirect missing skills (4 closeout skills created; `gotchas` removed from workflow refs; `deliver` changed to command ref; `target-diff` replaced with `active-recon` in retest.yaml)
+- [x] Fix stale references (`auth-mapping`→`identity-map` 5 files, `tech-fingerprint`→`tech-stack-fingerprint` 3 files, `subdomain-enum`→`subdomain-discovery` 5 files, `cloud-asset-discovery`→`cloud-recon` 3 files, `param-discovery`→`fuzzing` 8 files, `app-profile`→`api-discovery` 2 files, `recon-asset-discovery`→`active-recon` 2 files, path-prefixed refs fixed)
+- [x] Add skills→skills validation to validator (`check_skill_deps()` in `validate_plugin.py`)
 
 ### I3. Mixed language ES/EN
 - **Status:** README/agents/skills in English; CLAUDE.md, 13/18 commands, all 14 workflows and templates in Spanish.

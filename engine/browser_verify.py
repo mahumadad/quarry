@@ -124,12 +124,32 @@ def _add_cookies(ctx, cookie_string: str, url: str):
     ctx.add_cookies(cookies)
 
 
+def _check_scope(url: str, audit_dir: str = "") -> str | None:
+    """Validate URL against engagement scope. Returns error string or None."""
+    if not audit_dir:
+        return None
+    try:
+        try:
+            from .policy import url_policy
+        except ImportError:
+            from policy import url_policy
+        url_policy(url, audit_dir)
+        return None
+    except Exception as exc:
+        return str(exc)
+
+
 def reflected_xss(url: str, payload: str = "", out_dir: str = ".",
                   cookies: str = "",
+                  audit_dir: str = "",
                   timeout_ms: int = DEFAULT_TIMEOUT_MS) -> ProbeResult:
     """Load `url` (payload already placed by the caller in query/route) and
     report whether script execution was observed."""
     result = ProbeResult(probe_type="reflected-xss", url=url, payload=payload)
+    scope_err = _check_scope(url, audit_dir)
+    if scope_err:
+        result.error = f"Scope violation: {scope_err}"
+        return result
     sp = _load_playwright()
     if sp is None:
         result.error = ("playwright not installed — run: python3 -m pip install "
@@ -154,6 +174,7 @@ def reflected_xss(url: str, payload: str = "", out_dir: str = ".",
 
 def stored_xss(view_url: str, marker: str, out_dir: str = ".",
                token: str = "", login_url: str = "",
+               audit_dir: str = "",
                timeout_ms: int = DEFAULT_TIMEOUT_MS) -> ProbeResult:
     """Open the page where a previously planted payload renders (admin panel,
     comment list…) as an authenticated viewer, and report execution.
@@ -163,6 +184,10 @@ def stored_xss(view_url: str, marker: str, out_dir: str = ".",
     <img src=x onerror="__probeMarker && __probeMarker('MARKER'); alert('MARKER')">
     """
     result = ProbeResult(probe_type="stored-xss", url=view_url, marker=marker)
+    scope_err = _check_scope(view_url, audit_dir)
+    if scope_err:
+        result.error = f"Scope violation: {scope_err}"
+        return result
     sp = _load_playwright()
     if sp is None:
         result.error = ("playwright not installed — run: python3 -m pip install "
@@ -194,10 +219,15 @@ def stored_xss(view_url: str, marker: str, out_dir: str = ".",
 
 
 def clickjacking(url: str, out_dir: str = ".",
+                 audit_dir: str = "",
                  timeout_ms: int = DEFAULT_TIMEOUT_MS) -> ProbeResult:
     """A page is clickjackable when it loads inside a foreign-origin iframe
     AND sends no frame-ancestors / X-Frame-Options protection."""
     result = ProbeResult(probe_type="clickjacking", url=url)
+    scope_err = _check_scope(url, audit_dir)
+    if scope_err:
+        result.error = f"Scope violation: {scope_err}"
+        return result
     sp = _load_playwright()
     if sp is None:
         result.error = ("playwright not installed — run: python3 -m pip install "
@@ -246,22 +276,27 @@ def main() -> int:
         p.add_argument("url")
         p.add_argument("--payload", default="")
         p.add_argument("--cookies", default="",
-                       help="'k1=v1; k2=v2' de sesión para probes autenticados")
+                       help="'k1=v1; k2=v2' session cookies for authenticated probes")
         p.add_argument("--out-dir", default=".")
+        p.add_argument("--audit-dir", default="")
     p = sub.add_parser("stored-xss")
     p.add_argument("url")
     p.add_argument("--marker", required=True)
     p.add_argument("--token", default="")
     p.add_argument("--out-dir", default=".")
+    p.add_argument("--audit-dir", default="")
     args = ap.parse_args()
 
+    ad = getattr(args, "audit_dir", "")
     if args.cmd == "reflected-xss":
         r = reflected_xss(args.url, args.payload, args.out_dir,
-                          cookies=getattr(args, "cookies", ""))
+                          cookies=getattr(args, "cookies", ""),
+                          audit_dir=ad)
     elif args.cmd == "stored-xss":
-        r = stored_xss(args.url, args.marker, args.out_dir, token=args.token)
+        r = stored_xss(args.url, args.marker, args.out_dir,
+                       token=args.token, audit_dir=ad)
     else:
-        r = clickjacking(args.url, args.out_dir)
+        r = clickjacking(args.url, args.out_dir, audit_dir=ad)
     print(json.dumps(asdict(r), indent=2, ensure_ascii=False))
     return 0 if r.demonstrated else 1
 

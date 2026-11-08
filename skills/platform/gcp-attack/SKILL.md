@@ -13,7 +13,7 @@ metadata:
   type: platform
   phase: hunting
   tools: [gcloud, gcp_scanner, gcp-iam-collector, scoutsuite, gcpbucketbrute]
-depends_on: [recon-subdomain-enum, cloud-asset-discovery]
+depends_on: [subdomain-discovery, cloud-recon]
 feeds_into: [chain-analysis, privesc-report]
 chains_with: [linux-privesc, kubernetes-attack, docker-attack]
 ---

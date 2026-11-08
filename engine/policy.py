@@ -183,6 +183,21 @@ def command_policy(command: str, audit_dir: str | Path, approved_digest: str = "
     return PolicyEngine(audit_dir).authorize(command, targets, dangerous, approved_digest)
 
 
+def url_policy(url: str, audit_dir: str | Path) -> dict:
+    """Validate a URL against the engagement scope before browser navigation or HTTP request.
+
+    Used by browser_loop, browser_verify, and mcp_client to ensure all
+    network access — not just CLI commands — respects the scope boundary.
+    """
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https", ""}:
+        raise PolicyDenied(f"Unsupported URL scheme: {parsed.scheme}")
+    target = parsed.hostname or url
+    if not target:
+        raise PolicyDenied("URL has no hostname")
+    return PolicyEngine(audit_dir).authorize(f"navigate {url}", [url], dangerous=False)
+
+
 def canonical_url_target(url: str) -> str:
     parsed = urlsplit(url)
     if (parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username

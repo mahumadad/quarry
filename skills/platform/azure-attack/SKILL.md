@@ -14,7 +14,7 @@ metadata:
   type: platform
   phase: hunting
   tools: [az-cli, azurehound, roadrecon, stormspotter, microburst, powerzure]
-depends_on: [recon-subdomain-enum, cloud-asset-discovery]
+depends_on: [subdomain-discovery, cloud-recon]
 feeds_into: [chain-analysis, privesc-report]
 chains_with: [active-directory, windows-privesc, kubernetes-attack]
 ---

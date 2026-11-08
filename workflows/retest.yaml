@@ -11,12 +11,12 @@ phases:
       autorización explícita.
 
   - name: baseline
-    skills: [target-diff]
-    agent: monitor-agent
+    skills: [active-recon]
+    agent: recon-agent
     notes: >
-      Diff del target contra el snapshot del engagement original
-      (engine/target_diff.py): qué cambió, qué endpoints desaparecieron o
-      aparecieron. Cambios inesperados se reportan antes de re-testear.
+      Diff del target contra the original engagement snapshot using
+      engine/target_diff.py: what changed, which endpoints disappeared or
+      appeared. Unexpected changes are reported before re-testing.
 
   - name: re-exploitation
     skills: [finding-validation, evidence-hygiene]

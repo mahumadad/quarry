@@ -17,7 +17,7 @@ metadata:
   cwe: [CWE-287, CWE-307, CWE-640]
   mitre_attack: [T1110, T1078, T1556]
   tools: [curl, burp, hydra, ffuf]
-depends_on: [active-recon, web-crawling, auth-mapping]
+depends_on: [active-recon, web-crawling, identity-map]
 feeds_into: [chain-analysis, account-takeover]
 chains_with: [idor, jwt, csrf, race-condition]
 ---

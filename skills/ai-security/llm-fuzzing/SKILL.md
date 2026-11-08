@@ -2,7 +2,7 @@
 name: llm-fuzzing
 description: >
   Automated adversarial fuzzing of LLM-powered features with garak and prompt-fuzzing
-  tools. Use when app-profile identifies AI features (chatbots, copilots, RAG search,
+  tools. Use when api-discovery identifies AI features (chatbots, copilots, RAG search,
   agentic tools) and manual prompt-injection probing needs breadth: run garak probe
   suites (jailbreaks, encoding attacks, data-leak probes), LLMFuzzer-style mutation
   campaigns, and encoding/blind prompt-injection sweeps, then triage hits manually.
@@ -16,7 +16,7 @@ metadata:
   cwe: [CWE-1427]
   mitre_attack: [AML.T0051, AML.T0054]
   tools: [garak, pyrit, curl]
-depends_on: [ai-agent-recon, app-profile]
+depends_on: [ai-agent-recon, api-discovery]
 feeds_into: [prompt-injection, indirect-injection, finding-validation]
 chains_with: [prompt-injection, exfiltration-via-ai, tool-abuse]
 ---

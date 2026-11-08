@@ -17,7 +17,7 @@ metadata:
   cwe: [CWE-611]
   mitre_attack: [T1190]
   tools: [curl, burp, xxeinjector, interactsh]
-depends_on: [active-recon, web-crawling, param-discovery]
+depends_on: [active-recon, web-crawling, fuzzing]
 feeds_into: [chain-analysis, ssrf, info-disclosure]
 chains_with: [ssrf, info-disclosure, lfi-rfi]
 ---

@@ -16,7 +16,7 @@ metadata:
   cwe: [CWE-352]
   mitre_attack: [T1185]
   tools: [burp, curl]
-depends_on: [active-recon, web-crawling, auth-mapping]
+depends_on: [active-recon, web-crawling, identity-map]
 feeds_into: [chain-analysis, account-takeover]
 chains_with: [xss, cors, open-redirect]
 ---

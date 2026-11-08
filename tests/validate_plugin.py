@@ -258,6 +258,39 @@ def check_workflow_skill_refs():
             ok(f"workflows/{wf_file.name}: all skill references resolve")
 
 
+def check_skill_deps():
+    """Validate that depends_on refs in skill frontmatter point to existing skills."""
+    print("\n=== Skill depends_on references ===")
+    if yaml is None:
+        warn("PyYAML not installed, skipping skill dependency checks")
+        return
+    skills_dir = ROOT / "skills"
+    existing_skills = {p.parent.name for p in skills_dir.rglob("SKILL.md")}
+    broken = []
+    for skill_file in sorted(skills_dir.rglob("SKILL.md")):
+        raw = skill_file.read_text()
+        if not raw.startswith("---"):
+            continue
+        end = raw.find("---", 3)
+        if end < 0:
+            continue
+        try:
+            fm = yaml.safe_load(raw[3:end])
+        except Exception:
+            continue
+        if not isinstance(fm, dict):
+            continue
+        for dep in fm.get("depends_on") or []:
+            dep = str(dep).strip()
+            if dep not in existing_skills:
+                broken.append((skill_file.parent.name, dep))
+    if broken:
+        for skill_name, dep in broken:
+            warn(f"skills/{skill_name}: depends_on '{dep}' not found")
+    else:
+        ok(f"All skill depends_on references resolve ({len(existing_skills)} skills)")
+
+
 def check_engine():
     print("\n=== Engine ===")
     expected = [
@@ -552,6 +585,7 @@ def main():
     check_commands()
     check_skills()
     check_workflow_skill_refs()
+    check_skill_deps()
     check_engine()
     check_engine_imports()
     check_workflows()

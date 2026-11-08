@@ -15,7 +15,7 @@ metadata:
   cwe: [CWE-89, CWE-943]
   mitre_attack: [T1190]
   tools: [sqlmap, nuclei, ffuf, curl, burp, nosqlmap]
-depends_on: [active-recon, web-crawling, param-discovery]
+depends_on: [active-recon, web-crawling, fuzzing]
 feeds_into: [chain-analysis, exfil-data, auth-bypass]
 chains_with: [auth-bypass, info-disclosure, rce]
 ---

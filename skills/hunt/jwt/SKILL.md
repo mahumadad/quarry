@@ -17,7 +17,7 @@ metadata:
   cwe: [CWE-347, CWE-345, CWE-287]
   mitre_attack: [T1552, T1556]
   tools: [jwt_tool, hashcat, john, curl, jwt-cracker]
-depends_on: [active-recon, web-crawling, auth-mapping]
+depends_on: [active-recon, web-crawling, identity-map]
 feeds_into: [chain-analysis, auth-bypass]
 chains_with: [auth-bypass, idor, ssrf]
 ---

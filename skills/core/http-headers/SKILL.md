@@ -12,7 +12,7 @@ metadata:
   phase: scoped
   cwe: [CWE-693, CWE-1021, CWE-614, CWE-524]
   tools: [curl, httpx, nuclei, securityheaders.com]
-depends_on: [tech-fingerprint, active-recon]
+depends_on: [tech-stack-fingerprint, active-recon]
 feeds_into: [xss, clickjacking, csrf, report-writing]
 ---
 

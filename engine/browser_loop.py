@@ -15,8 +15,10 @@ from typing import Any
 
 try:
     from .custody import CustodyLog
+    from .policy import url_policy, PolicyDenied
 except ImportError:
     from custody import CustodyLog
+    from policy import url_policy, PolicyDenied
 
 
 PLAYWRIGHT_AVAILABLE = False
@@ -92,6 +94,11 @@ class BrowserSession:
 
     def navigate(self, url: str) -> dict:
         self._require_page()
+        try:
+            url_policy(url, str(self.audit_dir))
+        except PolicyDenied as exc:
+            return {"url": url, "status": None, "title": None,
+                    "error": f"Scope violation: {exc}"}
         response = self._page.goto(url, wait_until="domcontentloaded", timeout=15000)
         result = {
             "url": self._page.url,

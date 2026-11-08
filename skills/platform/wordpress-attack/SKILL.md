@@ -12,7 +12,7 @@ metadata:
   type: platform
   phase: hunting
   tools: [wpscan, nmap, curl, wafw00f]
-depends_on: [recon-subdomain-enum]
+depends_on: [subdomain-discovery]
 feeds_into: [chain-analysis, privesc-report]
 chains_with: [linux-privesc, network-infra]
 ---

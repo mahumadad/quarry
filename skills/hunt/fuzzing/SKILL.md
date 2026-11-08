@@ -17,7 +17,7 @@ metadata:
   cwe: [CWE-20, CWE-1284]
   mitre_attack: [T1190]
   tools: [schemathesis, restler, radamsa, ffuf, afl-fuzz]
-depends_on: [api-discovery, web-crawling, app-profile]
+depends_on: [api-discovery, web-crawling, api-discovery]
 feeds_into: [finding-validation, chain-analysis]
 chains_with: [rce, deserialization, sqli, ssrf, dos]
 ---

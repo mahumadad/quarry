@@ -10,8 +10,8 @@ metadata:
   type: recon
   phase: mapped
   tools: [linkfinder, secretfinder, trufflehog, curl, jsluice]
-depends_on: [recon/tech-fingerprint, web-crawling]
-feeds_into: [recon/api-discovery, github-dorking]
+depends_on: [tech-stack-fingerprint, web-crawling]
+feeds_into: [api-discovery, github-dorking]
 ---
 
 ## Signals

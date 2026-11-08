@@ -13,10 +13,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import re
+from urllib.parse import urlsplit
+
 try:
     from .guard import check_command
+    from .policy import url_policy, PolicyDenied
 except ImportError:
     from guard import check_command
+    from policy import url_policy, PolicyDenied
 
 
 @dataclass
@@ -34,6 +39,23 @@ class MCPTool:
     name: str
     description: str = ""
     input_schema: dict = field(default_factory=dict)
+
+
+_URL_RE = re.compile(r'https?://[^\s"\'<>\]\)]+')
+
+
+def _extract_urls(obj: Any) -> list[str]:
+    """Recursively extract HTTP(S) URLs from a JSON-like structure."""
+    urls: list[str] = []
+    if isinstance(obj, str):
+        urls.extend(_URL_RE.findall(obj))
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            urls.extend(_extract_urls(v))
+    elif isinstance(obj, (list, tuple)):
+        for item in obj:
+            urls.extend(_extract_urls(item))
+    return urls
 
 
 class MCPClientError(RuntimeError):
@@ -87,6 +109,11 @@ class MCPClient:
     def _connect_http(self) -> dict:
         if not self.config.url:
             raise MCPClientError("http transport requires url")
+        if self.audit_dir:
+            try:
+                url_policy(self.config.url, self.audit_dir)
+            except PolicyDenied as exc:
+                raise MCPClientError(f"MCP server URL out of scope: {exc}") from exc
         resp = self._http_request("initialize", {
             "protocolVersion": "2025-03-26",
             "capabilities": {},
@@ -121,6 +148,13 @@ class MCPClient:
         if not guard_result.get("allowed"):
             return {"error": guard_result.get("blocked_reason", "Blocked by guard"),
                     "allowed": False}
+
+        if params and self.audit_dir:
+            for target_url in _extract_urls(params):
+                try:
+                    url_policy(target_url, self.audit_dir)
+                except PolicyDenied as exc:
+                    return {"error": f"Scope violation: {exc}", "allowed": False}
 
         if self._budget:
             budget_result = self._budget.record_call(

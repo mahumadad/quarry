@@ -13,7 +13,7 @@ metadata:
   type: platform
   phase: hunting
   tools: [frida, objection, class-dump, ideviceinstaller, mitmproxy, r2]
-depends_on: [recon-asset-discovery]
+depends_on: [active-recon]
 feeds_into: [chain-analysis, api-testing]
 chains_with: [mobile-android, exfiltration-via-ai]
 ---

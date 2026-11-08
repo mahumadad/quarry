@@ -13,7 +13,7 @@ metadata:
   type: platform
   phase: hunting
   tools: [jadx, apktool, frida, mobsf, adb, objection, drozer]
-depends_on: [recon-asset-discovery]
+depends_on: [active-recon]
 feeds_into: [chain-analysis, api-testing]
 chains_with: [mobile-ios, exfiltration-via-ai]
 ---

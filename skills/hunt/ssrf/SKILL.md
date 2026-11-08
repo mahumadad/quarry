@@ -14,7 +14,7 @@ metadata:
   cwe: [CWE-918]
   mitre_attack: [T1190, T1552.005]
   tools: [curl, ffuf, interactsh, nuclei, gopherus, ssrfmap]
-depends_on: [active-recon, web-crawling, param-discovery]
+depends_on: [active-recon, web-crawling, fuzzing]
 feeds_into: [chain-analysis, internal-pivot, cloud-cred-theft]
 chains_with: [info-disclosure, rce, auth-bypass]
 ---

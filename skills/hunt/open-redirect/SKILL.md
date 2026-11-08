@@ -17,7 +17,7 @@ metadata:
   cwe: [CWE-601]
   mitre_attack: [T1204]
   tools: [curl, ffuf, burp]
-depends_on: [active-recon, web-crawling, param-discovery]
+depends_on: [active-recon, web-crawling, fuzzing]
 feeds_into: [chain-analysis, phishing-pivot]
 chains_with: [auth-bypass, xss, csrf]
 ---
