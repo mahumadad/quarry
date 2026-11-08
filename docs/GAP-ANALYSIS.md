@@ -1,8 +1,8 @@
 # Gap Analysis — Quarry vs ecosystem 2026
 
 > Exhaustive comparison of Quarry (formerly pentest-plugin) against
-> 16+ frameworks/repos in the AI pentesting ecosystem.
-> Last refresh: 2026-11-02.
+> 20+ frameworks/repos in the AI pentesting ecosystem.
+> Last refresh: 2026-11-07.
 >
 > Repos analyzed (Oct 2026): Strix, PentAGI, HexStrike AI, opencode-pentester,
 > pentest-ai-agents (0xSteph), CyberStrikeAI, RedAmon, CAI, CVEngine.
@@ -12,6 +12,9 @@
 >
 > Nov 2026 additions: RedteamAgent, SuperClaw, Scenario, Agent Security
 > Harness, ptai, Pentest-R1 (paper), RefPentester (paper).
+>
+> Nov 7 additions: SpikeStrip, Sectiv (burp-sectivai), IronCurtain/Provos
+> vuln-discovery, Helton Harness Engineering Workshop, Cloudflare Zero Wire.
 
 ## Nov 2026 refresh — new repos and updates
 
@@ -27,6 +30,16 @@
 | **Pentest-R1** (paper) | Two-stage RL for pentest reasoning (15% Cybench) | RL-based decision making vs our static STACK_SKILL_MAP |
 | **RefPentester** (paper) | Self-reflective 7-stage state machine | Explicit state machine model for pentesting flow |
 
+### Nov 7 additions
+
+| Repo/Tool | Capability | Gap for Quarry | Status |
+|---|---|---|---|
+| **SpikeStrip** (Arcanum-Sec) | Defensive AI decoys: hex-keyed prompt traps in HTML/JS/CSS/SVG. ARTEX-specific profile. Reversible via manifest. | Decoy detection needed to avoid false findings from planted comments | **CLOSED** — engine/decoy_detector.py |
+| **Sectiv** (zack0x01/burp-sectivai) | Burp Suite AI review: skill-based, multi-provider (DeepSeek, GLM, z.ai, OpenRouter, Ollama, Claude), privacy masking pre-LLM | Multi-provider support, input redaction before sending to providers | **CLOSED** — engine/llm_gateway.py + engine/redaction.py |
+| **IronCurtain/Provos** (provos.org) | Orchestrated vuln-discovery: FSM workflows, append-only journal, harness tiering, GLM 5.1 via LiteLLM gateway | LiteLLM multi-provider pattern, hypothesis→validate discipline | **CLOSED** — engine/llm_gateway.py, references/harness-patterns.md |
+| **Helton Workshop** (grahamhelton.github.io) | Harness engineering for vuln research: "model capability ≠ research capability", lead≠finding, local validation env | Reinforces existing architecture; documented patterns | **CLOSED** — references/harness-patterns.md |
+| **Cloudflare Zero Wire** (radar.cloudflare.com) | Public CVE intel feed with AI-ready prompts for vulnerability assessment | Additional CVE intelligence source for enrichment | **CLOSED** — engine/cve_feeds.py query_zero_wire() |
+
 ### Updates to tracked repos
 
 - **HexStrike AI v6→v7**: 150→250 tools, 12 agents, Docker support, desktop client
@@ -34,13 +47,13 @@
 - **CVEngine**: No 2026 activity — likely abandoned
 - **PentAGI**: No significant updates since Apr 2026
 
-### Actionable gaps (Nov 2026)
+### Actionable gaps (Nov 2026, updated Nov 7)
 
 1. **SARIF-native output** — engine-level SARIF per finding (CI action added but not per-finding)
 2. **Real MCP server endpoints** — mcpServers declared but need protocol implementation
 3. **Agent self-security** — OWASP Agentic T1-T17 coverage for our own plugin
 4. **RL-based decision making** — research direction; our static STACK_SKILL_MAP works but doesn't learn
-5. **API-direction data anonymization** — redaction.py handles output but not LLM-bound traffic
+5. ~~**API-direction data anonymization**~~ — **CLOSED**: redact_for_provider() in engine/redaction.py, applied automatically by engine/llm_gateway.py
 
 ---
 

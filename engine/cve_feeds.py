@@ -20,6 +20,7 @@ CACHE_TTL_SECONDS = 86400  # 24 hours
 NVD_API_BASE = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 EPSS_API_BASE = "https://api.first.org/data/v1/epss"
+ZERO_WIRE_RSS = "https://radar.cloudflare.com/security/zero-wire/rss.xml"
 
 
 @dataclass
@@ -214,7 +215,7 @@ class CVEFeedClient:
         self._save_cache()
         return results
 
-    def enrich_finding(self, finding: dict, cve_id: str) -> dict:
+    def _enrich_base(self, finding: dict, cve_id: str) -> dict:
         """Add NVD + KEV + EPSS data to a finding dict. Returns enriched copy."""
         enriched = dict(finding)
 
@@ -242,10 +243,87 @@ class CVEFeedClient:
 
         return enriched
 
+    def query_zero_wire(self, cve_id: str = "") -> list[dict]:
+        """Check Cloudflare Zero Wire for active vulnerability briefings.
+
+        Returns briefing metadata for CVEs tracked by Zero Wire. These are
+        high-priority: Cloudflare only covers critical, actively-exploited vulns.
+        """
+        cache_key = "_zero_wire"
+        if not self._is_cached(cache_key):
+            self._fetch_zero_wire_feed()
+
+        entries = self._cache.get(cache_key, {}).get("entries", [])
+        if cve_id:
+            return [e for e in entries if cve_id.upper() in e.get("cves", [])]
+        return entries
+
+    def _fetch_zero_wire_feed(self):
+        import re as _re
+        import xml.etree.ElementTree as ET
+        req = urllib.request.Request(ZERO_WIRE_RSS, headers={"User-Agent": "quarry/1.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read().decode("utf-8")
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError, TimeoutError):
+            self._cache["_zero_wire"] = {
+                "entries": [],
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+            }
+            self._save_cache()
+            return
+
+        entries = []
+        try:
+            root = ET.fromstring(raw)
+            for item in root.findall(".//item"):
+                title = (item.findtext("title") or "").strip()
+                link = (item.findtext("link") or "").strip()
+                desc = (item.findtext("description") or "").strip()
+                pub_date = (item.findtext("pubDate") or "").strip()
+
+                cves = _re.findall(r"CVE-\d{4}-\d{4,7}", f"{title} {desc}")
+                cves = sorted(set(c.upper() for c in cves))
+
+                if title:
+                    entries.append({
+                        "title": title,
+                        "url": link,
+                        "description": desc[:500],
+                        "published": pub_date,
+                        "cves": cves,
+                        "source": "cloudflare_zero_wire",
+                    })
+        except ET.ParseError:
+            pass
+
+        self._cache["_zero_wire"] = {
+            "entries": entries,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._save_cache()
+
+    def enrich_finding(self, finding: dict, cve_id: str) -> dict:
+        """Add NVD + KEV + EPSS + Zero Wire data to a finding dict."""
+        enriched = self._enrich_base(finding, cve_id)
+
+        zw = self.query_zero_wire(cve_id)
+        if zw:
+            enriched["zero_wire"] = {
+                "tracked": True,
+                "briefings": [{"title": b["title"], "url": b["url"]} for b in zw],
+            }
+            if not enriched.get("priority_boost"):
+                enriched["priority_boost"] = "zero_wire_active"
+
+        return enriched
+
     def summary(self) -> dict:
         cached_cves = [k for k in self._cache if k.startswith("CVE-")]
+        zw = self._cache.get("_zero_wire", {})
         return {
             "cached_cves": len(cached_cves),
             "kev_loaded": self._kev_set is not None,
             "kev_count": len(self._kev_set) if self._kev_set else 0,
+            "zero_wire_entries": len(zw.get("entries", [])),
         }
