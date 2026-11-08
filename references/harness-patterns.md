@@ -5,6 +5,8 @@ Reference document consolidating patterns from:
 - Helton & Basden — "Harness Engineering Workshop"
 - Arcanum-Sec — SpikeStrip (defensive decoys)
 - Sectiv — Burp Suite AI review with multi-provider support
+- CyberStrike — 3-gate finding confirmation protocol
+- Cairn (oritera) — Blackboard architecture, stigmergy, Fact-Intent-Hint model
 
 ## Core Principle
 
@@ -112,3 +114,48 @@ Layer multiple intelligence sources for CVE prioritization:
 | LLM CVE dive | Preconditions, verify steps | engine/llm_gateway.py cve_deepdive() |
 
 A CVE in KEV + Zero Wire + high EPSS = automatic Fire priority.
+
+## Pattern 9: 3-Gate Confirmation (CyberStrike)
+
+Discard speculative results with a three-stage verification:
+
+| Gate | What happens | Pass condition |
+|------|-------------|----------------|
+| **Baseline** | Send a normal, benign request | 200 OK, normal body |
+| **Attack** | Send the exploit request | Different status, error, injected payload reflected |
+| **Diff** | Compare baseline vs attack | Meaningful difference that cannot be caused by timing or randomness |
+
+If the diff is not significant (e.g., only timestamp changes), the finding is
+discarded as a false positive. If the diff shows injected content, error
+disclosure, or behavior change, the finding is confirmed.
+
+Quarry implementation: `engine/three_gate.py` provides `verify_finding()` which
+runs the 3-gate protocol and returns a verdict: `confirmed`, `likely_fp`, or
+`inconclusive`.
+
+## Pattern 10: Blackboard / Stigmergy (Cairn)
+
+Cairn (oritera) uses a Blackboard Architecture for autonomous pentesting,
+where agents share no direct communication. Three primitives:
+
+| Primitive | Role | Quarry equivalent |
+|-----------|------|-------------------|
+| **Fact** | Confirmed, objective finding written to the board | Finding (engine/findings.py) |
+| **Intent** | Declared exploration direction, not yet executed | Lead (engine/leads.py) / ActiveVector (engine/brain.py) |
+| **Hint** | Human judgment injected at any time | Operator hint (engine/brain.py inject_hint()) |
+
+Key insight: agents coordinate through stigmergy — reading and writing to a
+shared board (the `.pentest-state/` directory in Quarry's case). No agent-to-agent
+communication. Workers run an OODA loop:
+
+1. **Observe** — read the full state (brain, findings, leads, coverage)
+2. **Orient** — assess what the current state implies
+3. **Decide** — generate new intents (leads) based on gaps
+4. **Act** — execute one intent, report result as a new fact
+
+Cairn achieved 54/54 on the Tencent Cloud Hackathon with this approach — no
+predefined roles, no fixed workflows, just state-space search.
+
+Quarry adoption: the Hint primitive is formalized as `Brain.inject_hint()` — the
+operator can inject context, priorities, or constraints at any time, and skills
+read them on their next cycle.

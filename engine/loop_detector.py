@@ -14,6 +14,8 @@ from pathlib import Path
 MAX_IDENTICAL_CONSECUTIVE = 3
 MAX_SIMILAR_WINDOW = 10
 SIMILARITY_THRESHOLD = 0.8
+STALL_THRESHOLD_ACTIONS = 10  # actions without progress = stall
+HIGH_ERROR_RATIO = 0.5  # >50% errors in window = struggling
 
 TOOL_ALTERNATIVES: dict[str, list[str]] = {
     "nmap": ["rustscan", "masscan"],
@@ -76,11 +78,67 @@ STRATEGY_ALTERNATIVES: dict[str, list[str]] = {
 
 
 @dataclass
+class ExecutionMonitor:
+    """Tracks execution quality (inspired by PentAGI).
+
+    Detects when an agent is struggling: high error rates, no progress
+    (new findings/leads), or excessive token usage without results.
+    """
+    actions_since_progress: int = 0
+    total_errors: int = 0
+    total_actions: int = 0
+    findings_at_start: int = 0
+    leads_at_start: int = 0
+
+    def record(self, action: str, success: bool, new_findings: int = 0,
+               new_leads: int = 0) -> dict | None:
+        self.total_actions += 1
+        if not success:
+            self.total_errors += 1
+        if new_findings > 0 or new_leads > 0:
+            self.actions_since_progress = 0
+        else:
+            self.actions_since_progress += 1
+
+        if (self.total_actions >= STALL_THRESHOLD_ACTIONS
+                and self.actions_since_progress >= STALL_THRESHOLD_ACTIONS):
+            return {
+                "type": "stall",
+                "actions_without_progress": self.actions_since_progress,
+                "recommendation": (
+                    "No new findings or leads in "
+                    f"{self.actions_since_progress} actions. "
+                    "Consider: escalate to operator, switch strategy, "
+                    "or try a more capable model for this phase."
+                ),
+            }
+
+        if self.total_actions >= 6:
+            error_ratio = self.total_errors / self.total_actions
+            if error_ratio > HIGH_ERROR_RATIO:
+                return {
+                    "type": "high_error_rate",
+                    "error_ratio": round(error_ratio, 2),
+                    "recommendation": (
+                        f"Error rate {error_ratio:.0%} over {self.total_actions} actions. "
+                        "The model may be struggling with this task. "
+                        "Consider: switch to a more capable model, simplify the "
+                        "task, or provide more context via operator hint."
+                    ),
+                }
+        return None
+
+    def reset_progress(self):
+        self.actions_since_progress = 0
+
+
+@dataclass
 class LoopDetector:
     window_size: int = 20
     history: deque = field(default_factory=lambda: deque(maxlen=20))
     loop_count: int = 0
     interventions: list[dict] = field(default_factory=list)
+    exec_monitor: ExecutionMonitor = field(default_factory=ExecutionMonitor)
 
     def _check_identical_consecutive(self, action: str) -> int:
         count = 0
@@ -143,7 +201,9 @@ class LoopDetector:
             return "recon"
         return ""
 
-    def record_action(self, action: str, context: str = "") -> dict:
+    def record_action(self, action: str, context: str = "",
+                       success: bool = True, new_findings: int = 0,
+                       new_leads: int = 0) -> dict:
         entry = {"action": action[:500], "context": context[:200],
                  "at": datetime.now(timezone.utc).isoformat()}
         self.history.append(entry)
@@ -180,6 +240,12 @@ class LoopDetector:
             self.interventions.append(result)
             return result
 
+        exec_alert = self.exec_monitor.record(
+            action, success, new_findings, new_leads)
+        if exec_alert:
+            self.interventions.append(exec_alert)
+            return {"loop_detected": False, "exec_alert": exec_alert}
+
         return {"loop_detected": False}
 
     def reset(self):
@@ -191,4 +257,11 @@ class LoopDetector:
             "total_actions": len(self.history),
             "loop_count": self.loop_count,
             "interventions": len(self.interventions),
+            "exec_monitor": {
+                "actions_since_progress": self.exec_monitor.actions_since_progress,
+                "error_ratio": (
+                    round(self.exec_monitor.total_errors / self.exec_monitor.total_actions, 2)
+                    if self.exec_monitor.total_actions > 0 else 0.0
+                ),
+            },
         }

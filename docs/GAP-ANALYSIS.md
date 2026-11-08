@@ -15,6 +15,8 @@
 >
 > Nov 7 additions: SpikeStrip, Sectiv (burp-sectivai), IronCurtain/Provos
 > vuln-discovery, Helton Harness Engineering Workshop, Cloudflare Zero Wire.
+>
+> Nov 7 (batch 2): Cairn (oritera), CyberStrike (updated), PentAGI (updated).
 
 ## Nov 2026 refresh — new repos and updates
 
@@ -40,12 +42,21 @@
 | **Helton Workshop** (grahamhelton.github.io) | Harness engineering for vuln research: "model capability ≠ research capability", lead≠finding, local validation env | Reinforces existing architecture; documented patterns | **CLOSED** — references/harness-patterns.md |
 | **Cloudflare Zero Wire** (radar.cloudflare.com) | Public CVE intel feed with AI-ready prompts for vulnerability assessment | Additional CVE intelligence source for enrichment | **CLOSED** — engine/cve_feeds.py query_zero_wire() |
 
+### Nov 7 (batch 2) — Cairn + repo updates
+
+| Repo | Capability | Gap for Quarry | Status |
+|---|---|---|---|
+| **Cairn** (oritera) | Blackboard architecture: Fact-Intent-Hint graph, stigmergy (shared-board coordination), OODA-loop workers, no fixed roles. 54/54 Tencent Cloud Hackathon (only team to AK). 4,900+ stars. | Hint injection for operator context; Fact-Intent model validates our Finding/Lead split. Stigmergy pattern for multi-skill coordination. | **CLOSED** — references/harness-patterns.md (Pattern 10), engine/brain.py inject_hint() |
+| **CyberStrike** (updated) | 3-gate confirmation protocol (baseline→attack→diff). HackBrowser built-in. Vortex HTTP DSL. 7,600+ methodology docs. 150+ LLM providers. 3,400+ stars. | 3-gate verification protocol for finding confirmation beyond evidence tags | **CLOSED** — references/harness-patterns.md (Pattern 9), engine/three_gate.py |
+| **PentAGI** (updated) | Now 33k+ stars. 10+ native LLM providers (DeepSeek, GLM, Kimi, Qwen, MiniMax, xAI). Graphiti knowledge graph (Neo4j). Execution monitoring for smaller models. Langfuse observability. | Validates LiteLLM gateway approach. Exec monitoring pattern added to loop_detector.py. | **CLOSED** — engine/llm_gateway.py (validates approach), engine/loop_detector.py (exec monitoring) |
+
 ### Updates to tracked repos
 
 - **HexStrike AI v6→v7**: 150→250 tools, 12 agents, Docker support, desktop client
 - **Strix v1.4.1**: Topped GitHub trending Jul 2026; now has paid tiers ($29/seat/mo)
 - **CVEngine**: No 2026 activity — likely abandoned
-- **PentAGI**: No significant updates since Apr 2026
+- **PentAGI**: Now 33k+ stars; added 10+ LLM providers natively, Graphiti knowledge graph, execution monitoring
+- **CyberStrike**: Now 3.4k+ stars; added 3-gate confirmation, HackBrowser, Vortex HTTP engine
 
 ### Actionable gaps (Nov 2026, updated Nov 7)
 

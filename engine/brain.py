@@ -123,6 +123,23 @@ class ActiveVector:
             self.started_at = datetime.now(timezone.utc).isoformat()
 
 
+@dataclass
+class Hint:
+    """Operator-injected context (Cairn Blackboard pattern).
+
+    Hints are consumed on read — each skill sees them once on its next
+    cycle, then they move to the consumed list for audit.
+    """
+    text: str
+    priority: str = "normal"  # "high" | "normal" | "low"
+    scope: str = ""  # empty = global, or a vuln_class / asset / skill name
+    injected_at: str = ""
+
+    def __post_init__(self):
+        if not self.injected_at:
+            self.injected_at = datetime.now(timezone.utc).isoformat()
+
+
 class Brain:
     def __init__(self, audit_dir: str):
         self.state_dir = Path(audit_dir) / ".pentest-state"
@@ -137,6 +154,8 @@ class Brain:
             "exhausted": [],
             "active": [],
             "notes": [],
+            "hints_pending": [],
+            "hints_consumed": [],
             "updated_at": None,
         }
 
@@ -258,6 +277,56 @@ class Brain:
         suggestions.sort(key=lambda s: len(s["potential_gives"]), reverse=True)
         return suggestions[:10]
 
+    def inject_hint(self, text: str, priority: str = "normal",
+                     scope: str = "") -> Hint:
+        """Operator injects context/priority (Cairn Blackboard pattern).
+
+        Skills read pending hints on their next cycle via consume_hints().
+        """
+        hint = Hint(text=text, priority=priority, scope=scope)
+        if "hints_pending" not in self._data:
+            self._data["hints_pending"] = []
+        self._data["hints_pending"].append(asdict(hint))
+        self._save()
+        return hint
+
+    def consume_hints(self, scope: str = "") -> list[dict]:
+        """Read and consume pending hints (move to consumed list).
+
+        If scope is set, only consume hints matching that scope or global.
+        Consumed hints stay in hints_consumed for audit.
+        """
+        pending = self._data.get("hints_pending", [])
+        if not pending:
+            return []
+
+        if "hints_consumed" not in self._data:
+            self._data["hints_consumed"] = []
+
+        if scope:
+            matched = [h for h in pending if not h.get("scope") or h["scope"] == scope]
+            remaining = [h for h in pending if h.get("scope") and h["scope"] != scope]
+        else:
+            matched = list(pending)
+            remaining = []
+
+        matched.sort(key=lambda h: {"high": 0, "normal": 1, "low": 2}.get(
+            h.get("priority", "normal"), 1))
+
+        for h in matched:
+            h["consumed_at"] = datetime.now(timezone.utc).isoformat()
+        self._data["hints_consumed"].extend(matched)
+        self._data["hints_pending"] = remaining
+        self._save()
+        return matched
+
+    def peek_hints(self, scope: str = "") -> list[dict]:
+        """Read pending hints without consuming them."""
+        pending = self._data.get("hints_pending", [])
+        if scope:
+            return [h for h in pending if not h.get("scope") or h["scope"] == scope]
+        return list(pending)
+
     def summary(self) -> dict:
         return {
             "capabilities_count": len(self._data["capabilities"]),
@@ -265,4 +334,6 @@ class Brain:
             "exhausted_count": len(self._data["exhausted"]),
             "active_count": len(self._data["active"]),
             "notes_count": len(self._data["notes"]),
+            "hints_pending": len(self._data.get("hints_pending", [])),
+            "hints_consumed": len(self._data.get("hints_consumed", [])),
         }
