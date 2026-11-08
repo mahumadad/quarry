@@ -1,125 +1,125 @@
 ---
 name: quarry:report
-description: Genera el reporte del engagement — completo o solo resumen ejecutivo, en Markdown o PDF
+description: Generate the engagement report — full or executive summary only, Markdown or PDF
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
 # /quarry:report [--format md|pdf] [--executive]
 
-Genera el reporte final del engagement a partir de findings `VALIDATED`
-y cadenas verificadas. Por defecto: formato `md`, reporte completo (no
-solo ejecutivo).
+Generates the final engagement report from `VALIDATED` findings and
+verified chains. Defaults to `md` format, full report (not executive
+only).
 
-## Precondición
+## Precondition
 
-- Debe haber al menos 1 finding en status `VALIDATED` o `REPORTED`
-  (`FindingsStore.list_by_status(FindingStatus.VALIDATED)`). Si no hay
-  ninguno, detener y señalar que falta `/quarry:validate` — un reporte sin
-  findings validados es, en el mejor caso, un reporte de recon/cobertura,
-  no un reporte de hallazgos. Ofrecer generar igual un reporte de
-  "estado del engagement" si eso es lo que el operador quiere, pero no
-  llamarlo reporte de findings.
-- Findings en `STALL`, `DETECTED` o `CONFIRMED` (no validados) **no
-  entran al reporte** como hallazgos confirmados. Si el operador insiste
-  en incluirlos, deben aparecer en una sección separada y claramente
-  etiquetada "no validados / en progreso", nunca mezclados con la lista
-  principal.
+- There must be at least 1 finding with status `VALIDATED` or `REPORTED`
+  (`FindingsStore.list_by_status(FindingStatus.VALIDATED)`). If there
+  are none, stop and point out that `/quarry:validate` is missing — a
+  report without validated findings is, at best, a recon/coverage
+  report, not a findings report. Offer to generate an "engagement
+  status" report if that is what the operator wants, but do not call it
+  a findings report.
+- Findings in `STALL`, `DETECTED` or `CONFIRMED` (not validated) **do
+  not enter the report** as confirmed findings. If the operator insists
+  on including them, they must appear in a separate, clearly labeled
+  "not validated / in progress" section, never mixed with the main list.
 
-## Argumentos
+## Arguments
 
-- `--format md` (default) — Markdown en `<audit_dir>/report/`.
-- `--format pdf` — generar el Markdown primero igual, después convertir.
-  Si hay una skill de PDF disponible en el entorno (ver skills
-  disponibles: `anthropic-skills:pdf` / Adobe PDF tools), usarla para la
-  conversión en vez de reinventar generación de PDF a mano.
-- `--executive` — solo el resumen ejecutivo (`executive-summary.md`),
-  sin el detalle técnico completo de cada finding. Pensado para
-  stakeholders no técnicos.
+- `--format md` (default) — Markdown in `<audit_dir>/report/`.
+- `--format pdf` — generate the Markdown first anyway, then convert.
+  If a PDF skill is available in the environment (see available skills:
+  `anthropic-skills:pdf` / Adobe PDF tools), use it for conversion
+  instead of reinventing PDF generation by hand.
+- `--executive` — executive summary only (`executive-summary.md`),
+  without the full technical detail of each finding. Intended for
+  non-technical stakeholders.
 
-## Secciones del reporte completo
+## Report sections (full)
 
-Usar `templates/engagement-report.md` si existe; si no, esta estructura
-(y señalar el gap de contenido):
+Use `templates/engagement-report.md` if it exists; otherwise this
+structure (and flag the content gap):
 
-1. **Resumen ejecutivo** — 1 página: qué se probó, cuántos findings por
-   severidad, las 1-3 cadenas más críticas en lenguaje no técnico, y la
-   recomendación principal. Esta sección es la misma que produce
-   `--executive` por sí sola.
-2. **Alcance y metodología** — scope confirmado (de `scope.json`),
-   ventana del engagement, fases ejecutadas, limitaciones conocidas
-   (ej. "no se probó fuerza bruta de credenciales por regla del
-   engagement").
-3. **Findings, ordenados por severidad** (critical → high → medium →
-   low → info), cada uno con:
-   - ID, título, clase (CWE), asset afectado
-   - Severidad + CVSS 4.0 vector string, con cada métrica justificada por
-     lo verificado; añadir CVSS 3.1 si la plataforma/cliente lo exige
-   - Descripción y root cause
-   - Steps to reproduce, numerados
-   - Evidencia (referenciar o embeber el request/response, con datos
-     sensibles redactados si el reporte va a circular más allá del
-     contacto autorizado)
-   - Impacto demostrado (nunca "podría permitir" sin PoC)
-   - Remediación concreta
-   - Mapeo MITRE ATT&CK (tactic + technique ID)
+1. **Executive summary** — 1 page: what was tested, findings count by
+   severity, the 1-3 most critical chains in non-technical language, and
+   the main recommendation. This section is the same as what `--executive`
+   produces on its own.
+2. **Scope and methodology** — confirmed scope (from `scope.json`),
+   engagement window, phases executed, known limitations (e.g. "brute
+   force of credentials was not tested per engagement rules").
+3. **Findings, ordered by severity** (critical → high → medium →
+   low → info), each with:
+   - ID, title, class (CWE), affected asset
+   - Severity + CVSS 4.0 vector string, with each metric justified by
+     what was verified; add CVSS 3.1 if the platform/client requires it
+   - Description and root cause
+   - Steps to reproduce, numbered
+   - Evidence (reference or embed the request/response, with sensitive
+     data redacted if the report will circulate beyond the authorized
+     contact)
+   - Demonstrated impact (never "could allow" without a PoC)
+   - Concrete remediation
+   - MITRE ATT&CK mapping (tactic + technique ID)
    - `evidence_tag` (Demonstrated/Inferred/Unproven) visible
-4. **Cadenas de ataque** — cada cadena de `/quarry:chain` que pasó
-   `/quarry:validate`, con el mecanismo completo, los findings componentes
-   (como referencia, no repetidos en extenso), e impacto combinado.
-5. **Matriz de cobertura** — de `CoverageTracker.summary()` y
-   `get_gaps()`: qué se probó, qué no, y por qué (scope, tiempo, o
-   limitación técnica). Esto es tan importante como los findings — un
-   reporte sin gaps declarados implica cobertura total, que casi nunca
-   es cierta.
-6. **Mapeo de frameworks** — tabla CVSS por finding, tabla MITRE ATT&CK
-   agregada (qué tactics/techniques cubre el engagement en conjunto), y
-   si aplica, NIST CSF / OWASP Top 10 (`references/frameworks/`).
-7. **Recomendaciones** — priorizadas por severidad e impacto de negocio,
-   no solo por CVSS numérico (una `medium` que habilita una cadena
-   crítica se prioriza sobre una `high` aislada).
-8. **Apéndices** — findings `KILLED` durante validación (con razón, para
-   transparencia si el cliente pregunta por qué algo reportado por un
-   scanner no aparece), y el historial de fases del engagement.
+4. **Attack chains** — each chain from `/quarry:chain` that passed
+   `/quarry:validate`, with the full mechanism, the component findings
+   (as references, not repeated in full), and combined impact.
+5. **Coverage matrix** — from `CoverageTracker.summary()` and
+   `get_gaps()`: what was tested, what was not, and why (scope, time, or
+   technical limitation). This is as important as the findings — a
+   report without declared gaps implies total coverage, which is almost
+   never true.
+6. **Framework mapping** — CVSS table per finding, aggregated MITRE
+   ATT&CK table (which tactics/techniques the engagement covers as a
+   whole), and if applicable, NIST CSF / OWASP Top 10
+   (`references/frameworks/`).
+7. **Recommendations** — prioritized by severity and business impact,
+   not just by numerical CVSS (a `medium` that enables a critical chain
+   takes priority over an isolated `high`).
+8. **Appendices** — findings `KILLED` during validation (with reason,
+   for transparency if the client asks why something flagged by a
+   scanner doesn't appear), and the engagement phase history.
 
-## Pasos exactos
+## Exact steps
 
-1. Cargar findings `VALIDATED`/`REPORTED` y cadenas verificadas.
-2. Si `--executive`: generar solo la sección 1, expandida a ~1-2
-   páginas, y detenerse ahí.
-3. Si no: generar todas las secciones en orden, escribir
+1. Load `VALIDATED`/`REPORTED` findings and verified chains.
+2. If `--executive`: generate only section 1, expanded to ~1-2 pages,
+   and stop there.
+3. If not: generate all sections in order, write
    `<audit_dir>/report/engagement-report.md`.
-4. Transicionar cada finding incluido de `VALIDATED` a `REPORTED`
+4. Transition each included finding from `VALIDATED` to `REPORTED`
    (`FindingsStore.update_status(id, FindingStatus.REPORTED)`).
-5. Si `--format pdf`: convertir el Markdown a PDF (vía skill de PDF
-   disponible), guardar junto al `.md`.
-6. Transicionar la fase del engagement a `REPORTING` si venía de
+5. If `--format pdf`: convert the Markdown to PDF (via available PDF
+   skill), save alongside the `.md`.
+6. Transition the engagement phase to `REPORTING` if it was at
    `VALIDATING`.
-7. Preguntar al operador si el engagement se cierra (`Phase.CLOSED`)
-   tras entregar el reporte, o si queda abierto para una ronda de
-   retest — no cerrar automáticamente.
+7. Ask the operator whether the engagement closes (`Phase.CLOSED`)
+   after delivering the report, or stays open for a retest round —
+   do not close automatically.
 
 ## Edge cases
 
-- **Mezcla de findings y findings-no-validados que el operador quiere
-  mostrar igual**: permitir, pero en apéndice separado y con una nota
-  explícita de que no pasaron el pipeline de validación completo.
-- **Cadena validada cuyos findings componentes individuales NO están
-  validados** (pasó por rebuttal la combinación, pero algún finding base
-  quedó en `STALL`): esto no debería ocurrir si `/quarry:validate` se corrió
-  correctamente sobre la cadena; si ocurre, señalarlo como inconsistencia
-  de estado y resolver antes de incluir la cadena en el reporte.
-- **Reporte parcial a mitad de engagement** (operador pide un snapshot
-  antes de terminar hunting): generar igual, pero titularlo claramente
-  "Reporte parcial — engagement en curso" y listar qué fases faltan.
-- **Datos sensibles reales en evidencia** (PII, credenciales reales):
-  redactar en el reporte salvo que el destinatario sea exactamente el
-  contacto autorizado y el formato de entrega ya contemplado en las
-  reglas del engagement.
+- **Mix of validated and non-validated findings the operator wants to
+  show anyway**: allow, but in a separate appendix with an explicit note
+  that they did not pass the full validation pipeline.
+- **Validated chain whose individual component findings are NOT
+  validated** (the combination passed rebuttal, but a base finding
+  stayed in `STALL`): this should not happen if `/quarry:validate` was
+  run correctly on the chain; if it does, flag it as a state
+  inconsistency and resolve before including the chain in the report.
+- **Partial report mid-engagement** (operator requests a snapshot
+  before finishing hunting): generate it, but clearly title it
+  "Partial report — engagement in progress" and list which phases
+  remain.
+- **Real sensitive data in evidence** (PII, real credentials): redact
+  in the report unless the recipient is exactly the authorized contact
+  and the delivery format already accounts for this in the engagement
+  rules.
 
-## Output esperado
+## Expected output
 
-- Ruta(s) del/los archivo(s) generado(s).
-- Conteo de findings incluidos por severidad, y conteo de cadenas.
-- Resumen de cobertura y gaps declarados.
-- Si quedaron findings `STALL`/`KILLED` relevantes, mencionarlos aunque
-  no estén en el cuerpo principal del reporte.
+- Path(s) of the generated file(s).
+- Count of included findings by severity, and chain count.
+- Coverage summary and declared gaps.
+- If relevant `STALL`/`KILLED` findings remain, mention them even
+  though they are not in the report body.

@@ -22,7 +22,7 @@ Most AI pentest tools optimize for **autonomy** — more tools, more actions, le
 | Report findings based on version banners | Require PoC or evidence before any finding |
 | Trust the AI's classification | Blind adversarial rebuttal by an independent agent |
 | Flat list of vulnerabilities | Attack chains with BFS graph walking |
-| "We found 47 vulnerabilities" | Custody-grade evidence log, hash-chained, attestable |
+| "We found 47 vulnerabilities" | Custody-grade evidence log, hash-chained, locally tamper-evident |
 
 **The result:** reports that survive scrutiny. Findings that reproduce. Evidence that holds up.
 
@@ -114,7 +114,7 @@ engagement-planner ──► recon-agent ──► exploit-researcher
 
 **Human gates:** exploitation, state-modifying payloads, scope expansion, destructive actions, and pivoting all require explicit operator confirmation.
 
-**Custody chain:** every evidence artifact is logged in an append-only, hash-chained custody log. Each entry is attestable after the fact.
+**Custody chain:** every evidence artifact is logged in an append-only, hash-chained custody log. The chain is locally tamper-evident — any modification breaks the hash sequence.
 
 ---
 

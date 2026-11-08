@@ -6,29 +6,29 @@ allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 
 # /quarry:hunt [class] [--asset <asset>]
 
-Ejecuta las skills `*` contra el scope. Sin argumentos, corre TODAS
-las clases contra TODOS los assets, breadth-first (regla de `CLAUDE.md`
-del plugin: cubrir ancho antes que profundidad). Con `[class]`, limita a
-esa clase sobre todos los assets. Con `--asset <asset>`, limita a ese
-asset sobre todas las clases (o la clase dada, si ambos se combinan).
+Runs the `*` skills against the scope. Without arguments, runs ALL
+classes against ALL assets, breadth-first (plugin `CLAUDE.md` rule:
+cover breadth before depth). With `[class]`, limits to that class
+across all assets. With `--asset <asset>`, limits to that asset across
+all classes (or the given class, if both are combined).
 
-## Precondición
+## Precondition
 
-- Fase `MAPPED` o `HUNTING`. Si el engagement está en `RECON` sin pasar
-  por `/quarry:map`, advertir que hunting sin mapas pierde contexto de
-  trust/identity/capability — permitir si el operador insiste (target
-  trivial), pero dejarlo registrado.
-- Releer `coverage.json` y `findings.json` existentes antes de arrancar
-  — no reescanear una celda `tested_clean` o `finding_detected` ya
-  registrada salvo que el operador pida explícitamente re-test.
+- Phase `MAPPED` or `HUNTING`. If the engagement is in `RECON` without
+  having gone through `/quarry:map`, warn that hunting without maps loses
+  trust/identity/capability context — allow if the operator insists
+  (trivial target), but log the decision.
+- Re-read existing `coverage.json` and `findings.json` before starting
+  — do not rescan a cell already marked `tested_clean` or
+  `finding_detected` unless the operator explicitly requests a re-test.
 
-## Mapeo clase → skill
+## Class → skill mapping
 
-`engine/coverage.py` define `ALL_VULN_CLASSES` (40 clases). Cada clase
-mapea a una skill en `skills/hunt/`; varias clases comparten una skill
-cuando son variantes de la misma técnica:
+`engine/coverage.py` defines `ALL_VULN_CLASSES`. Each class maps to a
+skill in `skills/hunt/`; several classes share a skill when they are
+variants of the same technique:
 
-| Skill (`skills/hunt/<x>`)   | Vuln classes cubiertas                              |
+| Skill (`skills/hunt/<x>`)   | Vuln classes covered                                |
 |------------------------------|------------------------------------------------------|
 | sqli                   | sqli                                                 |
 | xss                    | xss-reflected, xss-dom, xss-stored                  |
@@ -68,79 +68,80 @@ cuando son variantes de la misma técnica:
 | session-management     | session-management                                    |
 | email-injection        | email-injection                                        |
 
-Si se pasa `[class]` y no matchea ni el nombre de skill ni una clase de
-`ALL_VULN_CLASSES` (comparar con normalización `lower().replace('_','-')`),
-listar las clases válidas y pedir que se repita el comando.
+If `[class]` is passed and does not match either a skill name or a class
+from `ALL_VULN_CLASSES` (compare with `lower().replace('_','-')`
+normalization), list the valid classes and ask to repeat the command.
 
-## Pasos exactos
+## Exact steps
 
-1. Resolver el set granular de celdas: `asset × clase × endpoint × método ×
-   parámetro × identidad × técnica`. Sin argumentos se cubren todas las celdas
-   registradas en `coverage.json`; los filtros `[class]` y `--asset` acotan ese
-   conjunto sin borrar la granularidad.
-2. Filtrar contra `coverage.get_gaps()` salvo re-test explícito. Una celda
-   `partial`, `inconclusive`, `blocked`, `tool_unavailable` o `deferred` sigue
-   siendo un gap; no equivale a cobertura concluyente.
-3. Para cada celda, leer su skill y usar `ToolRunner` o `ProtectedHTTPClient`.
-   Guardar primero los artefactos crudos con `ArtifactStore`; incluir sus IDs en
-   el resultado. Si falta la skill, registrar `blocked` con gap de contenido, no
-   improvisar y marcar cobertura concluyente.
-4. Ejecutar la prueba. Resultado posible:
-   - **Sin hallazgo, evidencia completa** → `mark_tested(...,
+1. Resolve the granular cell set: `asset × class × endpoint × method ×
+   parameter × identity × technique`. Without arguments, all cells
+   registered in `coverage.json` are covered; the `[class]` and `--asset`
+   filters narrow that set without removing granularity.
+2. Filter against `coverage.get_gaps()` unless explicit re-test. A cell
+   with status `partial`, `inconclusive`, `blocked`, `tool_unavailable`,
+   or `deferred` is still a gap; it does not count as conclusive coverage.
+3. For each cell, read its skill and use `ToolRunner` or
+   `ProtectedHTTPClient`. Save raw artifacts first with `ArtifactStore`;
+   include their IDs in the result. If the skill is missing, register
+   `blocked` with a content gap — do not improvise and mark conclusive
+   coverage.
+4. Execute the test. Possible outcomes:
+   - **No finding, complete evidence** → `mark_tested(...,
      status="tested_clean", evidence_artifacts=[...], evidence_complete=True)`.
-   - **Hallazgo candidato** → crear `Finding` en `DETECTED` y marcar
-     `finding_detected` solo con referencias de evidencia completas.
-   - **Timeout, respuesta incompleta o resultado ambiguo** → `inconclusive`.
-   - **Herramienta ausente** → `tool_unavailable`.
-   - **No soportado por la tecnología** → `not_applicable` con evidencia de por qué.
-   - **Fuera de scope** → `out_of_scope`; **gate pendiente** → `blocked`;
-     **pospuesto** → `deferred`. Nunca usar `skipped` como cajón genérico.
-5. Un finding en `DETECTED` no es definitivo — no reportarlo como
-   confirmado todavía. Intentar reproducirlo manualmente una vez (no en
-   loop) para subirlo a `CONFIRMED` vía
+   - **Candidate finding** → create `Finding` at `DETECTED` and mark
+     `finding_detected` only with complete evidence references.
+   - **Timeout, incomplete response, or ambiguous result** → `inconclusive`.
+   - **Missing tool** → `tool_unavailable`.
+   - **Not supported by the technology** → `not_applicable` with evidence
+     explaining why.
+   - **Out of scope** → `out_of_scope`; **gate pending** → `blocked`;
+     **postponed** → `deferred`. Never use `skipped` as a catch-all.
+5. A finding at `DETECTED` is not definitive — do not report it as
+   confirmed yet. Attempt to manually reproduce it once (not in a loop)
+   to promote it to `CONFIRMED` via
    `FindingsStore.update_status(id, FindingStatus.CONFIRMED, reason=...)`
-   si la reproducción es limpia; si no reproduce, dejarlo en `DETECTED`
-   con nota, o matarlo (`KILLED`) si era claramente falso positivo del
-   scanner.
-6. Respetar budget: antes de cada clase nueva, chequear
-   `BudgetManager.record_call(phase="hunting", command=...)`. Si
-   `allowed=False`, detener y escalar al operador (regla de `CLAUDE.md`
-   del plugin: 80% de budget sin progreso → escalar).
+   if reproduction is clean; if it does not reproduce, leave it at
+   `DETECTED` with a note, or kill it (`KILLED`) if it was clearly a
+   scanner false positive.
+6. Respect budget: before each new class, check
+   `BudgetManager.record_call(phase="hunting", command=...)`. If
+   `allowed=False`, stop and escalate to the operator (plugin `CLAUDE.md`
+   rule: 80% budget without progress → escalate).
 
-## Gate humano
+## Human gate
 
-Cualquier técnica que module estado del target (escritura, mutación de
-datos reales, envío de emails/SMS reales, condiciones de carrera contra
-funciones financieras) requiere confirmación explícita del operador
-ANTES de ejecutar, incluso en modo "breadth-first" sin argumentos. No
-hacer excepciones por volumen — si el hunting completo requiere 10
-confirmaciones, pedirlas todas, agrupadas si es posible para no
-interrumpir el flujo innecesariamente.
+Any technique that mutates target state (writes, real data mutation,
+sending real emails/SMS, race conditions against financial functions)
+requires explicit operator confirmation BEFORE execution, even in
+"breadth-first" mode without arguments. No exceptions for volume — if
+the full hunt requires 10 confirmations, request them all, grouped when
+possible to avoid unnecessary flow interruption.
 
 ## Edge cases
 
-- **Clase no aplicable a la tecnología del asset** (ej. `ssti` en
-  un asset que sirve solo JSON estático sin motor de templates): marcar
-  `skipped` con razón concreta ("no se detectó motor de templates en
-  tech-stack-fingerprint"), no "tested_clean" — son estados distintos.
-- **Asset deja de responder / rate-limit agresivo**: pausar esa fila,
-  continuar con otros assets, documentar el umbral, no reintentar en
-  loop (máx. 3 veces).
-- **Mismo root cause en múltiples celdas** (ej. falta de output
-  encoding afecta 3 endpoints distintos bajo xss-reflected): registrar
-  como findings separados por ahora — la deduplicación formal es trabajo
-  de `/quarry:validate` (paso de `dedup`), no de hunt.
-- **Hallazgo que claramente pertenece a otra clase** (ej. buscando SSRF
-  se encuentra un IDOR): registrarlo en la clase correcta
-  inmediatamente, no forzarlo en la celda que se estaba probando.
+- **Class not applicable to the asset's technology** (e.g. `ssti` on
+  an asset that serves only static JSON without a template engine): mark
+  `skipped` with a concrete reason ("no template engine detected in
+  tech-stack-fingerprint"), not "tested_clean" — these are distinct
+  states.
+- **Asset stops responding / aggressive rate-limit**: pause that row,
+  continue with other assets, document the threshold, do not retry in a
+  loop (max 3 attempts).
+- **Same root cause across multiple cells** (e.g. missing output
+  encoding affects 3 distinct endpoints under xss-reflected): register
+  as separate findings for now — formal deduplication is the job of
+  `/quarry:validate` (dedup step), not hunt.
+- **Finding that clearly belongs to another class** (e.g. while testing
+  for SSRF an IDOR is found): register it under the correct class
+  immediately, do not force it into the cell being tested.
 
-## Output esperado
+## Expected output
 
-- Resumen de la corrida: celdas probadas, limpias, con hallazgo, y
-  skipped — con razones.
-- Lista de findings nuevos (ID, clase, asset, severidad preliminar,
-  status).
-- Ratio de cobertura actualizado (`CoverageTracker.summary()`).
-- Próximo paso recomendado: si quedan ≥2 findings `CONFIRMED` o
-  `EXPLOITED`, `/quarry:chain`; si no, seguir con celdas pendientes o
-  `/quarry:validate` sobre lo que ya hay.
+- Run summary: cells tested, clean, with finding, and skipped — with
+  reasons.
+- List of new findings (ID, class, asset, preliminary severity, status).
+- Updated coverage ratio (`CoverageTracker.summary()`).
+- Recommended next step: if ≥2 findings are `CONFIRMED` or `EXPLOITED`,
+  `/quarry:chain`; otherwise, continue with pending cells or
+  `/quarry:validate` on what exists so far.

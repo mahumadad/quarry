@@ -1,78 +1,79 @@
 ---
 name: quarry:engage
-description: Inicia un nuevo engagement de pentest — scope, directorio de auditoría, target card
+description: Start a new pentest engagement — scope, audit directory, target card
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
 # /quarry:engage <target>
 
-Inicializa un engagement nuevo. Es el único comando que puede crear un
-engagement desde cero; todos los demás comandos requieren que este haya
-corrido primero y haya scope confirmado.
+Initializes a new engagement. It is the only command that can create an
+engagement from scratch; all other commands require this one to have run
+first with confirmed scope.
 
-## Argumento
+## Argument
 
-`<target>` — nombre o dominio principal del target (ej. `target.example.com`,
-`acme-corp.test`). Obligatorio. Si falta, pedirlo antes de continuar.
+`<target>` — main target name or domain (e.g. `target.example.com`,
+`acme-corp.test`). Required. If missing, ask before continuing.
 
-## Edge cases primero
+## Edge cases first
 
-- Si ya existe un engagement activo (hay `.pentest-state/engagement.json`
-  en el directorio de auditoría resuelto para este target) y su fase no es
-  `closed`: mostrar el estado actual (fase, scope, findings) y preguntar
-  si se retoma ese engagement o se crea uno nuevo con sufijo de fecha. No
-  sobrescribir silenciosamente.
-- Si el operador no puede dar una referencia de autorización verificable
-  (correo, carta, contrato, programa de bug bounty con alcance publicado):
-  **detener el comando**. Sin autorización no hay engagement. Esto no es
-  negociable — es la regla #1 de `CLAUDE.md` del plugin.
-- Si el target coincide con un dominio/IP ya marcado out-of-scope en un
-  engagement previo del mismo operador (si se encuentra un audit dir
-  hermano), advertir antes de continuar.
+- If an active engagement already exists (there is a
+  `.pentest-state/engagement.json` in the resolved audit directory for
+  this target) and its phase is not `closed`: show the current state
+  (phase, scope, findings) and ask whether to resume that engagement or
+  create a new one with a date suffix. Do not overwrite silently.
+- If the operator cannot provide a verifiable authorization reference
+  (email, letter, contract, bug bounty program with published scope):
+  **stop the command**. No authorization, no engagement. This is
+  non-negotiable — it is rule #1 of the plugin's `CLAUDE.md`.
+- If the target matches a domain/IP already marked out-of-scope in a
+  previous engagement by the same operator (if a sibling audit dir is
+  found), warn before continuing.
 
-## Pasos exactos
+## Exact steps
 
-1. **Resolver directorio de auditoría.** Convención por defecto:
-   `$QUARRY_AUDIT_DIR/<slug>_audit/` (si `$QUARRY_AUDIT_DIR` no está
-   definida, preguntar al operador). `<slug>` es el target en
-   minúsculas, sin protocolo, con `.` y caracteres no alfanuméricos
-   reemplazados por `-` (ej. `app.target.example.com` →
-   `target-example-com_audit`, pero preferir el nombre de marca corto si
-   el operador lo da, ej. `acme-corp_audit`). Preguntar al operador si
-   quiere ese path u otro antes de crear nada.
+1. **Resolve audit directory.** Default convention:
+   `$QUARRY_AUDIT_DIR/<slug>_audit/` (if `$QUARRY_AUDIT_DIR` is not
+   set, ask the operator). `<slug>` is the target in lowercase, without
+   protocol, with `.` and non-alphanumeric characters replaced by `-`
+   (e.g. `app.target.example.com` → `target-example-com_audit`, but
+   prefer the short brand name if the operator provides it, e.g.
+   `acme-corp_audit`). Ask the operator whether they want that path or
+   another before creating anything.
 
-2. **Pedir y confirmar scope — explícitamente, antes de tocar el target:**
-   - Dominios/IPs/CIDRs **in-scope** (uno o más).
-   - Dominios/IPs/rutas **out-of-scope** (si no hay ninguno, preguntar
-     "¿todo lo que resuelva bajo este target está en scope, o hay
-     exclusiones?" — no asumir "ninguna exclusión" por omisión).
-   - **Referencia de autorización**: quién autorizó, cómo (correo/carta/
-     programa), fecha. Guardar el texto o enlace tal cual, no resumido.
-   - **Reglas del engagement**: horarios permitidos, rate limits, técnicas
-     prohibidas (ej. "no DoS", "no ingeniería social con empleados reales",
-     "no destructivo en prod"), y si requiere notificación previa a la
-     explotación.
-   - Mostrar el scope completo de vuelta al operador en una tabla y pedir
-     confirmación explícita ("¿confirmas este scope?") antes de guardar
-     nada. Si el operador corrige algo, repetir la confirmación.
+2. **Ask for and confirm scope — explicitly, before touching the target:**
+   - Domains/IPs/CIDRs **in-scope** (one or more).
+   - Domains/IPs/paths **out-of-scope** (if none, ask "is everything
+     resolving under this target in scope, or are there exclusions?" —
+     do not assume "no exclusions" by omission).
+   - **Authorization reference**: who authorized, how (email/letter/
+     program), date. Store the text or link verbatim, not summarized.
+   - **Engagement rules**: allowed hours, rate limits, prohibited
+     techniques (e.g. "no DoS", "no social engineering with real
+     employees", "no destructive actions in prod"), and whether prior
+     notification is required before exploitation.
+   - Show the full scope back to the operator in a table and ask for
+     explicit confirmation ("do you confirm this scope?") before saving
+     anything. If the operator corrects something, repeat confirmation.
 
-3. **Generar la target card (5 preguntas).** Formato de
-   `templates/target-card.md` si el archivo existe; si no, usar esta
-   estructura inline y, en ese caso, avisar que el template no está
-   escrito todavía:
-   1. ¿Qué es el target? (producto/empresa/organización, qué hace, quién
-      lo usa)
-   2. ¿Cuáles son los crown jewels? (qué dato o función, si se compromete,
-      hace crítico el engagement — PII, dinero, credenciales admin, etc.)
-   3. ¿Quién es el contacto/autorización? (nombre, rol, referencia del
-      paso 2)
-   4. ¿Qué está explícitamente fuera de scope o prohibido?
-   5. ¿Cuál es la ventana del engagement y las reglas de tiempo/tasa?
+3. **Generate the target card (5 questions).** Format from
+   `templates/target-card.md` if the file exists; otherwise use this
+   inline structure and, in that case, note that the template is not
+   written yet:
+   1. What is the target? (product/company/organization, what it does,
+      who uses it)
+   2. What are the crown jewels? (what data or function, if compromised,
+      makes the engagement critical — PII, money, admin credentials,
+      etc.)
+   3. Who is the contact/authorization? (name, role, reference from
+      step 2)
+   4. What is explicitly out of scope or prohibited?
+   5. What is the engagement window and the time/rate rules?
 
-   Rellenar la target card con las respuestas del operador. Si alguna
-   respuesta es ambigua, preguntar de nuevo — no inferir.
+   Fill the target card with the operator's answers. If any answer is
+   ambiguous, ask again — do not infer.
 
-4. **Crear el directorio de auditoría** con `mkdir -p`:
+4. **Create the audit directory** with `mkdir -p`:
    ```
    <audit_dir>/
    ├── .pentest-state/
@@ -81,8 +82,8 @@ corrido primero y haya scope confirmado.
    └── report/        # drafts y reporte final
    ```
 
-5. **Inicializar el estado del engine** (usa `engine/state.py` vía Python,
-   con `${CLAUDE_PLUGIN_ROOT}/engine` en `sys.path`):
+5. **Initialize engine state** (uses `engine/state.py` via Python,
+   with `${CLAUDE_PLUGIN_ROOT}/engine` in `sys.path`):
    ```bash
    python3 -c "
    import sys; sys.path.insert(0, '${CLAUDE_PLUGIN_ROOT}/engine')
@@ -92,9 +93,9 @@ corrido primero y haya scope confirmado.
    print(s.to_dict())
    "
    ```
-   `<engagement_id>` sugerido: `<slug>-<YYYYMMDD>`.
+   Suggested `<engagement_id>`: `<slug>-<YYYYMMDD>`.
 
-6. **Guardar el scope** con `engine/scope.py`:
+6. **Save the scope** with `engine/scope.py`:
    ```python
    from scope import Scope
    sc = Scope(authorization="<referencia>", rules=[...])
@@ -103,29 +104,30 @@ corrido primero y haya scope confirmado.
    sc.save(Path("<audit_dir>/.pentest-state/scope.json"))
    ```
 
-7. **Persistir los controles y la autoridad.** Configurar `TimeWindowGuard`
-   con timezone, ventanas y expiración; son obligatorios para acciones de red.
-   Registrar `CustodyLog.scope_confirmed(...)` con el hash del scope y la
-   referencia de autorización. Guardar secretos únicamente en el vault cifrado
-   (`PENTEST_VAULT_KEY` externo recomendado), nunca en target cards o comandos.
+7. **Persist controls and authority.** Configure `TimeWindowGuard` with
+   timezone, windows, and expiration; they are mandatory for network
+   actions. Record `CustodyLog.scope_confirmed(...)` with the scope hash
+   and the authorization reference. Store secrets only in the encrypted
+   vault (`PENTEST_VAULT_KEY` external recommended), never in target
+   cards or commands.
 
-8. **Transicionar la fase** `INIT → SCOPED` con `s.transition(Phase.SCOPED)`.
-   Si `can_transition` devuelve `False` (no debería en un engagement nuevo),
-   reportarlo y detenerse — es una señal de estado corrupto, no algo para
-   forzar.
+8. **Transition the phase** `INIT → SCOPED` with
+   `s.transition(Phase.SCOPED)`. If `can_transition` returns `False`
+   (should not happen on a new engagement), report it and stop — it is
+   a signal of corrupt state, not something to force.
 
-9. **Escribir la target card** como `<audit_dir>/report/target-card.md`
-   (Write tool) con las 5 respuestas y el scope resuelto.
+9. **Write the target card** as `<audit_dir>/report/target-card.md`
+   (Write tool) with the 5 answers and the resolved scope.
 
-## Output esperado
+## Expected output
 
-- Confirmación en una tabla: target, slug, audit dir, fase actual (SCOPED),
-  scope in/out, referencia de autorización.
-- Ruta de la target card escrita.
-- Próximo paso recomendado: `/quarry:recon` (full, por defecto).
+- Confirmation in a table: target, slug, audit dir, current phase
+  (SCOPED), in/out scope, authorization reference.
+- Path of the written target card.
+- Recommended next step: `/quarry:recon` (full, by default).
 
-No ejecutar ningún scan, request HTTP, ni herramienta de descubrimiento en
-este comando — `/quarry:engage` solo establece scope y estado. Cualquier
-tentación de "adelantar" recon aquí se rechaza explícitamente: eso es
-trabajo de `/quarry:recon` y debe correr con el scope ya persistido y el guard
-de `hooks/hooks.json` activo.
+Do not run any scan, HTTP request, or discovery tool in this command —
+`/quarry:engage` only establishes scope and state. Any temptation to
+"get ahead" on recon here is explicitly rejected: that is `/quarry:recon`'s
+job and must run with scope already persisted and the `hooks/hooks.json`
+guard active.

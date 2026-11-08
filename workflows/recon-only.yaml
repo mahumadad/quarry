@@ -1,5 +1,5 @@
 name: recon-only
-description: Solo recon + mapping — sin hunting ni explotación
+description: Recon and mapping only — no hunting or exploitation
 
 phases:
   - name: scope
@@ -34,7 +34,7 @@ phases:
     gate: human_review
 
   - name: reporting
-    description: Report de superficie sin findings de explotación
+    description: Surface report without exploitation findings
     outputs:
       - attack-surface-report.md
       - asset-inventory.json

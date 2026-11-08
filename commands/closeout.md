@@ -4,33 +4,33 @@ description: Close engagement with final coverage summary and deliverable checkl
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /quarry:closeout — Cierre formal del engagement
+# /quarry:closeout — Formal engagement closure
 
-Uso: `/quarry:closeout`
+Usage: `/quarry:closeout`
 
-Lanza `workflows/closeout.yaml`. La regla: un engagement NO está terminado
-cuando se entrega el reporte — está terminado cuando el closeout se completa.
+Launches `workflows/closeout.yaml`. The rule: an engagement is NOT finished
+when the report is delivered — it is finished when the closeout is complete.
 
-## Checklist que ejecuta
+## Checklist it executes
 
-1. **Limpieza de artefactos** — todo archivo subido, cuenta creada, webhook
-   configurado y cambio de estado deliberado queda removido, delegado al
-   cliente, o documentado como irreversible. Sin excepciones.
-2. **Higiene de credenciales** — vault rotado/revocado, tokens del
-   engagement muertos, ninguna credencial fuera del vault.
-3. **Sello de evidencia** — `CustodyLog.verify()` final (debe estar ÍNTEGRA),
-   evento de cierre, y bundle con manifest SHA-256 vía `/quarry:deliver`.
-4. **Retención de datos** — destino contractual de los datos del engagement;
-   la destrucción se registra en custody como último evento. `knowledge.py`
-   solo conserva técnicas anonimizadas — verificar.
-5. **Debrief** — sesión de cierre con el cliente (walkthrough de críticos,
-   gaps, próximos pasos: retest / surface-watch / purple-team).
+1. **Artifact cleanup** — every uploaded file, created account, configured
+   webhook, and deliberate state change is removed, delegated to the client,
+   or documented as irreversible. No exceptions.
+2. **Credential hygiene** — vault rotated/revoked, engagement tokens killed,
+   no credentials outside the vault.
+3. **Evidence seal** — final `CustodyLog.verify()` (must be INTACT),
+   closure event, and bundle with SHA-256 manifest via `/quarry:deliver`.
+4. **Data retention** — contractual destination for engagement data;
+   destruction is recorded in custody as the last event. `knowledge.py`
+   only retains anonymized techniques — verify.
+5. **Debrief** — closing session with the client (walkthrough of criticals,
+   gaps, next steps: retest / surface-watch / purple-team).
 
-## Reglas
+## Rules
 
-- Cada ítem de limpieza exige evidencia de remoción (request que confirma
-  404, cuenta deshabilitada, etc.) — "yo lo borré" no es verificación.
-- Si un artefacto NO puede removerse (dato escrito sin rollback), queda en
-  el reporte como tal — el cliente debe saberlo.
-- El closeout también tiene ventana: correrlo dentro del tiempo autorizado
-  (timeguard), porque la limpieza misma toca el target.
+- Every cleanup item requires removal evidence (request confirming
+  404, disabled account, etc.) — "I deleted it" is not verification.
+- If an artifact CANNOT be removed (data written without rollback), it stays
+  in the report as such — the client must know.
+- The closeout also has a time window: run it within the authorized time
+  (timeguard), because the cleanup itself touches the target.

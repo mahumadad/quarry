@@ -1,5 +1,5 @@
 name: closeout
-description: Cierre de engagement — limpieza de artefactos, rotación de credenciales, sello de custodia y debrief
+description: Engagement closeout — artifact cleanup, credential rotation, custody seal, and debrief
 
 # La fase que distingue un pentest profesional: irse sin dejar rastro
 # operacional y con la evidencia sellada. Saltarse el closeout deja

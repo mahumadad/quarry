@@ -4,46 +4,46 @@ description: Run a remediation verification engagement against a prior report
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /quarry:retest — Engagement de verificación de remediación
+# /quarry:retest — Remediation verification engagement
 
-Uso: `/quarry:retest <engagement_original_dir>`
+Usage: `/quarry:retest <original_engagement_dir>`
 
-## Qué hace
+## What it does
 
-Lanza el workflow `retest.yaml` contra los findings de un engagement
-previo: el cliente aplicó fixes y hay que probar que los exploits murieron.
+Launches the `retest.yaml` workflow against findings from a prior engagement:
+the client applied fixes and we need to verify the exploits are dead.
 
-## Flujo
+## Flow
 
-1. **Carga el engagement original**: findings, PoCs (steps-to-reproduce),
-   snapshot del target (engine/checkpoint.py / target_diff).
-2. **Baseline diff** (`engine/target_diff.py`): qué cambió en el target
-   desde el scan original. Cambios inesperados (rutas nuevas, servicios
-   nuevos) se reportan al operador ANTES de re-testear — pueden ser scope
-   nuevo no autorizado.
-3. **Re-exploit en sesión fría** por cada finding (agente re-exploit-agent):
-   - cookie jar nuevo, credenciales frescas del vault,
-   - ejecutar el PoC EXACTO del reporte,
-   - clasificar: FIXED / PARTIAL / NOT_FIXED / REGRESSED (ver retest.yaml).
-4. **Variant sweep**: para findings cuyo patrón tenía siblings
-   (variant-analysis), re-barrer las ubicaciones no reportadas — el fix de
-   instancia sin fix de patrón es el caso más común de "fix" falso.
-5. **Reporte de retest**: tabla finding × estado × evidencia nueva. Sin
-   hunting nuevo — superficie nueva requiere engagement nuevo con su scope.
+1. **Load the original engagement**: findings, PoCs (steps-to-reproduce),
+   target snapshot (engine/checkpoint.py / target_diff).
+2. **Baseline diff** (`engine/target_diff.py`): what changed on the target
+   since the original scan. Unexpected changes (new paths, new services)
+   are reported to the operator BEFORE re-testing — they may be unauthorized
+   new scope.
+3. **Cold-session re-exploit** for each finding (re-exploit-agent):
+   - fresh cookie jar, fresh credentials from the vault,
+   - execute the EXACT PoC from the report,
+   - classify: FIXED / PARTIAL / NOT_FIXED / REGRESSED (see retest.yaml).
+4. **Variant sweep**: for findings whose pattern had siblings
+   (variant-analysis), sweep unreported locations — an instance fix without
+   a pattern fix is the most common false "fix".
+5. **Retest report**: finding × status × new evidence table. No new
+   hunting — new surface requires a new engagement with its own scope.
 
-## Reglas
+## Rules
 
-- Todo re-test es evidencia nueva: requests/responses del re-test se guardan
-  con timestamp y hash como cualquier evidencia (custody log).
-- PARTIAL y NOT_FIXED reabren el finding con la evidencia del re-test —
-  nunca "el cliente dijo que lo arregló" como cierre.
-- FIXED también exige evidencia: captura del control nuevo funcionando
-  (el 403, la validación), no solo "ya no funciona el payload".
-- Si el target cambió estructuralmente (versión mayor, rewrite), declararlo:
-  un retest sobre una app distinta a la auditada tiene validez limitada —
-  recomendar engagement nuevo.
+- Every re-test produces new evidence: requests/responses from the re-test are
+  saved with timestamp and hash like any evidence (custody log).
+- PARTIAL and NOT_FIXED reopen the finding with re-test evidence —
+  never use "the client said they fixed it" as closure.
+- FIXED also requires evidence: capture of the new control working
+  (the 403, the validation), not just "the payload no longer works".
+- If the target changed structurally (major version, rewrite), declare it:
+  a retest on an app different from the one audited has limited validity —
+  recommend a new engagement.
 
-## Ejemplo
+## Example
 
 ```
 /quarry:retest engagements/acme-2026-09

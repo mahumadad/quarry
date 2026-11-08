@@ -1,94 +1,94 @@
 ---
 name: quarry:map
-description: Genera los 5 mapas Quarry (asset, trust, identity, state, capability) para el chain-analyst
+description: Generate the 5 Quarry maps (asset, trust, identity, state, capability) for chain-analyst
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
 # /quarry:map
 
-Construye los 5 mapas estructurados que `chain-analyst` (y `/quarry:chain`)
-usan como insumo. Son el puente entre recon (datos crudos) y hunting
-(prueba dirigida): sin mapas, hunting se vuelve ad-hoc y chain-analysis
-no tiene con qué trabajar.
+Builds the 5 structured maps that `chain-analyst` (and `/quarry:chain`)
+use as input. They bridge recon (raw data) and hunting (directed
+testing): without maps, hunting becomes ad-hoc and chain-analysis has
+nothing to work with.
 
-## Precondición
+## Precondition
 
-- Fase del engagement debe ser `RECON` o posterior, con al menos un
-  asset registrado en `coverage.json`. Si `/quarry:recon` no corrió nunca,
-  detener y recomendarlo primero — los mapas sin datos de recon son
-  especulación, no mapas.
-- Leer `asset-inventory.md` y los raw outputs en `<audit_dir>/raw/`
-  antes de mapear — no inventar relaciones de confianza o roles que no
-  estén respaldados por lo observado.
+- Engagement phase must be `RECON` or later, with at least one asset
+  registered in `coverage.json`. If `/quarry:recon` never ran, stop and
+  recommend it first — maps without recon data are speculation, not
+  maps.
+- Read `asset-inventory.md` and the raw outputs in `<audit_dir>/raw/`
+  before mapping — do not invent trust relationships or roles not backed
+  by observation.
 
-## Los 5 mapas
+## The 5 maps
 
-Cada uno vive en `skills/mapping/<nombre>/SKILL.md` (metodología) y se
-materializa como `<audit_dir>/report/maps/<nombre>.md`.
+Each lives in `skills/mapping/<name>/SKILL.md` (methodology) and
+materializes as `<audit_dir>/report/maps/<name>.md`.
 
-1. **Asset map** (`asset-map`) — todo lo descubierto en recon,
-   normalizado: dominios, subdominios, IPs, puertos/servicios, endpoints
-   de API, buckets cloud, repos, apps móviles. Agrupar por "sistema
-   lógico" (ej. todo lo que sirve al mismo frontend) no solo por tipo.
+1. **Asset map** (`asset-map`) — everything discovered in recon,
+   normalized: domains, subdomains, IPs, ports/services, API endpoints,
+   cloud buckets, repos, mobile apps. Group by "logical system" (e.g.
+   everything serving the same frontend), not just by type.
 
-2. **Trust map** (`trust-map`) — fronteras de confianza y flujos entre
-   assets: qué llama a qué, qué cruza una frontera de confianza (ej.
-   frontend público → API interna → base de datos), qué asume
-   confianza implícita en un header, IP interna, o token sin validar
-   origen. Esto es lo que después alimenta `ssrf`, `cors`,
-   `host-header`.
+2. **Trust map** (`trust-map`) — trust boundaries and flows between
+   assets: what calls what, what crosses a trust boundary (e.g. public
+   frontend → internal API → database), what assumes implicit trust in
+   a header, internal IP, or unvalidated-origin token. This is what
+   later feeds `ssrf`, `cors`, `host-header`.
 
-3. **Identity map** (`identity-map`) — modelo de autenticación completo:
-   mecanismos (sesión, JWT, OAuth, API key), roles y sus privilegios,
-   dónde se emiten y validan los tokens, si hay múltiples tenants y cómo
-   se aíslan. Alimenta `auth-bypass`, `jwt`, `oauth`,
-   `idor`.
+3. **Identity map** (`identity-map`) — complete authentication model:
+   mechanisms (session, JWT, OAuth, API key), roles and their
+   privileges, where tokens are issued and validated, whether there are
+   multiple tenants and how they are isolated. Feeds `auth-bypass`,
+   `jwt`, `oauth`, `idor`.
 
-4. **State map** (`state-map`) — qué mantiene estado y dónde: sesiones
-   (server-side vs JWT stateless), caches (CDN, app-level, Redis),
-   colas, websockets persistentes. Dónde el estado puede ser envenenado
-   o leído entre usuarios. Alimenta `cache-poisoning`,
-   `race-condition`, `session-management`.
+4. **State map** (`state-map`) — what maintains state and where:
+   sessions (server-side vs JWT stateless), caches (CDN, app-level,
+   Redis), queues, persistent websockets. Where state can be poisoned
+   or read across users. Feeds `cache-poisoning`, `race-condition`,
+   `session-management`.
 
-5. **Capability map** (`capability-map`) — qué puede hacer cada
-   componente/rol: qué endpoints mutan datos, cuáles son de solo lectura,
-   qué acciones son irreversibles o sensibles (pagos, borrado, cambio de
-   rol), qué componente tiene qué nivel de privilegio de red/cloud.
-   Alimenta `chain-analysis` directamente — "capability" es lo que una
-   cadena de findings termina obteniendo.
+5. **Capability map** (`capability-map`) — what each component/role can
+   do: which endpoints mutate data, which are read-only, which actions
+   are irreversible or sensitive (payments, deletion, role change),
+   which component has what level of network/cloud privilege. Feeds
+   `chain-analysis` directly — "capability" is what a finding chain
+   ultimately obtains.
 
-## Pasos exactos
+## Exact steps
 
-1. Para cada uno de los 5 mapas, leer su `SKILL.md` en
-   `skills/mapping/<nombre>/` si existe; si no está escrito aún, usar la
-   definición de arriba y señalarlo como gap de contenido sin bloquear.
-2. Construir el mapa en formato tabla + lista de relaciones (no prosa
-   libre — el chain-analyst necesita parsear esto).
-3. Escribir cada mapa en `<audit_dir>/report/maps/<nombre>.md`.
-4. Generar un índice `<audit_dir>/report/maps/README.md` que enlaza los 5
-   y resume en 3-5 líneas el hallazgo estructural más relevante de cada
-   uno (ej. "trust-map: el servicio de PDF interno confía en IP origen
-   sin validar — candidato a SSRF").
-5. Transicionar la fase a `MAPPED` si venía de `RECON`
+1. For each of the 5 maps, read its `SKILL.md` in
+   `skills/mapping/<name>/` if it exists; if not written yet, use the
+   definition above and flag it as a content gap without blocking.
+2. Build the map as table + relationship list (not free prose — the
+   chain-analyst needs to parse this).
+3. Write each map to `<audit_dir>/report/maps/<name>.md`.
+4. Generate an index `<audit_dir>/report/maps/README.md` linking all 5
+   and summarizing in 3-5 lines the most relevant structural finding
+   from each (e.g. "trust-map: internal PDF service trusts origin IP
+   without validation — SSRF candidate").
+5. Transition the phase to `MAPPED` if it was at `RECON`
    (`state.transition(Phase.MAPPED)`).
 
 ## Edge cases
 
-- **Recon insuficiente para un mapa** (ej. no se hizo cloud-recon, no
-  hay datos para capability map de infra cloud): dejar esa sección del
-  mapa explícitamente marcada `SIN DATOS — requiere recon adicional`, no
-  rellenar con supuestos.
-- **Target de una sola página/API simple**: los 5 mapas igual se generan,
-  pero pueden ser cortos. No omitir ninguno — incluso un mapa "trivial"
-  (ej. identity map = "solo API key estática, sin roles") es información
-  útil para chain-analysis.
-- **Re-ejecución tras hunting** (se descubrió un asset o rol nuevo
-  durante hunting): actualizar el mapa afectado en vez de regenerar todo
-  desde cero; anotar qué cambió y por qué en el README de maps.
+- **Insufficient recon for a map** (e.g. no cloud-recon was run, no
+  data for cloud infra capability map): leave that map section explicitly
+  marked `NO DATA — requires additional recon`, do not fill with
+  assumptions.
+- **Single-page/simple API target**: all 5 maps are still generated, but
+  may be short. Do not omit any — even a "trivial" map (e.g. identity
+  map = "static API key only, no roles") is useful information for
+  chain-analysis.
+- **Re-execution after hunting** (a new asset or role was discovered
+  during hunting): update the affected map instead of regenerating
+  everything from scratch; note what changed and why in the maps README.
 
-## Output esperado
+## Expected output
 
-- Los 5 archivos de mapa + README de índice, con rutas.
-- Lista de "SIN DATOS" si algún mapa quedó incompleto por falta de recon.
-- Próximo paso recomendado: `/quarry:hunt` (breadth-first sobre todos los
-  assets y clases).
+- The 5 map files + index README, with paths.
+- List of "NO DATA" entries if any map was left incomplete due to
+  missing recon.
+- Recommended next step: `/quarry:hunt` (breadth-first across all assets
+  and classes).

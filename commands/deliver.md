@@ -4,34 +4,34 @@ description: Package and deliver engagement artifacts with optional GPG encrypti
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /quarry:deliver — Empaquetar y entregar los artefactos del engagement
+# /quarry:deliver — Package and deliver engagement artifacts
 
-Uso: `/quarry:deliver <dir_entregable> [--gpg RECIPIENT | --gpg-symmetric]`
+Usage: `/quarry:deliver <deliverable_dir> [--gpg RECIPIENT | --gpg-symmetric]`
 
-## Qué hace
+## What it does
 
-1. Construye el manifest SHA-256 de TODOS los archivos del entregable
-   (reporte, findings, evidencia, exports, custody log) vía
+1. Builds the SHA-256 manifest of ALL deliverable files
+   (report, findings, evidence, exports, custody log) via
    `engine/deliver.py` → `manifest.json`.
-2. Verifica el custody log una última vez (debe estar ÍNTEGRO antes de
-   empaquetar — si está roto, NO entregar: investigar primero).
-3. Genera el bundle `.tar.gz` con el manifest dentro.
-4. Cifrado opcional con gpg (por destinatario o simétrico AES256) según el
-   canal de entrega acordado con el cliente.
-5. Registra el empaquetado en custody (hash del bundle incluido).
+2. Verifies the custody log one last time (must be INTACT before
+   packaging — if broken, DO NOT deliver: investigate first).
+3. Generates the `.tar.gz` bundle with the manifest inside.
+4. Optional encryption with gpg (by recipient or symmetric AES256) per the
+   delivery channel agreed with the client.
+5. Records the packaging in custody (bundle hash included).
 
-## Reglas
+## Rules
 
-- El manifest es la garantía: el cliente puede re-verificar cualquier
-  archivo contra él. Si algo difiere post-entrega, el manifest resuelve
-  quién alteró qué.
-- El bundle sin cifrar NUNCA va por canales no acordados (email corporativo
-  genérico, links públicos).
-- Guardar el hash del bundle entregado en custody — si el cliente reporta
-  "el archivo no abre" o disputa contenido, el hash cierra la discusión.
-- Entregar = evento custody con fecha, canal y destinatario.
+- The manifest is the guarantee: the client can re-verify any file
+  against it. If anything differs post-delivery, the manifest resolves
+  who altered what.
+- The unencrypted bundle NEVER goes through non-agreed channels (generic
+  corporate email, public links).
+- Store the delivered bundle hash in custody — if the client reports
+  "the file won't open" or disputes content, the hash settles it.
+- Delivery = custody event with date, channel, and recipient.
 
-## Ejemplos
+## Examples
 
 ```
 /quarry:deliver outputs/acme-2026-09/deliverable --gpg security@acme.com

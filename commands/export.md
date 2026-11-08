@@ -4,38 +4,38 @@ description: Export findings to machine-readable formats (SARIF, JSON, CSV)
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /quarry:export — Exportar findings a formatos machine-readable
+# /quarry:export — Export findings to machine-readable formats
 
-Uso: `/quarry:export [sarif|json|csv] [ruta_salida] [--all]`
+Usage: `/quarry:export [sarif|json|csv] [output_path] [--all]`
 
-## Qué hace
+## What it does
 
-1. Lee el FindingsStore del engagement actual (`.pentest-state/findings.json`).
-2. Por defecto exporta SOLO findings en estado VALIDATED o REPORTED —
-   leads, hipótesis y findings KILLED no salen del pipeline (regla
-   anti-fabricación aplicada al export).
-3. `--all` incluye todo el store (útil para auditoría interna, NUNCA para
-   entregar al cliente).
-4. Genera el archivo vía `engine/exporters.py`:
-   - **sarif** — SARIF 2.1.0 para GitHub/GitLab code scanning, Defender,
-     cualquier consumidor SARIF. Incluye CVSS 4.0, EPSS, KEV en properties.
-   - **json** — un objeto plano por finding, listo para crear tickets
-     (Jira/Linear/ServiceNow) o alimentar automatización.
-   - **csv** — triage en spreadsheet.
-5. Registra el export en el custody log (`engine/custody.py`): formato,
-   ruta, cantidad de findings, timestamp — el reporte attesta qué se entregó.
+1. Reads the FindingsStore from the current engagement (`.pentest-state/findings.json`).
+2. By default exports ONLY findings in VALIDATED or REPORTED status —
+   leads, hypotheses, and KILLED findings do not leave the pipeline
+   (anti-fabrication rule applied to exports).
+3. `--all` includes the entire store (useful for internal audit, NEVER for
+   client delivery).
+4. Generates the file via `engine/exporters.py`:
+   - **sarif** — SARIF 2.1.0 for GitHub/GitLab code scanning, Defender,
+     any SARIF consumer. Includes CVSS 4.0, EPSS, KEV in properties.
+   - **json** — one flat object per finding, ready for ticket creation
+     (Jira/Linear/ServiceNow) or automation feeds.
+   - **csv** — spreadsheet triage.
+5. Records the export in the custody log (`engine/custody.py`): format,
+   path, finding count, timestamp — the report attests what was delivered.
 
-## Reglas
+## Rules
 
-- Todo export es un evento de custody — sin excepciones.
-- Un export SARIF es además un artefacto para el loop fix→retest: el cliente
-  lo sube a code scanning, corrige, y `/quarry:retest` verifica.
-- Los campos EPSS/KEV se enriquecen antes del export si hay findings con CVE
-  (ver `references/cvss4-epss-kev.md`).
-- Verificar el conteo de findings exportados contra `/quarry:findings` — un
-  export de 0 findings cuando hay validados es un bug, no un resultado.
+- Every export is a custody event — no exceptions.
+- A SARIF export is also an artifact for the fix→retest loop: the client
+  uploads it to code scanning, fixes, and `/quarry:retest` verifies.
+- EPSS/KEV fields are enriched before export if there are findings with CVEs
+  (see `references/cvss4-epss-kev.md`).
+- Verify the exported finding count against `/quarry:findings` — an
+  export of 0 findings when there are validated ones is a bug, not a result.
 
-## Ejemplos
+## Examples
 
 ```
 /quarry:export sarif outputs/eng-2026-10/findings.sarif

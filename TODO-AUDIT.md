@@ -123,9 +123,10 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 ### I3. Mixed language ES/EN
 - **Status:** README/agents/skills in English; CLAUDE.md, 13/18 commands, all 14 workflows and templates in Spanish.
 - **TODO-REVIEW says:** "All text in English (repo is public)"
-- [ ] Unify command descriptions (13 ES → EN)
-- [ ] Unify workflow descriptions
-- [ ] Decision: commands body ES or EN? (operator convenience vs public repo)
+- [x] Unify command descriptions (10 commands ES → EN)
+- [x] Unify workflow descriptions (10 workflows + full-pentest phase descriptions)
+- [x] Translate command body text (18 commands ES → EN)
+- [ ] Translate workflow notes/comments (8 workflows still have Spanish in notes/body)
 
 ### I4. 10/18 agents not wired to any workflow
 - **Unwired:** `engagement-planner`, `browser-verifier`, `ai-agent-exploit`, `network-analyst` (declares inputs nothing produces), 6 SAST agents
@@ -141,18 +142,18 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 
 ### I6. Drift in vuln class counts
 - hunt.md says 40, findings.md says 38, coverage.py defines 42, skills/hunt/ has 46
-- [ ] Generate counts from engine, not hardcode
+- [x] Remove hardcoded counts from commands (hunt.md, findings.md)
 
 ### I7. finding-validator.md uses CVSS 3.1 (plugin standard is 4.0)
-- [ ] Update to CVSS 4.0 + add EPSS/KEV
+- [x] Update to CVSS 4.0 as primary (finding-validator.md, seven-question-gate.md, finding-discipline SKILL.md, finding-template.md)
 
 ### I8. plugin.json missing mcpServers
 - browser-verifier depends on 7 `mcp__Claude_Browser__*` tools
-- [ ] Add mcpServers declaration or document the dependency
+- [x] Add mcpServers.browser-verifier with 7 Claude Browser tools (marked optional)
 
 ### I9. Custody chain is locally tamper-evident, not attestable
 - Anyone with write access can rewrite log and recalculate hashes
-- [ ] Update description to "local tamper-evident log"
+- [x] Update description to "locally tamper-evident" (README.md, CLAUDE.md, custody.py)
 - [ ] Future: operator signature, external timestamping
 
 ### I10. Benchmark doesn't execute targets
@@ -167,7 +168,7 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - [ ] `SECURITY.md` (responsible disclosure policy)
 - [ ] `CHANGELOG.md`, `CONTRIBUTING.md`
 - [ ] Example session in README (DVWA transcript snippet)
-- [ ] Skill `param-discovery` (9 skills depend on it) or redirect to `fuzzing`
+- [x] Skill `param-discovery` redirected to `fuzzing` (8 files updated)
 - [ ] Wire SAST pipeline to `pr-scan.yaml`
 - [ ] Canonical verdict→FindingStatus mapping table
 - [ ] Git tags + releases (currently 0.1.0 with no tags)
@@ -180,8 +181,8 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 
 - [ ] Archive or delete `TODO-REVIEW.md` (outdated: mentions missing README/LICENSE, wrong skill count)
 - [ ] Remove absolute claims without methodology context ("No hallucinated vulns", "no other plugin", "100%")
-- [ ] Remove personal paths from engage.md examples (see C2)
-- [ ] Remove Bountyforge from map.md (see C2)
+- [x] Remove personal paths from engage.md examples (see C2)
+- [x] Remove Bountyforge from map.md (see C2)
 - [ ] Move experimental backends (Kali remote, anonlab, generic MCP) out of stable path until they share policy + have tests
 - [ ] Consolidate rebuttal questions (3 copies: rebuttal.py, validate.md, finding-checker.md) → engine only
 - [ ] Consolidate report definition (3 copies: report.md, report-writer.md, engagement-report.md) → single template

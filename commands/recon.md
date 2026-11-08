@@ -1,131 +1,135 @@
 ---
 name: quarry:recon
-description: Ejecuta la fase de reconocimiento — pasivo, activo o ambos (full, default)
+description: Run the reconnaissance phase — passive, active, or both (full, default)
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
 # /quarry:recon [--passive|--active|--full]
 
-Ejecuta descubrimiento sistemático de superficie contra el scope del
-engagement activo. Por defecto corre `--full`: pasivo primero, activo
-después, nunca al revés (el pasivo no toca el target, informa qué tan
-agresivo puede ser el activo).
+Runs systematic surface discovery against the active engagement scope.
+Defaults to `--full`: passive first, active second, never reversed
+(passive does not touch the target and informs how aggressive active
+can be).
 
-## Precondiciones
+## Preconditions
 
-- Debe existir un engagement con fase `SCOPED` o posterior
-  (`.pentest-state/engagement.json`). Si no existe o la fase es `INIT`,
-  detener y señalar que falta `/quarry:engage`.
-- Releer el scope desde `.pentest-state/scope.json` antes de cualquier
-  comando — no reutilizar scope de memoria de turnos anteriores, pudo
-  cambiar con `/quarry:scope`.
-- El guard de `hooks/hooks.json` (`engine/guard.py`) ya valida cada
-  comando Bash contra scope automáticamente; aun así, antes de construir
-  el comando, confirmar mentalmente que el target es el correcto.
+- An engagement with phase `SCOPED` or later must exist
+  (`.pentest-state/engagement.json`). If it does not exist or the phase
+  is `INIT`, stop and point out that `/quarry:engage` is missing.
+- Re-read the scope from `.pentest-state/scope.json` before any
+  command — do not reuse scope from memory of previous turns, it may
+  have changed via `/quarry:scope`.
+- The `hooks/hooks.json` guard (`engine/guard.py`) already validates
+  each Bash command against scope automatically; even so, before
+  building the command, mentally confirm the target is correct.
 
-## Argumento
+## Argument
 
-- (ninguno) o `--full` — pasivo + activo, en ese orden.
-- `--passive` — solo OSINT, DNS, certificados, archivos públicos, GitHub
-  dorking, JS ya servido. Cero requests directas de escaneo al target.
-- `--active` — asume que ya hay resultados pasivos útiles; si no los hay,
-  avisar que el activo sin base pasiva es menos eficiente, pero proceder
-  si el operador insiste.
+- (none) or `--full` — passive + active, in that order.
+- `--passive` — OSINT only, DNS, certificates, public files, GitHub
+  dorking, already-served JS. Zero direct scanning requests to the
+  target.
+- `--active` — assumes useful passive results already exist; if not,
+  warn that active without a passive base is less efficient, but proceed
+  if the operator insists.
 
-## Metodología (breadth-first, por skill)
+## Methodology (breadth-first, by skill)
 
-Pasiva (`skills/recon/passive-recon`, orden sugerido):
-1. `dns-enumeration` — registros DNS, SPF/DKIM/DMARC, zone transfer attempt
-2. `subdomain-discovery` — cert transparency, DNS brute, motores pasivos
-3. `osint` — LinkedIn, Shodan/Censys histórico, Wayback Machine
-4. `email-harvesting` — formatos de correo, empleados públicos
-5. `github-dorking` — repos públicos de la org, secrets filtrados, forks
-6. `cloud-recon` (modo pasivo) — buckets S3/GCS públicos, subdominios de
-   cloud providers
+Passive (`skills/recon/passive-recon`, suggested order):
+1. `dns-enumeration` — DNS records, SPF/DKIM/DMARC, zone transfer attempt
+2. `subdomain-discovery` — cert transparency, DNS brute, passive engines
+3. `osint` — LinkedIn, Shodan/Censys historical, Wayback Machine
+4. `email-harvesting` — email formats, publicly known employees
+5. `github-dorking` — org's public repos, leaked secrets, forks
+6. `cloud-recon` (passive mode) — public S3/GCS buckets, cloud provider
+   subdomains
 
-Activa (`skills/recon/active-recon`, requiere scope confirmado y gate
-de tasa/horario de `/quarry:engage`):
-7. `port-scan` — nmap con `-oX` para output estructurado (ver
-   `CLAUDE.md`: `--help` antes del primer uso de cualquier herramienta)
-8. `service-enumeration` — banner grabbing, versiones, fingerprint sobre
-   puertos abiertos del paso 7
-9. `waf-fingerprint` — antes de cualquier fuzzing agresivo, para calibrar
-   agresividad
-10. `web-crawling` — spidering de rutas, sitemap, robots.txt
-11. `js-analysis` — extraer endpoints, secrets, comentarios de bundles JS
-    descubiertos en el crawl
-12. `api-discovery` — Swagger/OpenAPI expuesto, GraphQL introspection,
-    rutas inferidas desde JS
-13. `tech-stack-fingerprint` — stack completo (frontend, backend, CDN,
-    cloud provider) combinando todo lo anterior
-14. `nuclei-reviewed` — seleccionar checks custom desde `AppProfile` con
-    `NucleiRunner`; perfil `safe` por defecto, scope/redirects/OAST confinados,
-    hashes y JSONL persistidos. Matches = leads; cero matches ≠ target limpio.
+Active (`skills/recon/active-recon`, requires confirmed scope and
+rate/schedule gate from `/quarry:engage`):
+7. `port-scan` — nmap with `-oX` for structured output (see `CLAUDE.md`:
+   `--help` before the first use of any tool)
+8. `service-enumeration` — banner grabbing, versions, fingerprint on
+   open ports from step 7
+9. `waf-fingerprint` — before any aggressive fuzzing, to calibrate
+   aggressiveness
+10. `web-crawling` — path spidering, sitemap, robots.txt
+11. `js-analysis` — extract endpoints, secrets, comments from JS bundles
+    discovered in the crawl
+12. `api-discovery` — exposed Swagger/OpenAPI, GraphQL introspection,
+    routes inferred from JS
+13. `tech-stack-fingerprint` — full stack (frontend, backend, CDN, cloud
+    provider) combining everything above
+14. `nuclei-reviewed` — select custom checks from `AppProfile` with
+    `NucleiRunner`; `safe` profile by default, scope/redirects/OAST
+    confined, hashes and JSONL persisted. Matches = leads; zero
+    matches ≠ clean target.
 
-Para cada skill: leer su `SKILL.md` en `skills/recon/<skill>/` antes de
-ejecutar — ahí están los comandos exactos y los gotchas de esa técnica.
-Si el `SKILL.md` todavía no existe (plugin en construcción), aplicar la
-metodología estándar de esa técnica y señalarlo en el output como gap de
-contenido, no bloquear el recon por eso.
+For each skill: read its `SKILL.md` in `skills/recon/<skill>/` before
+executing — that is where the exact commands and gotchas for that
+technique live. If the `SKILL.md` does not exist yet (plugin under
+construction), apply the standard methodology for that technique and
+flag it in the output as a content gap, do not block recon for it.
 
-## Registro de resultados
+## Recording results
 
-- Antes de ejecutar, consultar `engine/tool_registry.py` por **capacidad** (DNS, HTTP probe,
-  crawl, JS, contenido, screenshots, etc.), registrar herramienta/versión/backend elegidos y
-  usar el fallback determinista. Una capacidad sin backend es `tool_unavailable`, nunca éxito.
-- Normalizar cada handoff con `engine/recon_pipeline.py`: descubrimiento → filtro de scope →
-  deduplicación → resolución/HTTP → fingerprint → crawl/JS/históricos → screenshots → ranking.
-  Cada observación conserva fuente, etapa, timestamp, completitud y metadatos; los candidatos
-  fuera de scope quedan `out_of_scope_pending_authorization` y no pasan a sondas activas.
-- Priorizar por señales explícitas (legacy/olvidado, admin, import/export, upload, webhooks,
-  integraciones, multi-tenant y diferencias free/paid), guardando score y razones. El score
-  ordena trabajo; no es severidad ni evidencia de vulnerabilidad.
-- Para brute force o fuzzing, indexar listas locales con `engine/wordlists.py` y persistir path,
-  SHA-256, tamaño, tecnología y criterios de selección en el run/task. No improvisar `wordlist.txt`.
-- Cada asset nuevo se registra con `CoverageTracker.add_asset(asset)`. Cada
-  endpoint descubierto se agrega con `add_surface`, incluyendo método,
-  parámetros e identidades conocidas; así `/quarry:hunt` no colapsa toda una
-  aplicación en una sola celda por host.
-- Guardar output crudo completo mediante `ArtifactStore`, con SHA-256 e índice; no depender de
-  vistas truncadas del terminal.
-- Mantener un `asset-inventory.md` en `<audit_dir>/report/` (Write tool),
-  actualizado incrementalmente: tabla de assets con tipo, fuente de
-  descubrimiento, prioridad y notas. Crear snapshot/diff con `TargetDiffEngine` al terminar.
+- Before executing, query `engine/tool_registry.py` by **capability** (DNS, HTTP probe,
+  crawl, JS, content, screenshots, etc.), register the chosen tool/version/backend, and
+  use the deterministic fallback. A capability without a backend is `tool_unavailable`, never success.
+- Normalize each handoff with `engine/recon_pipeline.py`: discovery → scope filter →
+  deduplication → resolution/HTTP → fingerprint → crawl/JS/historicals → screenshots → ranking.
+  Each observation preserves source, stage, timestamp, completeness, and metadata; out-of-scope
+  candidates are marked `out_of_scope_pending_authorization` and do not proceed to active probes.
+- Prioritize by explicit signals (legacy/forgotten, admin, import/export, upload, webhooks,
+  integrations, multi-tenant and free/paid differences), storing score and reasons. The score
+  orders work; it is not severity or evidence of vulnerability.
+- For brute force or fuzzing, index local lists with `engine/wordlists.py` and persist path,
+  SHA-256, size, technology, and selection criteria in the run/task. Do not improvise `wordlist.txt`.
+- Each new asset is registered with `CoverageTracker.add_asset(asset)`. Each
+  discovered endpoint is added with `add_surface`, including method,
+  parameters, and known identities; this way `/quarry:hunt` does not collapse
+  an entire application into a single cell per host.
+- Store complete raw output via `ArtifactStore`, with SHA-256 and index; do not rely on
+  truncated terminal views.
+- Maintain an `asset-inventory.md` in `<audit_dir>/report/` (Write tool),
+  updated incrementally: asset table with type, discovery source,
+  priority, and notes. Create snapshot/diff with `TargetDiffEngine` when done.
 
-## Tracking de cobertura
+## Coverage tracking
 
-Al final de la corrida, imprimir qué sub-técnicas de recon se ejecutaron
-y cuáles no (ej. "cloud-recon: skipped — no se detectó uso de cloud
-provider en DNS/certs"). Esto no es opcional — es la cobertura que
-`/quarry:status` reporta después.
+At the end of the run, print which recon sub-techniques were executed
+and which were not (e.g. "cloud-recon: skipped — no cloud provider
+usage detected in DNS/certs"). This is not optional — it is the
+coverage that `/quarry:status` reports afterwards.
 
 ## Edge cases
 
-- **Scope vacío o solo wildcards sin resolver**: antes de escanear, resolver
-  qué hosts reales caen bajo el wildcard y confirmarlos contra
-  `Scope.is_in_scope()` uno por uno.
-- **Subdominio descubierto fuera del scope original** (ej. wildcard no
-  incluía ese apex): NO escanearlo. Registrarlo como "descubierto,
-  pendiente de autorización" y reportarlo al operador — puede ser una
-  ampliación de scope legítima que requiere `/quarry:scope --add` explícito
-  primero.
-- **WAF/rate-limit agresivo detectado**: bajar velocidad, documentar el
-  umbral observado, no reintentar ciegamente (máx. 3 reintentos idénticos
-  por regla del `CLAUDE.md` del plugin).
-- **Rerun sobre un engagement ya en fase `HUNTING` o posterior**: permitido
-  (recon incremental), pero advertir que no se debe repetir trabajo ya
-  cubierto — mirar `coverage.json` antes de rehacer.
+- **Empty scope or unresolved wildcards only**: before scanning, resolve
+  which real hosts fall under the wildcard and confirm them against
+  `Scope.is_in_scope()` one by one.
+- **Subdomain discovered outside the original scope** (e.g. wildcard
+  did not include that apex): do NOT scan it. Register it as
+  "discovered, pending authorization" and report it to the operator —
+  it may be a legitimate scope expansion that requires an explicit
+  `/quarry:scope --add` first.
+- **Aggressive WAF/rate-limit detected**: slow down, document the
+  observed threshold, do not retry blindly (max 3 identical retries per
+  plugin `CLAUDE.md` rule).
+- **Rerun on an engagement already at `HUNTING` or later phase**:
+  allowed (incremental recon), but warn that already-covered work
+  should not be repeated — check `coverage.json` before redoing.
 
-## Transición de fase
+## Phase transition
 
-Al terminar, si la fase actual es `SCOPED`, transicionar a `RECON`
-(`state.transition(Phase.RECON)`). Si ya se había pasado por `MAPPED` o
-`HUNTING` (recon incremental), no retroceder la fase.
+When done, if the current phase is `SCOPED`, transition to `RECON`
+(`state.transition(Phase.RECON)`). If the engagement had already passed
+through `MAPPED` or `HUNTING` (incremental recon), do not regress the
+phase.
 
-## Output esperado
+## Expected output
 
-- Tabla de assets descubiertos (tipo, valor, fuente).
-- Resumen pasivo vs activo ejecutado, con lo que se omitió y por qué.
-- Ruta de `asset-inventory.md` y de los raw outputs.
-- Próximo paso recomendado: `/quarry:map` (para construir los 5 mapas antes
-  de hunting) o directamente `/quarry:hunt` si el target es simple.
+- Table of discovered assets (type, value, source).
+- Passive vs active summary of what was executed, with what was skipped
+  and why.
+- Path of `asset-inventory.md` and the raw outputs.
+- Recommended next step: `/quarry:map` (to build the 5 maps before
+  hunting) or directly `/quarry:hunt` if the target is simple.

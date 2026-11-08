@@ -4,40 +4,41 @@ description: Immediately escalate a critical finding to stakeholders
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
-# /quarry:notify — Escalación inmediata de hallazgo crítico
+# /quarry:notify — Immediate critical finding escalation
 
-Uso: `/quarry:notify <finding_id>`
+Usage: `/quarry:notify <finding_id>`
 
-## Cuándo es OBLIGATORIO
+## When it is MANDATORY
 
-- Finding crítico confirmado en PRODUCCIÓN (RCE, acceso masivo a datos,
-  toma de cuenta admin) — se notifica el mismo día, no en el reporte.
-- Evidencia de compromiso PREVIO del target (webshell ajeno, credenciales
-  del cliente en leaks, actividad de otro actor) — el cliente puede tener
-  un incidente activo; tu engagement pasa a segundo plano.
-- Acción fuera de scope ejecutada por error — transparencia inmediata.
-- Hallazgo con riesgo de seguridad física o legal (datos de menores,
-  infra crítica).
+- Critical finding confirmed in PRODUCTION (RCE, mass data access,
+  admin account takeover) — notify the same day, not in the report.
+- Evidence of PRIOR target compromise (foreign webshell, client
+  credentials in leaks, another actor's activity) — the client may have
+  an active incident; your engagement takes a back seat.
+- Out-of-scope action executed by mistake — immediate transparency.
+- Finding with physical safety or legal risk (minors' data, critical
+  infrastructure).
 
-## Protocolo
+## Protocol
 
-1. **Congelar la línea de ataque**: no seguir explotando el finding crítico
-   hasta que el cliente confirme recepción — un RCE en prod sigue siendo
+1. **Freeze the attack line**: do not continue exploiting the critical
+   finding until the client confirms receipt — an RCE in prod is still
    prod.
-2. Completar `templates/critical-alert.md`: veredicto, evidencia mínima
-   suficiente para actuar, qué NO tocar, mitigación inmediata sugerida.
-3. Enviar por el canal de emergencia definido en `/quarry:engage`
-   (emergency_contact). Cifrar si el canal no es de confianza
-   (`/quarry:deliver` con gpg aplica para adjuntos).
-4. Registrar el envío en custody (actor: operator, evento: critical_alert).
-5. Reanudar el engagement solo tras ack del cliente (o decisión documentada
-   del operador si el cliente no responde en lo acordado).
+2. Complete `templates/critical-alert.md`: verdict, minimum evidence
+   sufficient to act, what NOT to touch, suggested immediate mitigation.
+3. Send through the emergency channel defined in `/quarry:engage`
+   (emergency_contact). Encrypt if the channel is untrusted
+   (`/quarry:deliver` with gpg applies for attachments).
+4. Record the send in custody (actor: operator, event: critical_alert).
+5. Resume the engagement only after client ack (or a documented operator
+   decision if the client does not respond within the agreed timeframe).
 
-## Reglas
+## Rules
 
-- La alerta contiene lo mínimo para actuar — el detalle completo va en el
-  reporte. Evidencia sensible (datos reales extraídos) NO va en el alert.
-- Si el canal de emergencia falla, escalar por el contacto secundario y
-  registrar ambos intentos en custody.
-- Nunca publicar/compartir el hallazgo fuera del canal acordado —
-  incluyendo "aviso anónimo al vendor" — sin autorización del cliente.
+- The alert contains the minimum needed to act — full detail goes in the
+  report. Sensitive evidence (actual extracted data) does NOT go in the
+  alert.
+- If the emergency channel fails, escalate through the secondary contact
+  and record both attempts in custody.
+- Never publish/share the finding outside the agreed channel — including
+  "anonymous vendor notice" — without client authorization.

@@ -64,7 +64,7 @@ Cada finding DEBE incluir:
 - Findings blind: callback OOB correlacionado por token único
   (`engine/oast.py`, skill oob-interactions) — sin callback, cap en Inferred
 - Toda evidencia registrada en el custody log (`engine/custody.py`) —
-  append-only, hash-chained, attestable
+  append-only, hash-chained, locally tamper-evident
 
 ## Cobertura
 

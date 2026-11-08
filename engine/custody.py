@@ -1,4 +1,4 @@
-"""Chain of custody for engagement evidence — attestable audit trail.
+"""Chain of custody for engagement evidence — locally tamper-evident audit trail.
 
 findings.py already hashes each evidence blob (SHA-256). This module adds the
 next layer: an append-only, hash-chained event log covering the full

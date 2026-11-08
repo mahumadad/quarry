@@ -8,7 +8,7 @@
 
 **CVSS 4.0 Vector:** `{{cvss_vector_4}}`
 **CVSS 4.0 Score:** {{cvss_score}} ({{cvss_rating}})
-**CVSS 3.1 Vector (si el cliente/plataforma lo exige):** `{{cvss_vector_31}}`
+**CVSS 3.1 Vector (only if required by client/platform):** `{{cvss_vector_31}}`
 **EPSS:** {{epss_score}} (percentil {{epss_percentile}}, consultado {{epss_date}}) — solo si hay CVE
 **CISA KEV:** {{cisa_kev}} (true/false + due-date si aplica) — solo si hay CVE
 

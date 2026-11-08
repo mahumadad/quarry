@@ -1,35 +1,35 @@
 ---
 name: quarry:run
-description: Crea o continua una corrida determinística y auditable de un workflow
+description: Create or continue a deterministic, auditable workflow run
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
 # /quarry:run [workflow] [--resume <run_id>]
 
-Usa `engine/orchestrator.py` como única entrada de ejecución. El workflow por
-defecto es `workflows/full-pentest.yaml`; no ejecutar fases por memoria ni
-construir una segunda secuencia desde `router.py`.
+Uses `engine/orchestrator.py` as the sole execution entry point. The default
+workflow is `workflows/full-pentest.yaml`; do not execute phases from memory
+or build a second sequence from `router.py`.
 
-1. Verificar engagement, scope, autorización y ventana vigente.
-2. Ejecutar el preflight de `ToolRegistry`: persistir capacidades sin backend y versiones elegidas;
-   seleccionar listas mediante `WordlistIndex` cuando la tarea las use. No instalar herramientas
-   ni descargar listas implícitamente.
-3. Sin `--resume`: crear la corrida con el workflow elegido y las celdas de
-   cobertura descubiertas. Guardar y mostrar su `run_id`.
-4. Con `--resume`: cargar ese run, recuperar tareas `running` como
-   `interrupted`, revisar sus artefactos y continuar solo desde la primera
-   tarea pendiente o interrumpida.
-5. Antes de cada tarea, cargar `Orchestrator.briefing()`. Ejecutar la skill
-   indicada, conservar primero los artefactos crudos y después devolver uno de
-   estos estados: `completed`, `skipped`, `failed` o `blocked`, con razón.
-6. Un gate humano bloquea la corrida. Reanudar únicamente tras aprobación del
-   operador mediante `approve_gate`; nunca aprobar en nombre del operador.
-7. No convertir timeout, output truncado, herramienta ausente o excepción en
-   `tested_clean`. Esos casos son `failed`, `blocked`, `tool_unavailable` o `inconclusive`.
-8. Antes de validar/reportar, aplicar convergencia de self/program duplicates y enlazar IDs o
-   referencias; no repetir el pipeline para una redetección del mismo root cause.
-9. Al finalizar, mostrar estados, gaps, artefactos y custodia. La corrida solo
-   termina realmente después de QC, entrega y closeout.
+1. Verify engagement, scope, authorization, and active time window.
+2. Run the `ToolRegistry` preflight: persist capabilities without backend and chosen versions;
+   select lists via `WordlistIndex` when the task uses them. Do not install tools
+   or download lists implicitly.
+3. Without `--resume`: create the run with the chosen workflow and the discovered
+   coverage cells. Save and display its `run_id`.
+4. With `--resume`: load that run, recover `running` tasks as
+   `interrupted`, review their artifacts, and continue only from the first
+   pending or interrupted task.
+5. Before each task, load `Orchestrator.briefing()`. Execute the indicated skill,
+   persist raw artifacts first, then return one of these states:
+   `completed`, `skipped`, `failed`, or `blocked`, with a reason.
+6. A human gate blocks the run. Resume only after operator approval
+   via `approve_gate`; never approve on behalf of the operator.
+7. Do not convert timeout, truncated output, missing tool, or exception into
+   `tested_clean`. Those cases are `failed`, `blocked`, `tool_unavailable`, or `inconclusive`.
+8. Before validating/reporting, apply self/program duplicate convergence and link IDs or
+   references; do not re-run the pipeline for a re-detection of the same root cause.
+9. On completion, display states, gaps, artifacts, and custody. The run only
+   truly ends after QC, delivery, and closeout.
 
-Toda acción de red debe usar `ProtectedHTTPClient` o `ToolRunner`; no crear
-requests paralelos que eviten la política común.
+All network actions must use `ProtectedHTTPClient` or `ToolRunner`; do not create
+parallel requests that bypass the common policy.

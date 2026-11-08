@@ -1,22 +1,22 @@
 ---
 name: quarry:resume
-description: Reanuda un engagement sin repetir ni perder tareas tras una interrupción
+description: Resume an engagement without repeating or losing tasks after an interruption
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
 # /quarry:resume [run_id]
 
-1. Cargar `.pentest-state/engagement.json`, scope, autorización y ventana.
-   Si cualquiera falta, está corrupto o expiró, detenerse fail-closed.
-2. Ejecutar `Orchestrator.doctor()` y mostrar problemas de integridad antes de
-   continuar. Una cadena rota o evidencia alterada exige revisión humana.
-3. Seleccionar el run indicado o el más reciente. Ejecutar
-   `recover_interrupted(run_id)`: toda tarea que quedó `running` pasa a
-   `interrupted`, nunca a completada.
-4. Presentar `resume_plan`: fase, siguiente tarea, intentos, fallos recientes,
-   artefactos disponibles y gates pendientes.
-5. Reanudar con `/quarry:run --resume <run_id>` solamente después de verificar los
-   artefactos de tareas interrumpidas. Si su resultado quedó persistido y es
-   íntegro, registrarlo; si no, repetir de forma idempotente esa tarea.
-6. No saltar tareas solo porque su skill aparece en un checkpoint antiguo:
-   `runs.json` y `journal.jsonl` son la fuente autoritativa.
+1. Load `.pentest-state/engagement.json`, scope, authorization, and time window.
+   If any is missing, corrupt, or expired, halt fail-closed.
+2. Run `Orchestrator.doctor()` and display integrity issues before
+   continuing. A broken chain or altered evidence requires human review.
+3. Select the indicated run or the most recent one. Run
+   `recover_interrupted(run_id)`: every task that was `running` becomes
+   `interrupted`, never completed.
+4. Present `resume_plan`: phase, next task, attempts, recent failures,
+   available artifacts, and pending gates.
+5. Resume with `/quarry:run --resume <run_id>` only after verifying the
+   artifacts of interrupted tasks. If their result was persisted and is
+   intact, record it; if not, re-run that task idempotently.
+6. Do not skip tasks just because their skill appears in an old checkpoint:
+   `runs.json` and `journal.jsonl` are the authoritative source.

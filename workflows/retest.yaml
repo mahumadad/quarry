@@ -1,5 +1,5 @@
 name: retest
-description: Verificación de remediación — confirmar que cada finding reportado murió tras el fix del cliente
+description: Remediation verification — confirm every reported finding is dead after the client fix
 
 phases:
   - name: scope

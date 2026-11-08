@@ -230,11 +230,11 @@ evidence?
 
 **Why it matters:** Severity inflation is one of the fastest ways to lose
 credibility with a triager, and it's explicitly one of the embarrassment-test
-failure reasons in question 7. `CLAUDE.md` requires a CVSS 3.1 vector string
+failure reasons in question 7. `CLAUDE.md` requires a CVSS 4.0 vector string
 justified by what was verified — not by the worst-case scenario.
 
 **How to check:**
-- Walk every CVSS 3.1 metric (AV, AC, PR, UI, S, C, I, A) and, for each one,
+- Walk every CVSS 4.0 metric and, for each one,
   point to the specific piece of evidence that justifies the chosen value.
   If a metric can't be justified from evidence, it defaults to the more
   conservative value, not the more severe one.
@@ -317,5 +317,5 @@ submission, not after a real rejection.
 - [ ] **In scope** — asset matched against the confirmed scope document; wildcard matches verified, not assumed; out-of-scope list checked too.
 - [ ] **Not a duplicate** — checked against `findings.json`; same root cause under a different path treated as a variant, not a new finding.
 - [ ] **Passes never-submit** — checked against all 15 hard rejects in `never-submit.md`; any match has a Demonstrated upgrade condition or an explicit, logged operator override.
-- [ ] **Severity justified** — every CVSS 3.1 metric traces to specific evidence; Inferred impact capped, not scored as Demonstrated.
+- [ ] **Severity justified** — every CVSS 4.0 metric traces to specific evidence; Inferred impact capped, not scored as Demonstrated.
 - [ ] **Passes the embarrassment test** — read cold as a triager would; no missing-impact, unclear-steps, severity-inflation, known-informational, or already-mitigated red flags.

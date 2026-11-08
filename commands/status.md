@@ -1,89 +1,88 @@
 ---
 name: quarry:status
-description: Dashboard del engagement — fase, findings, cobertura, budget, gaps, próximos pasos
+description: Engagement dashboard — phase, findings, coverage, budget, gaps, next steps
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
 # /quarry:status
 
-Lee todo el estado persistido del engagement activo y lo presenta como
-un dashboard de una sola pantalla. No modifica nada — es un comando de
-solo lectura. Útil al retomar una sesión, después de una compactación de
-contexto, o simplemente para orientarse.
+Reads all persisted state from the active engagement and presents it as
+a single-screen dashboard. Modifies nothing — this is a read-only
+command. Useful when resuming a session, after a context compaction, or
+simply to get oriented.
 
-## Precondición
+## Precondition
 
-- Debe existir `.pentest-state/engagement.json`. Si no existe, decirlo
-  claramente y recomendar `/quarry:engage <target>` — no inventar un estado
-  vacío con apariencia de dashboard.
+- `.pentest-state/engagement.json` must exist. If it does not, say so
+  clearly and recommend `/quarry:engage <target>` — do not fabricate an
+  empty state that looks like a dashboard.
 
-## Pasos exactos
+## Exact steps
 
-1. Cargar `EngagementState` → fase actual, target, fecha de creación,
-   historial de transiciones de fase.
-2. Cargar `Scope` → conteo de entradas in-scope/out-of-scope (no el
-   detalle completo, eso es trabajo de `/quarry:scope --show`).
-3. Cargar `FindingsStore.summary()` → total, desglose por status
-   (detected/confirmed/exploited/chained/validated/reported/killed) y
-   por severidad.
-4. Cargar `ChainEngine.list_chains()` → conteo total y por status
+1. Load `EngagementState` → current phase, target, creation date,
+   phase transition history.
+2. Load `Scope` → count of in-scope/out-of-scope entries (not the full
+   detail — that is `/quarry:scope --show`'s job).
+3. Load `FindingsStore.summary()` → total, breakdown by status
+   (detected/confirmed/exploited/chained/validated/reported/killed) and
+   by severity.
+4. Load `ChainEngine.list_chains()` → total count and by status
    (candidate/verified/killed).
-5. Cargar `CoverageTracker.summary()` → assets cubiertos, vuln_classes
-   totales, ratio de cobertura, celdas con finding, celdas skipped.
-6. Cargar `BudgetManager.summary()` → uso por fase (used/limit/remaining),
-   resaltar cualquier fase ≥80% de uso.
-7. Cargar `RebuttalEngine.summary()` si hay sesiones → conteo por
-   outcome (pending/accepted/stall/killed/exhausted). Resaltar sesiones
-   `pending` — son trabajo de validación sin terminar.
-8. Calcular gaps de cobertura (`CoverageTracker.get_gaps()`) y mostrar
-   los 10 más relevantes (priorizar assets con findings ya detectados en
-   otras clases — ahí es más probable que haya más).
-9. Derivar la(s) próxima(s) acción(es) recomendada(s) según la fase y el
-   estado (tabla de abajo).
+5. Load `CoverageTracker.summary()` → covered assets, total
+   vuln_classes, coverage ratio, cells with finding, skipped cells.
+6. Load `BudgetManager.summary()` → usage per phase
+   (used/limit/remaining), highlight any phase at ≥80% usage.
+7. Load `RebuttalEngine.summary()` if sessions exist → count by outcome
+   (pending/accepted/stall/killed/exhausted). Highlight `pending`
+   sessions — these are unfinished validation work.
+8. Compute coverage gaps (`CoverageTracker.get_gaps()`) and show the
+   top 10 most relevant (prioritize assets with findings already
+   detected in other classes — more findings are likelier there).
+9. Derive the recommended next action(s) based on phase and state
+   (table below).
 
-## Lógica de "próxima acción recomendada"
+## "Recommended next action" logic
 
-| Situación observada | Recomendación |
+| Observed situation | Recommendation |
 |---|---|
-| Fase `INIT` o sin engagement | `/quarry:engage <target>` |
-| Fase `SCOPED`, sin recon | `/quarry:recon` |
-| Fase `RECON`, sin mapas | `/quarry:map` |
-| Fase `MAPPED`/`HUNTING`, cobertura <100% y budget de hunting <80% | `/quarry:hunt` sobre los gaps listados |
-| ≥2 findings `CONFIRMED`/`EXPLOITED` sin cadenas analizadas | `/quarry:chain` |
-| Findings `DETECTED`/`CONFIRMED` acumulados sin pasar pipeline | `/quarry:validate` |
-| Findings `VALIDATED` sin reportar | `/quarry:report` |
-| Budget de alguna fase ≥80% | Escalar al operador antes de seguir — no recomendar más tool calls en esa fase sin decisión humana |
-| Sesiones de rebuttal en `pending` | Completar esas sesiones antes de abrir trabajo nuevo |
+| Phase `INIT` or no engagement | `/quarry:engage <target>` |
+| Phase `SCOPED`, no recon | `/quarry:recon` |
+| Phase `RECON`, no maps | `/quarry:map` |
+| Phase `MAPPED`/`HUNTING`, coverage <100% and hunting budget <80% | `/quarry:hunt` on the listed gaps |
+| ≥2 findings `CONFIRMED`/`EXPLOITED` without chain analysis | `/quarry:chain` |
+| Accumulated `DETECTED`/`CONFIRMED` findings without pipeline pass | `/quarry:validate` |
+| `VALIDATED` findings not yet reported | `/quarry:report` |
+| Any phase budget ≥80% | Escalate to operator before continuing — do not recommend more tool calls in that phase without a human decision |
+| Rebuttal sessions in `pending` | Complete those sessions before opening new work |
 
-Si aplican varias filas a la vez, listarlas todas en orden de urgencia
-(budget crítico y rebuttals pendientes primero, luego avance de fase).
+If multiple rows apply simultaneously, list them all in urgency order
+(critical budget and pending rebuttals first, then phase advancement).
 
 ## Edge cases
 
-- **Archivos de estado parcialmente corruptos o ausentes** (ej.
-  `findings.json` no existe pero `engagement.json` sí — engagement
-  recién creado): tratar como "0 findings", no como error, salvo que el
-  JSON exista y esté malformado — en ese caso sí reportarlo como
-  problema de estado a investigar, no silenciarlo.
-- **Fase y contenido inconsistentes** (ej. fase `REPORTING` pero 0
-  findings `VALIDATED`): señalar la inconsistencia explícitamente en el
-  dashboard, no solo mostrar los números por separado.
-- **Engagement muy viejo sin actividad reciente** (`updated_at` lejano):
-  mencionarlo — puede ser relevante para decidir si el scope/autorización
-  sigue vigente antes de retomar.
+- **Partially corrupt or missing state files** (e.g.
+  `findings.json` does not exist but `engagement.json` does — freshly
+  created engagement): treat as "0 findings", not as an error, unless
+  the JSON exists and is malformed — in that case, report it as a state
+  problem to investigate, do not silently ignore it.
+- **Phase and content inconsistent** (e.g. phase `REPORTING` but 0
+  `VALIDATED` findings): flag the inconsistency explicitly in the
+  dashboard, do not just show the numbers separately.
+- **Very old engagement without recent activity** (distant
+  `updated_at`): mention it — it may be relevant for deciding whether
+  the scope/authorization is still valid before resuming.
 
-## Output esperado
+## Expected output
 
-Dashboard de una pantalla, en este orden:
-1. Target, engagement ID, fase actual, última actividad.
-2. Scope: conteo in/out-of-scope, referencia de autorización presente
-   sí/no.
-3. Findings: total y desglose por status y severidad.
-4. Chains: total y por status.
-5. Cobertura: ratio, assets, celdas con finding, top gaps.
-6. Budget: uso por fase, alertas ≥80%.
-7. Rebuttal: sesiones pendientes si las hay.
-8. Run actual: `run_id`, estados por tarea, gates, interrumpidas y siguiente
-   acción de `Orchestrator.resume_plan()`.
-9. Integridad: resultado de `Orchestrator.doctor()` para artefactos y custodia.
-10. Próximas acciones recomendadas (lista priorizada, de la tabla anterior).
+Single-screen dashboard, in this order:
+1. Target, engagement ID, current phase, last activity.
+2. Scope: in/out-of-scope count, authorization reference present yes/no.
+3. Findings: total and breakdown by status and severity.
+4. Chains: total and by status.
+5. Coverage: ratio, assets, cells with finding, top gaps.
+6. Budget: usage per phase, ≥80% alerts.
+7. Rebuttal: pending sessions if any.
+8. Current run: `run_id`, task states, gates, interrupted tasks, and next
+   action from `Orchestrator.resume_plan()`.
+9. Integrity: `Orchestrator.doctor()` result for artifacts and custody.
+10. Recommended next actions (prioritized list, from the table above).

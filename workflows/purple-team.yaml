@@ -1,5 +1,5 @@
 name: purple-team
-description: Sesión conjunta con el SOC — replay de PoCs observando detecciones en vivo
+description: Joint session with the SOC — replay PoCs while observing live detections
 
 # Requiere: findings ya reportados + SOC del cliente disponible + acceso de
 # solo-lectura a su telemetría durante la sesión. Convierte la tabla

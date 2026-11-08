@@ -1,5 +1,5 @@
 name: surface-watch
-description: Monitoreo continuo de superficie entre engagements — re-recon periódico con diff y alertas
+description: Continuous surface monitoring between engagements — periodic re-recon with diff and alerts
 
 # Diseñado para correr en schedule (cron). No es hunting: es recon pasivo +
 # diff contra el baseline del último engagement. Cambios detectados son

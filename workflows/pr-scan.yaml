@@ -1,5 +1,5 @@
 name: pr-scan
-description: Escaneo ligero de seguridad para CI — corre en pull requests, sin engagement completo
+description: Lightweight security scan for CI — runs on pull requests without a full engagement
 
 # Modo de uso continuo, NO un pentest. Filosofía: minutos, no días; señal
 # alta, cero ruido. Todo lo que encuentra es LEAD hasta que un engagement

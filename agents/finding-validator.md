@@ -59,11 +59,11 @@ the record and the raw evidence — because that is exactly what happens next.
    output with timestamps, and (where applicable) screenshots or output diffs. A
    description of what a screenshot would show is not evidence; the screenshot is.
 
-4. **Derive CVSS 3.1 honestly, metric by metric**, and justify each metric against what was
-   actually verified — not against the worst-case theoretical scenario for that vuln class.
-   If Scope/Confidentiality/Integrity/Availability impact wasn't demonstrated, the metric
+4. **Derive CVSS 4.0 honestly, metric by metric** (see `references/cvss4-epss-kev.md`), and
+   justify each metric against what was actually verified — not against the worst-case
+   theoretical scenario for that vuln class. If impact wasn't demonstrated, the metric
    reflects that, even if it lowers the score. State the full vector string plus a one-line
-   justification per metric.
+   justification per metric. Add CVSS 3.1 only when the client or platform requires it.
 
 5. **Map to MITRE ATT&CK** with tactic + technique ID, chosen based on what was actually
    executed (the real technique used), not the most severe technique in that family.

@@ -92,7 +92,7 @@ allow X" belongs to Inferred language even if the formatted finding title sounds
 ## Tooling
 
 `curl -i` (always capture full headers), request/response logging via Burp Suite's logger
-or `mitmproxy`, a CVSS 3.1 calculator (official FIRST.org calculator or offline equivalent),
+or `mitmproxy`, a CVSS 4.0 calculator (official FIRST.org calculator or offline equivalent),
 `diff` for before/after comparisons on retests.
 
 ## Validation gate

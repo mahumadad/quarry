@@ -6,112 +6,111 @@ allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 
 # /quarry:chain [--matrix|--graph|--full]
 
-Este es el comando diferenciador del plugin (`engine/chain_engine.py`).
-Un pentest manual típico reporta findings aislados; este comando busca
-sistemáticamente qué combinaciones de findings menores producen impacto
-crítico combinado, y qué rutas de pivoteo existen desde acceso inicial
-hasta los crown jewels definidos en la target card.
+This is the plugin's differentiating command (`engine/chain_engine.py`).
+A typical manual pentest reports isolated findings; this command
+systematically searches for combinations of minor findings that produce
+critical combined impact, and for pivot paths from initial access to the
+crown jewels defined in the target card.
 
-Por defecto, sin argumento, corre `--full` (matrix + graph).
+By default (no argument), runs `--full` (matrix + graph).
 
-## Precondición
+## Precondition
 
-- Debe haber al menos 2 findings con status `CONFIRMED`, `EXPLOITED` o
-  `CHAINED` (`FindingsStore.list_chainable()`). Si hay 0 o 1, informar
-  que no hay material para encadenar y sugerir `/quarry:hunt` primero — no
-  es un error, es un estado normal temprano en el engagement.
-- Leer los 5 mapas de `/quarry:map` si existen — el capability map en
-  particular define qué cuenta como "crown jewel" para el modo grafo.
+- At least 2 findings with status `CONFIRMED`, `EXPLOITED`, or
+  `CHAINED` must exist (`FindingsStore.list_chainable()`). If there are
+  0 or 1, report that there is not enough material to chain and suggest
+  `/quarry:hunt` first — this is not an error, it is a normal early
+  engagement state.
+- Read the 5 maps from `/quarry:map` if they exist — the capability map
+  in particular defines what counts as a "crown jewel" for graph mode.
 
-## Modo matriz (`--matrix`)
+## Matrix mode (`--matrix`)
 
-Análisis combinatorio pairwise sobre todos los findings chainable:
+Pairwise combinatorial analysis over all chainable findings:
 
-1. Cargar findings con `FindingsStore.list_chainable()`.
-2. Ejecutar `ChainEngine.analyze_matrix(findings)` — internamente:
-   - Compara cada par `(F_i, F_j)` contra `KNOWN_CHAINS` (patrones
-     conocidos: IDOR+no-rate-limit→mass-exfil, XSS-stored+CSRF→ATO,
-     SSRF+cloud-metadata→credential-theft, etc. — ver
-     `references/chains/chain-matrix.md` para el catálogo completo, y
-     plus any operator-specific patterns from prior engagements).
-   - También expande `ENABLES_MAP` (qué clase habilita la explotación
-     de cuál otra, más allá de pares catalogados exactos).
-   - Deduplica candidatos por `(findings frozenset, name)`.
-3. Cada `Chain` candidata queda persistida en `chains.json` con
-   `status="candidate"` y `evidence_tag="inferred"` — **una cadena
-   candidata NO es un hallazgo validado**. Es una hipótesis estructural
-   que debe pasar por `/quarry:validate` antes de reportarse.
-4. Para cada candidata con severidad `critical` o `high`, intentar
-   verificar manualmente la combinación (encadenar los dos PoCs en la
-   práctica) antes de pasarla a validación — si la combinación no
-   reproduce en la práctica (ej. el rate-limit sí corta después de N
-   requests, más alto de lo esperado pero no infinito), bajar su
-   severidad o marcarla `killed` con la razón.
+1. Load findings with `FindingsStore.list_chainable()`.
+2. Run `ChainEngine.analyze_matrix(findings)` — internally:
+   - Compares each pair `(F_i, F_j)` against `KNOWN_CHAINS` (known
+     patterns: IDOR+no-rate-limit→mass-exfil, XSS-stored+CSRF→ATO,
+     SSRF+cloud-metadata→credential-theft, etc. — see
+     `references/chains/chain-matrix.md` for the full catalog, plus
+     any operator-specific patterns from prior engagements).
+   - Also expands `ENABLES_MAP` (which class enables exploitation of
+     which other, beyond exact cataloged pairs).
+   - Deduplicates candidates by `(findings frozenset, name)`.
+3. Each candidate `Chain` is persisted in `chains.json` with
+   `status="candidate"` and `evidence_tag="inferred"` — **a candidate
+   chain is NOT a validated finding**. It is a structural hypothesis
+   that must pass through `/quarry:validate` before being reported.
+4. For each candidate with `critical` or `high` severity, attempt to
+   manually verify the combination (chain the two PoCs in practice)
+   before passing it to validation — if the combination does not
+   reproduce in practice (e.g. the rate-limit does cut after N
+   requests, higher than expected but not infinite), lower its
+   severity or mark it `killed` with the reason.
 
-## Modo grafo (`--graph`)
+## Graph mode (`--graph`)
 
-Construye el grafo de pivoteo y busca rutas hacia los crown jewels:
+Builds the pivot graph and searches for paths to crown jewels:
 
-1. `ChainEngine.build_pivot_graph(findings, assets)` — nodos = assets +
-   capacidades obtenidas (`"<asset>:<capability>"` via `ENABLES_MAP`),
-   aristas = findings que habilitan el salto.
-2. Identificar el/los nodo(s) de "acceso inicial" (el primer finding
-   explotable sin credenciales, o el primer punto de entrada del
-   capability map).
-3. Identificar las keywords de "crown jewel" desde la target card
-   (pregunta 2) y el capability map — ej. `["admin", "database",
-   "payment", "pii"]`.
-4. `ChainEngine.find_paths(graph, start=<acceso_inicial>, goal_keywords=[...])`
-   — BFS que devuelve hasta 50 rutas. Si hay 0 rutas, no es un fallo del
-   comando: significa que con los findings actuales no hay un camino
-   conocido hasta los crown jewels, y eso es información válida para el
-   reporte (gap, no éxito ni fracaso).
-5. Priorizar las rutas más cortas (menos findings encadenados = cadena
-   más práctica de ejecutar y más creíble para el cliente).
+1. `ChainEngine.build_pivot_graph(findings, assets)` — nodes = assets +
+   capabilities obtained (`"<asset>:<capability>"` via `ENABLES_MAP`),
+   edges = findings that enable the hop.
+2. Identify the "initial access" node(s) (the first exploitable finding
+   without credentials, or the first entry point from the capability
+   map).
+3. Identify "crown jewel" keywords from the target card (question 2)
+   and the capability map — e.g. `["admin", "database", "payment",
+   "pii"]`.
+4. `ChainEngine.find_paths(graph, start=<initial_access>, goal_keywords=[...])`
+   — BFS returning up to 50 paths. If there are 0 paths, this is not a
+   command failure: it means that with the current findings there is no
+   known path to the crown jewels, and that is valid information for the
+   report (a gap, neither success nor failure).
+5. Prioritize the shortest paths (fewer chained findings = more
+   practical chain to execute and more credible to the client).
 
-## Pasos exactos (modo `--full`, default)
+## Exact steps (mode `--full`, default)
 
-1. Correr modo matriz completo.
-2. Correr modo grafo completo.
-3. Cruzar resultados: toda cadena del modo grafo que coincida con una
-   candidata del modo matriz se marca como doblemente confirmada
-   (mayor confianza).
-4. Escribir `<audit_dir>/report/chains.md` (Write tool) usando
-   `templates/chain-report.md` si existe, si no con esta estructura por
-   cadena: nombre, findings involucrados (IDs + 1 línea cada uno),
-   descripción del mecanismo, impacto combinado, severidad combinada,
-   evidence_tag, y — si aplica — el path completo del grafo.
-5. No transicionar automáticamente findings individuales a `CHAINED` —
-   eso requiere que la cadena específica pase el gate humano y
-   `/quarry:validate`. Aquí solo se registran como `chain_refs` candidatos.
+1. Run full matrix mode.
+2. Run full graph mode.
+3. Cross-reference results: any chain from graph mode that matches a
+   matrix candidate is marked as doubly confirmed (higher confidence).
+4. Write `<audit_dir>/report/chains.md` (Write tool) using
+   `templates/chain-report.md` if it exists, otherwise with this
+   structure per chain: name, involved findings (IDs + 1 line each),
+   mechanism description, combined impact, combined severity,
+   evidence_tag, and — if applicable — the full graph path.
+5. Do not automatically transition individual findings to `CHAINED` —
+   that requires the specific chain to pass the human gate and
+   `/quarry:validate`. Here they are only registered as candidate
+   `chain_refs`.
 
 ## Edge cases
 
-- **Findings de severidad baja que combinados dan critical**: estos son
-  exactamente el objetivo del comando — no descartarlos por severidad
-  individual baja. Reportarlos con el mismo detalle que las cadenas
-  "obvias".
-- **Dos findings con la misma causa raíz** (no deduplicados todavía):
-  el modo matriz puede generar una "cadena" espuria entre dos síntomas
-  del mismo bug. Señalar la sospecha de duplicado en el output y
-  recomendar `/quarry:validate --all` (paso dedup) antes de confiar en esa
-  cadena.
-- **Grafo sin acceso inicial claro** (todos los findings requieren
-  autenticación previa): documentar esto explícitamente — es una señal
-  de que falta un finding de autenticación/bypass para que el kill
-  chain completo sea viable, útil para dirigir el siguiente `/quarry:hunt`.
-- **Cadena que cruza fuera del scope original** (ej. el pivote llega a
-  un asset no autorizado): detener esa rama de la cadena en el límite
-  de scope, documentar hasta dónde llega dentro de lo autorizado, y
-  reportar al operador que ahí hay una ruta de pivoteo no verificable
-  sin ampliar scope — nunca verificarla sin autorización nueva.
+- **Low-severity findings that combine into critical**: these are
+  exactly the command's purpose — do not discard them for low individual
+  severity. Report them with the same detail as "obvious" chains.
+- **Two findings with the same root cause** (not yet deduplicated):
+  matrix mode may generate a spurious "chain" between two symptoms of
+  the same bug. Flag the duplicate suspicion in the output and recommend
+  `/quarry:validate --all` (dedup step) before trusting that chain.
+- **Graph with no clear initial access** (all findings require prior
+  authentication): document this explicitly — it is a signal that an
+  authentication/bypass finding is missing for the full kill chain to
+  be viable, useful for directing the next `/quarry:hunt`.
+- **Chain that crosses outside the original scope** (e.g. the pivot
+  reaches an unauthorized asset): stop that chain branch at the scope
+  boundary, document how far it reaches within authorized scope, and
+  report to the operator that there is an unverifiable pivot path
+  without expanding scope — never verify it without new authorization.
 
-## Output esperado
+## Expected output
 
-- Lista de cadenas candidatas (matriz) con severidad combinada, ordenadas
-  de mayor a menor impacto.
-- Rutas del grafo de pivoteo desde acceso inicial a crown jewels (si las
-  hay), con longitud de cada ruta.
-- Ruta de `chains.md`.
-- Próximo paso recomendado: `/quarry:validate` sobre las cadenas y findings
-  candidatos antes de reportar nada como confirmado.
+- List of candidate chains (matrix) with combined severity, ordered
+  from highest to lowest impact.
+- Pivot graph paths from initial access to crown jewels (if any), with
+  each path's length.
+- Path to `chains.md`.
+- Recommended next step: `/quarry:validate` on the candidate chains and
+  findings before reporting anything as confirmed.

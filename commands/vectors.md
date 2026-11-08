@@ -6,15 +6,15 @@ allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 
 # /quarry:vectors [--provider <name>] [--type <brainstorm|opinion|cve>]
 
-Consulta un LLM alternativo (DeepSeek, GLM, Kimi, OpenRouter, Ollama)
-para obtener una second opinion sobre qué vectores de ataque quedan por
-explorar en el engagement actual.
+Queries an alternative LLM (DeepSeek, GLM, Kimi, OpenRouter, Ollama)
+to get a second opinion on which attack vectors remain unexplored in
+the current engagement.
 
-## Precondición
+## Precondition
 
-- Engagement activo (`.pentest-state/engagement.json` existe).
-- Al menos un provider configurado en `.pentest-state/providers.json`.
-  Si no hay providers, guiar al operador para configurar uno:
+- Active engagement (`.pentest-state/engagement.json` exists).
+- At least one provider configured in `.pentest-state/providers.json`.
+  If no providers exist, guide the operator to configure one:
 
   ```json
   {
@@ -28,85 +28,85 @@ explorar en el engagement actual.
   }
   ```
 
-## Flujo
+## Flow
 
-### 1. Cargar estado del engagement
+### 1. Load engagement state
 
-Leer del Brain:
-- `brain.capabilities` — qué puede hacer el atacante ahora
-- `brain.exhausted_vectors` — qué se intentó y falló
-- `brain.active_vectors` — qué está en progreso
+Read from the Brain:
+- `brain.capabilities` — what the attacker can do now
+- `brain.exhausted_vectors` — what was tried and failed
+- `brain.active_vectors` — what is in progress
 
-Leer de `decision_engine.py`:
-- Stack detectado (AppProfile)
-- Skills ya ejecutadas
+Read from `decision_engine.py`:
+- Detected stack (AppProfile)
+- Already executed skills
 
-Leer de `findings.json`:
-- Resumen de findings por clase y severidad
-- Findings con tag `Inferred` que podrían beneficiarse de validación
+Read from `findings.json`:
+- Findings summary by class and severity
+- Findings tagged `Inferred` that could benefit from validation
 
-Leer de `coverage.json`:
-- Gaps de cobertura (celdas no probadas)
+Read from `coverage.json`:
+- Coverage gaps (untested cells)
 
-### 2. Construir prompt contextualizado
+### 2. Build contextualized prompt
 
-Usar `LLMGateway.vector_brainstorm()` que envía:
-- Stack tecnológico
-- Vectores exhaustos
-- Capabilities ganadas
-- Resumen de findings
+Use `LLMGateway.vector_brainstorm()` which sends:
+- Technology stack
+- Exhausted vectors
+- Gained capabilities
+- Findings summary
 
-El prompt pide vectores NO intentados, priorizados por probabilidad
-de éxito. Formato: JSON array con `vector`, `target`, `rationale`,
+The prompt asks for untried vectors, prioritized by success
+probability. Format: JSON array with `vector`, `target`, `rationale`,
 `priority`, `vuln_class`.
 
-### 3. Parsear respuesta y registrar leads
+### 3. Parse response and register leads
 
-Cada vector sugerido se registra como Lead en `engine/leads.py`:
+Each suggested vector is registered as a Lead in `engine/leads.py`:
 - `source`: `"llm_gateway:{provider}:{model}"`
-- `priority`: la que sugiere el provider
+- `priority`: the one suggested by the provider
 - `status`: `open`
-- `vuln_class_hint`: la clase sugerida
+- `vuln_class_hint`: the suggested class
 
-### 4. Filtrar duplicados
+### 4. Filter duplicates
 
-Antes de registrar, verificar contra:
-- Leads ya existentes (por título similar)
-- Exhausted vectors del Brain (ya se intentó)
-- Coverage cells ya marcadas `tested_clean`
+Before registering, check against:
+- Already existing leads (by similar title)
+- Brain's exhausted vectors (already attempted)
+- Coverage cells already marked `tested_clean`
 
-### 5. Presentar al operador
+### 5. Present to operator
 
-Mostrar tabla con los vectores sugeridos, indicando:
-- Cuáles son nuevos (no en exhausted ni en leads)
-- Cuáles confirman gaps del coverage tracker
-- Cuáles el operador debería priorizar
+Show a table with the suggested vectors, indicating:
+- Which are new (not in exhausted or in leads)
+- Which confirm coverage tracker gaps
+- Which the operator should prioritize
 
-No ejecutar nada automáticamente — solo registrar leads y recomendar.
+Do not execute anything automatically — only register leads and recommend.
 
-## Subcomandos
+## Subcommands
 
 ### `/quarry:vectors --type opinion --finding <id>`
 
-Pide una second opinion sobre un finding específico usando
-`LLMGateway.second_opinion()`. Útil para findings `Inferred` donde
-se quiere validación externa del assessment.
+Requests a second opinion on a specific finding using
+`LLMGateway.second_opinion()`. Useful for `Inferred` findings where
+external assessment validation is desired.
 
 ### `/quarry:vectors --type cve --service <name> --version <ver>`
 
-Deep-dive de CVEs para un servicio usando
-`LLMGateway.cve_deepdive()`. Útil cuando se detecta una versión
-y se quiere saber qué CVEs aplican antes de intentar explotación.
+CVE deep-dive for a service using `LLMGateway.cve_deepdive()`. Useful
+when a version is detected and you want to know which CVEs apply
+before attempting exploitation.
 
 ### `/quarry:vectors --provider <name>`
 
-Fuerza un provider específico en vez del routing configurado.
+Forces a specific provider instead of the configured routing.
 
-## Anti-fabricación
+## Anti-fabrication
 
-- Los vectores sugeridos por el LLM son **leads, no findings**.
-- No se registran como findings hasta que sean verificados.
-- El source tag `llm_gateway:*` deja claro el origen.
-- La redaction bidireccional (`redact_for_provider`) se aplica
-  ANTES de enviar al provider — no se filtran tokens, cookies,
-  ni IPs reales del target.
+- Vectors suggested by the LLM are **leads, not findings**.
+- They are not registered as findings until verified.
+- The source tag `llm_gateway:*` makes the origin clear.
+- Bidirectional redaction (`redact_for_provider`) is applied BEFORE
+  sending to the provider — no tokens, cookies, or real target IPs
+  are leaked.

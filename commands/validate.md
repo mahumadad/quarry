@@ -1,150 +1,151 @@
 ---
 name: quarry:validate
-description: Pipeline de validación de findings — higiene de evidencia, dedup, 4 gates, 7-Question Gate, rebuttal adversarial
+description: Finding validation pipeline — evidence hygiene, dedup, 4 gates, 7-Question Gate, adversarial rebuttal
 allowed-tools: Bash(*), Read(*), Write(*), Edit(*)
 ---
 
 # /quarry:validate [finding_id|--all]
 
-Corre el pipeline completo de validación sobre un finding específico o
-sobre todos los pendientes de validar. Nada se reporta (`/quarry:report`) sin
-haber pasado por este pipeline — es el control anti-fabricación del
-plugin hecho proceso, no solo regla en `CLAUDE.md`.
+Runs the full validation pipeline on a specific finding or on all
+pending ones. Nothing gets reported (`/quarry:report`) without passing
+through this pipeline — it is the plugin's anti-fabrication control
+implemented as process, not just a rule in `CLAUDE.md`.
 
-## Argumento
+## Argument
 
-- `<finding_id>` (ej. `F-A1B2C3D4`) — valida solo ese finding (o cadena,
-  si el ID empieza con `C-`).
-- `--all` — valida todos los findings en status `DETECTED`, `CONFIRMED`
-  o `EXPLOITED`, y todas las cadenas en status `candidate`. Sin
-  argumento, pedir cuál de los dos modos se quiere — no asumir `--all`
-  por defecto, porque correr rebuttal contra todo puede ser costoso en
-  tool calls (ver `budget.py`).
+- `<finding_id>` (e.g. `F-A1B2C3D4`) — validate only that finding (or
+  chain, if the ID starts with `C-`).
+- `--all` — validate all findings with status `DETECTED`, `CONFIRMED`
+  or `EXPLOITED`, and all chains with status `candidate`. With no
+  argument, ask which mode is desired — do not default to `--all`,
+  because running rebuttal against everything can be expensive in
+  tool calls (see `budget.py`).
 
-## Las 5 etapas, en orden estricto
+## The 5 stages, in strict order
 
-No saltar etapas aunque el finding "se vea obviamente válido" — el orden
-existe porque cada etapa depende de que la anterior ya limpió el
-terreno.
+Do not skip stages even if the finding "looks obviously valid" — the
+order exists because each stage depends on the previous one having
+cleaned the ground.
 
-### 1. Higiene de evidencia (`skills/validate/evidence-hygiene`)
+### 1. Evidence hygiene (`skills/validate/evidence-hygiene`)
 
-Verificar por cada finding/cadena:
-- ¿La evidencia es reproducible (request/response completo, o output de
-  herramienta con timestamp)? Si falta, **no avanzar** — volver a
-  `/quarry:hunt` para esa celda y capturar evidencia real primero.
-- ¿La evidencia demuestra el impacto reclamado, o solo una precondición?
-  (ej. "se ve el parámetro reflejado" no es lo mismo que "el XSS
-  ejecuta").
-- ¿Están los targets anonimizados donde corresponda guardar para
-  reutilización futura, sin perder la evidencia real en el engagement
-  actual?
+Verify for each finding/chain:
+- Is the evidence reproducible (complete request/response, or tool
+  output with timestamp)? If missing, **do not advance** — go back to
+  `/quarry:hunt` for that cell and capture real evidence first.
+- Does the evidence demonstrate the claimed impact, or just a
+  precondition? (e.g. "the parameter is reflected" is not the same as
+  "the XSS executes").
+- Are targets anonymized where appropriate for future reuse, without
+  losing the real evidence in the current engagement?
 
-Findings que fallan higiene → quedan en `DETECTED` con nota de qué
-evidencia falta. No pasan a la siguiente etapa.
+Findings that fail hygiene stay at `DETECTED` with a note about what
+evidence is missing. They do not advance to the next stage.
 
-### 2. Deduplicación (`skills/validate/dedup`)
+### 2. Deduplication (`skills/validate/dedup`)
 
-Para el set que pasó higiene:
-- Agrupar findings que comparten la misma causa raíz aunque tengan
-  síntomas distintos (ej. mismo endpoint sin output encoding, reflejado
-  en 3 parámetros distintos).
-- Fusionar duplicados en un único finding con múltiples
-  `steps_to_reproduce`, manteniendo el ID más antiguo y marcando los
-  otros como `KILLED` con `reason="duplicate of F-XXXXXXXX"`.
-- Para cadenas: verificar que no sean la misma cadena vista desde dos
-  pares de findings distintos.
+For the set that passed hygiene:
+- Group findings that share the same root cause even if symptoms differ
+  (e.g. same endpoint without output encoding, reflected in 3 different
+  parameters).
+- Merge duplicates into a single finding with multiple
+  `steps_to_reproduce`, keeping the oldest ID and marking the others
+  as `KILLED` with `reason="duplicate of F-XXXXXXXX"`.
+- For chains: verify they are not the same chain seen from two different
+  pairs of findings.
 
-### 3. Los 4 gates (`skills/validate/finding-validation`)
+### 3. The 4 gates (`skills/validate/finding-validation`)
 
-Cada finding debe pasar los 4, explícitamente, documentando la respuesta:
+Each finding must pass all 4, explicitly, documenting the answer:
 
-1. **Refutation** — ¿hay una razón válida para matar este finding?
-   Recorrer las `REFUTATION_QUESTIONS` de `engine/rebuttal.py` (¿es
-   reproducible por alguien sin contexto previo?, ¿un WAF/rate-limiter/
-   CSRF token ya lo bloquea?, ¿el PoC demuestra el impacto o solo una
-   precondición?, ¿es observación informativa y no vulnerabilidad?,
-   ¿podría ser falso positivo de scanner?, ¿la severidad está inflada
-   respecto a lo demostrado?, ¿un atacante real lo explotaría o es
-   teórico?, ¿el endpoint es alcanzable desde una posición externa/no
-   privilegiada?, ¿hay supuestos de deployment que no se sostienen en
-   producción?, ¿ya se chequeó dedup?).
-2. **Reachability** — ¿el endpoint/función vulnerable es alcanzable
-   dentro del scope autorizado, sin requerir acceso que el atacante
-   modelado no tendría?
-3. **Trigger** — ¿existe un disparador concreto y repetible (request,
-   comando, secuencia de acciones) que active la vulnerabilidad, no solo
-   una condición teórica?
-4. **Impact** — ¿el impacto reclamado está demostrado (Demonstrated) o
-   es inferido/asumido? Si es `Inferred` o `Unproven`, la severidad
-   reportada no puede exceder lo que esa evidencia realmente sostiene.
+1. **Refutation** — is there a valid reason to kill this finding?
+   Walk through the `REFUTATION_QUESTIONS` from `engine/rebuttal.py` (is
+   it reproducible by someone with no prior context?, does a WAF/rate-
+   limiter/CSRF token already block it?, does the PoC demonstrate the
+   impact or just a precondition?, is it an informational observation
+   rather than a vulnerability?, could it be a scanner false positive?,
+   is the severity inflated relative to what was demonstrated?, would a
+   real attacker exploit this or is it theoretical?, is the endpoint
+   reachable from an external/unprivileged position?, are there
+   deployment assumptions that don't hold in production?, has dedup been
+   checked already?).
+2. **Reachability** — is the vulnerable endpoint/function reachable
+   within the authorized scope, without requiring access the modeled
+   attacker wouldn't have?
+3. **Trigger** — is there a concrete, repeatable trigger (request,
+   command, sequence of actions) that activates the vulnerability, not
+   just a theoretical condition?
+4. **Impact** — is the claimed impact Demonstrated or is it inferred/
+   assumed? If it is `Inferred` or `Unproven`, the reported severity
+   cannot exceed what that evidence actually supports.
 
-Un finding que falla cualquiera de los 4 gates no avanza — se devuelve a
-`DETECTED`/`CONFIRMED` con la razón específica, o se mata si el gate
-muestra que es inválido.
+A finding that fails any of the 4 gates does not advance — it is sent
+back to `DETECTED`/`CONFIRMED` with the specific reason, or killed if
+the gate shows it is invalid.
 
 ### 4. 7-Question Gate (triage, `skills/validate/triage-gate`)
 
-Checklist de triage final antes del rebuttal adversarial — 7 preguntas
-que cualquier revisor externo haría primero. Si `skills/validate/
-triage-gate/SKILL.md` no está escrito aún, usar como base las 7
-preguntas estándar de triage de bug bounty (duplicado conocido, dentro
-de scope del programa/cliente, severidad consistente con impacto real,
-PoC completo y reproducible, no requiere ingeniería social no
-autorizada, no es un "best practice" sin impacto demostrable, afecta a
-una versión/configuración realmente desplegada) y señalarlo como gap de
-contenido.
+Final triage checklist before adversarial rebuttal — 7 questions any
+external reviewer would ask first. If `skills/validate/triage-gate/
+SKILL.md` is not written yet, use the standard 7 bug-bounty triage
+questions as a baseline (known duplicate, within program/client scope,
+severity consistent with real impact, complete and reproducible PoC,
+does not require unauthorized social engineering, is not a "best
+practice" with no demonstrable impact, affects a version/configuration
+actually deployed) and flag it as a content gap.
 
-### 5. Rebuttal adversarial (`engine/rebuttal.py`)
+### 5. Adversarial rebuttal (`engine/rebuttal.py`)
 
-Para cada finding que llegó hasta aquí:
+For each finding that made it here:
 1. `RebuttalEngine.start_session(finding_id, max_rounds=3)`.
-2. Generar el prompt del checker con `get_checker_prompt(...)` — **el
-   checker actúa ciego**: no debe recibir el razonamiento del operador
-   ni el contexto del engagement, solo el finding y su evidencia en
-   JSON. Si estás ejecutando ambos roles en la misma sesión, simula
-   genuinamente la postura adversarial — no valides tu propio trabajo
-   con una objeción de cortesía.
-3. El generador (rol validador, con contexto completo) responde al
-   challenge del checker.
-4. Registrar la ronda con `record_round(finding_id, challenge, response,
-   outcome)`, donde `outcome` es `ACCEPTED`, `STALL` o `KILLED`.
-5. Repetir hasta `ACCEPTED`/`KILLED`, o hasta 3 rondas (`EXHAUSTED`).
-6. Mapear el resultado final al finding:
+2. Generate the checker prompt with `get_checker_prompt(...)` — **the
+   checker acts blind**: it must not receive the operator's reasoning
+   or the engagement context, only the finding and its evidence in
+   JSON. If you are playing both roles in the same session, genuinely
+   simulate the adversarial stance — do not validate your own work
+   with a courtesy objection.
+3. The generator (validator role, with full context) responds to the
+   checker's challenge.
+4. Record the round with `record_round(finding_id, challenge, response,
+   outcome)`, where `outcome` is `ACCEPTED`, `STALL` or `KILLED`.
+5. Repeat until `ACCEPTED`/`KILLED`, or up to 3 rounds (`EXHAUSTED`).
+6. Map the final result to the finding:
    - `ACCEPTED` → `FindingsStore.update_status(id, FindingStatus.VALIDATED)`,
      `rebuttal_result="ACCEPTED"`.
    - `KILLED` → `update_status(id, FindingStatus.KILLED, reason=...)`.
-   - `STALL`/`EXHAUSTED` → el finding queda sin avanzar; se reporta al
-     operador como "necesita más evidencia", nunca se infla a
-     `VALIDATED` por cansancio del loop.
+   - `STALL`/`EXHAUSTED` → the finding does not advance; report it to
+     the operator as "needs more evidence", never inflate it to
+     `VALIDATED` out of loop fatigue.
 
 ## Edge cases
 
-- **Finding ya `VALIDATED` o `REPORTED`**: no reprocesar salvo que el
-  operador pida re-validación explícita (ej. apareció nueva evidencia
-  que lo contradice).
-- **Cadena (`C-XXXXXXXX`) en vez de finding**: el pipeline aplica igual,
-  pero el "finding" evaluado es la combinación — el checker debe
-  intentar refutar específicamente que la combinación produce más
-  impacto que cada parte por separado, no solo refutar cada parte.
-- **`--all` con volumen alto**: antes de arrancar, mostrar cuántos
-  findings/cadenas entrarán al pipeline y el costo estimado en tool
-  calls; si supera el budget disponible de la fase `validating`
-  (`BudgetManager.get_tracker("validating")`), confirmar con el operador
-  antes de proceder o sugerir priorizar por severidad.
-- **STALL repetido en la misma categoría de finding**: si varios
-  findings de la misma clase quedan en STALL por el mismo motivo (ej.
-  "falta evidencia de impacto real" en varios XSS), señalarlo como
-  patrón — probablemente la metodología de esa skill de hunt necesita
-  ajuste, no solo cada finding individual.
+- **Finding already `VALIDATED` or `REPORTED`**: do not reprocess unless
+  the operator explicitly requests re-validation (e.g. new evidence
+  surfaced that contradicts it).
+- **Chain (`C-XXXXXXXX`) instead of finding**: the pipeline applies the
+  same way, but the "finding" being evaluated is the combination — the
+  checker must specifically attempt to refute that the combination
+  produces more impact than each part separately, not just refute each
+  part.
+- **`--all` with high volume**: before starting, show how many findings/
+  chains will enter the pipeline and the estimated cost in tool calls;
+  if it exceeds the available budget for the `validating` phase
+  (`BudgetManager.get_tracker("validating")`), confirm with the
+  operator before proceeding or suggest prioritizing by severity.
+- **Repeated STALL in the same finding category**: if several findings
+  of the same class end up in STALL for the same reason (e.g. "lacks
+  real impact evidence" on multiple XSS), flag it as a pattern —
+  the hunt skill's methodology likely needs adjustment, not just each
+  individual finding.
 
-## Output esperado
+## Expected output
 
-Tabla final por finding/cadena: ID, título, etapa donde terminó
-(higiene/dedup/gates/triage/rebuttal), resultado (`ACCEPTED`/`STALL`/
-`KILLED`), y razón en una línea. Resumen agregado
+Final table per finding/chain: ID, title, stage where it terminated
+(hygiene/dedup/gates/triage/rebuttal), result (`ACCEPTED`/`STALL`/
+`KILLED`), and reason in one line. Aggregate summary
 (`FindingsStore.summary()` + `RebuttalEngine.summary()`).
 
-Próximo paso recomendado: `/quarry:report` si hay findings `VALIDATED`;
-si todo quedó en `STALL`, volver a `/quarry:hunt`/`/quarry:chain` por evidencia
-adicional antes de reintentar validación.
+Recommended next step: `/quarry:report` if there are `VALIDATED`
+findings; if everything ended in `STALL`, go back to
+`/quarry:hunt`/`/quarry:chain` for additional evidence before retrying
+validation.
