@@ -282,7 +282,50 @@ bug bounty community tips. Items are design-level changes, not quick fixes.
 
 ---
 
+## Field-tested gaps (Healthatom engagement, 2026-11-12)
+
+Identified during the first real-world engagement. These are workflow-level
+gaps, not code bugs — the engine ran correctly but the skill set missed
+categories of data.
+
+- [x] **CT Log Enumeration skill** — `skills/recon/ct-log-enum/SKILL.md`.
+      subfinder does NOT cover CT logs completely. A dedicated crt.sh (or
+      certspotter) pass over all apex domains in scope is needed as a
+      mandatory step in passive-recon. Found 209 new hosts in Healthatom
+      that subfinder missed.
+      Done: skill created, wired to recon-only.yaml and full-pentest.yaml.
+- [x] **Email Security DNS skill** — `skills/core/email-security/SKILL.md`
+      (already existed). DMARC/SPF/DKIM audit per in-scope domain. Wired
+      to recon-only.yaml and full-pentest.yaml recon phases.
+- [x] **RFC1918 leak post-processing** — added to `skills/recon/passive-recon`
+      step 8: after DNS resolution, filter A records for RFC1918/loopback IPs.
+      Also documented in ct-log-enum step 4.
+- [x] **Security policy parser** — `skills/engage/security-policy-parser/SKILL.md`.
+      Parses bug bounty policy for test account availability, exclusions, safe
+      harbor, SLA. Wired to scope phase of recon-only.yaml and full-pentest.yaml.
+
+## Severity calibration notes (Healthatom review, 2026-11-12)
+
+External review flagged adjustments needed before reporting:
+
+- **H-01/H-02 (CSRF):** Absence of CSRF token ≠ confirmed CSRF. Must verify
+  that the server does NOT validate Origin/Referer headers as a secondary
+  defense. Downgrade to "candidate/unverified" until form-POST PoC with
+  cross-origin Origin header succeeds.
+- **H-18 (jQuery XSS):** PoC runs locally loading jQuery from target CDN,
+  but XSS not demonstrated IN the target application. Correct label: "PoC
+  local; sink in target pending authentication to validate."
+- **H-17 (Host header injection):** Host reflection in script src is
+  DEMONSTRATED on prod. But the full ATO chain (cache poisoning, password
+  reset poisoning) remains INFERRED — no cache layer found, and reset
+  poisoning requires authenticated testing.
+- **H-19 (No WAF):** HTTP 200 with payload strings in URL params doesn't
+  prove WAF absence — the app may accept but not process them. Downgrade
+  to defense-in-depth observation, not a standalone medium finding.
+
+---
+
 ## Recommended order
 
 All critical (C1-C7) and important (I1-I10) items are now complete.
-Remaining items are in the "Deferred" section above.
+Remaining items are in the "Deferred" and "Field-tested gaps" sections above.

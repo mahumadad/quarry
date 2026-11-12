@@ -3,12 +3,13 @@ description: Recon and mapping only — no hunting or exploitation
 
 phases:
   - name: scope
-    skills: [engagement-flow, scope-discipline]
+    skills: [engagement-flow, scope-discipline, security-policy-parser]
     gate: human_approval
 
   - name: recon
     skills:
       - passive-recon
+      - ct-log-enum
       - active-recon
       - dns-enumeration
       - subdomain-discovery
@@ -20,6 +21,7 @@ phases:
       - osint
       - cloud-recon
       - email-harvesting
+      - email-security
       - github-dorking
       - waf-fingerprint
       - tech-stack-fingerprint

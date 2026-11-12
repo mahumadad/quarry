@@ -11,7 +11,7 @@ metadata:
   phase: recon
   tools: [whois, dig, curl, crt.sh, waybackurls, gau, googler]
 depends_on: [scope-discipline]
-feeds_into: [dns-enumeration, subdomain-discovery, osint, github-dorking, email-harvesting]
+feeds_into: [dns-enumeration, subdomain-discovery, osint, github-dorking, email-harvesting, ct-log-enum]
 ---
 
 ## Signals
@@ -77,6 +77,17 @@ feeds_into: [dns-enumeration, subdomain-discovery, osint, github-dorking, email-
    ```bash
    cat crtsh.txt wayback-urls.txt | grep -oP '([a-z0-9-]+\.)+example\.com' | sort -u > candidates.txt
    ```
+8. **RFC1918 leak check** — after resolving candidates, flag any A records
+   pointing to private IPs in public DNS (information disclosure, CWE-200):
+   ```bash
+   while read -r host; do
+     ip=$(dig +short A "$host" @8.8.8.8 | head -1)
+     echo "$host $ip"
+   done < candidates.txt > resolved.txt
+   grep -E '\b(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.)' resolved.txt > rfc1918-leaks.txt
+   ```
+   Any hit reveals internal network topology. See `ct-log-enum` for the
+   full post-processing pattern.
 
 ## Tooling
 

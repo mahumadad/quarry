@@ -7,7 +7,7 @@ description: Continuous surface monitoring between engagements — periodic re-r
 
 phases:
   - name: passive-recon
-    skills: [passive-recon, dns-enumeration, subdomain-discovery, tech-stack-fingerprint]
+    skills: [passive-recon, ct-log-enum, dns-enumeration, subdomain-discovery, email-security, tech-stack-fingerprint]
     budget: 30
     notes: >
       Passive or low-noise only: CT logs, DNS, certificates, header
