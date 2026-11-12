@@ -1,0 +1,36 @@
+id: vtex-public-api-surface
+info:
+  name: VTEX Public Catalog and Session API Surface
+  author: quarry
+  severity: info
+  description: Identifies public VTEX APIs without querying customer data entities or checkout operations.
+  tags: vtex,api,fingerprint,ecommerce
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: vtex
+    protocols: http,rest
+    coverage: attack-surface,api-discovery
+    fixture: vtex-api
+    max-request: 4
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/catalog_system/pub/products/search"
+      - "{{BaseURL}}/api/sessions"
+      - "{{BaseURL}}/_v/segment/routing/vtex.store@2.x/product/1"
+      - "{{BaseURL}}/api/io/_v/apps"
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: header
+        words: ["application/json"]
+      - type: regex
+        part: body
+        regex:
+          - '"(items|productId|segments|session|apps|vendor)"\s*:'
+        condition: or

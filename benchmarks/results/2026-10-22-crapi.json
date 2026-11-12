@@ -1,0 +1,20 @@
+{
+  "target": "crapi",
+  "scored_at": "2026-10-22T18:26:41.923621+00:00",
+  "target_version": null,
+  "expected_total": 10,
+  "expected_required": 10,
+  "excluded": [],
+  "found": 10,
+  "missed": [],
+  "recall": 1.0,
+  "recall_required": 1.0,
+  "precision": 1.0,
+  "reported_findings": 10,
+  "unmatched_findings": [],
+  "evidence": {
+    "total": 10,
+    "hashed": 10,
+    "integrity": 1.0
+  }
+}

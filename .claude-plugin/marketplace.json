@@ -1,0 +1,15 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "quarry",
+  "owner": {
+    "name": "mahumadad",
+    "url": "https://github.com/mahumadad"
+  },
+  "plugins": [
+    {
+      "name": "quarry",
+      "source": "./",
+      "description": "Track. Aim. Prove. Full-cycle penetration testing with evidence discipline — recon, hunting, chaining, validation, and reporting with custody-grade proof."
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+name: recon-only
+description: Recon and mapping only — no hunting or exploitation
+
+phases:
+  - name: scope
+    skills: [engagement-flow, scope-discipline, security-policy-parser]
+    gate: human_approval
+
+  - name: recon
+    skills:
+      - passive-recon
+      - ct-log-enum
+      - active-recon
+      - dns-enumeration
+      - subdomain-discovery
+      - port-scan
+      - service-enumeration
+      - web-crawling
+      - js-analysis
+      - api-discovery
+      - osint
+      - cloud-recon
+      - email-harvesting
+      - email-security
+      - github-dorking
+      - waf-fingerprint
+      - tech-stack-fingerprint
+      - nuclei-reviewed
+    agent: recon-agent
+    strategy: exhaustive
+    gate: coverage_check
+    budget: 200
+
+  - name: mapping
+    skills: [asset-map, trust-map, identity-map, state-map, capability-map]
+    gate: human_review
+
+  - name: reporting
+    description: Surface report without exploitation findings
+    outputs:
+      - attack-surface-report.md
+      - asset-inventory.json
+      - maps/

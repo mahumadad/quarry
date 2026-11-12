@@ -1,0 +1,155 @@
+{
+  "generated_at": "2026-10-26T14:25:28.861784+00:00",
+  "scope": "loopback only",
+  "cases": [
+    {
+      "stack": "fastapi",
+      "mode": "vulnerable",
+      "target": "http://127.0.0.1:18081",
+      "status": "completed",
+      "selected": [
+        "fastapi-openapi-documentation",
+        "python-environment-secret-exposed"
+      ],
+      "expected": [
+        "fastapi-openapi-documentation",
+        "python-environment-secret-exposed"
+      ],
+      "actual": [
+        "fastapi-openapi-documentation",
+        "python-environment-secret-exposed"
+      ],
+      "false_negatives": [],
+      "false_positives": [],
+      "unexpected_positive_leads": [],
+      "artifacts_intact": true,
+      "passed": true
+    },
+    {
+      "stack": "fastapi",
+      "mode": "secure",
+      "target": "http://127.0.0.1:18084",
+      "status": "completed",
+      "selected": [
+        "fastapi-openapi-documentation",
+        "python-environment-secret-exposed"
+      ],
+      "expected": [
+        "fastapi-openapi-documentation",
+        "python-environment-secret-exposed"
+      ],
+      "actual": [],
+      "false_negatives": [],
+      "false_positives": [],
+      "unexpected_positive_leads": [],
+      "artifacts_intact": true,
+      "passed": true
+    },
+    {
+      "stack": "django",
+      "mode": "vulnerable",
+      "target": "http://127.0.0.1:18082",
+      "status": "completed",
+      "selected": [
+        "django-admin-login-surface",
+        "django-debug-exposed",
+        "python-environment-secret-exposed"
+      ],
+      "expected": [
+        "django-admin-login-surface",
+        "django-debug-exposed",
+        "python-environment-secret-exposed"
+      ],
+      "actual": [
+        "django-admin-login-surface",
+        "django-debug-exposed",
+        "python-environment-secret-exposed"
+      ],
+      "false_negatives": [],
+      "false_positives": [],
+      "unexpected_positive_leads": [],
+      "artifacts_intact": true,
+      "passed": true
+    },
+    {
+      "stack": "django",
+      "mode": "secure",
+      "target": "http://127.0.0.1:18085",
+      "status": "completed",
+      "selected": [
+        "django-admin-login-surface",
+        "django-debug-exposed",
+        "python-environment-secret-exposed"
+      ],
+      "expected": [
+        "django-admin-login-surface",
+        "django-debug-exposed",
+        "python-environment-secret-exposed"
+      ],
+      "actual": [],
+      "false_negatives": [],
+      "false_positives": [],
+      "unexpected_positive_leads": [],
+      "artifacts_intact": true,
+      "passed": true
+    },
+    {
+      "stack": "express",
+      "mode": "vulnerable",
+      "target": "http://127.0.0.1:18083",
+      "status": "completed",
+      "selected": [
+        "express-stack-trace-exposed",
+        "javascript-source-map-content-exposed",
+        "nextjs-development-manifest-exposed",
+        "node-environment-secret-exposed",
+        "node-package-metadata-exposed"
+      ],
+      "expected": [
+        "express-stack-trace-exposed",
+        "javascript-source-map-content-exposed",
+        "node-environment-secret-exposed",
+        "node-package-metadata-exposed"
+      ],
+      "actual": [
+        "express-stack-trace-exposed",
+        "javascript-source-map-content-exposed",
+        "node-environment-secret-exposed",
+        "node-package-metadata-exposed"
+      ],
+      "false_negatives": [],
+      "false_positives": [],
+      "unexpected_positive_leads": [],
+      "artifacts_intact": true,
+      "passed": true
+    },
+    {
+      "stack": "express",
+      "mode": "secure",
+      "target": "http://127.0.0.1:18086",
+      "status": "completed",
+      "selected": [
+        "express-stack-trace-exposed",
+        "javascript-source-map-content-exposed",
+        "nextjs-development-manifest-exposed",
+        "node-environment-secret-exposed",
+        "node-package-metadata-exposed"
+      ],
+      "expected": [
+        "express-stack-trace-exposed",
+        "javascript-source-map-content-exposed",
+        "node-environment-secret-exposed",
+        "node-package-metadata-exposed"
+      ],
+      "actual": [],
+      "false_negatives": [],
+      "false_positives": [],
+      "unexpected_positive_leads": [],
+      "artifacts_intact": true,
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "false_negatives": 0,
+  "false_positives": 0
+}

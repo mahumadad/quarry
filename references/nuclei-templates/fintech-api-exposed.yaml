@@ -1,0 +1,40 @@
+id: fintech-openapi-documentation
+info:
+  name: Financial API Documentation Surface
+  author: quarry
+  severity: info
+  description: Identifies OpenAPI documentation; does not infer financial data exposure from HTTP 200.
+  tags: fintech,api,openapi,attack-surface
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: fintech,payment
+    protocols: http,rest
+    coverage: api-discovery,documentation-exposure
+    fixture: openapi-docs
+    max-request: 8
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/swagger.json"
+      - "{{BaseURL}}/api/openapi.json"
+      - "{{BaseURL}}/api/v1/openapi.json"
+      - "{{BaseURL}}/openapi.json"
+      - "{{BaseURL}}/api/docs"
+      - "{{BaseURL}}/docs"
+      - "{{BaseURL}}/swagger-ui/"
+      - "{{BaseURL}}/swagger-ui/index.html"
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["openapi", "swagger", "OpenAPI", "Swagger UI"]
+        condition: or
+      - type: word
+        part: body
+        words: ['"paths"', '"info"', "SwaggerUIBundle", "swagger-ui"]
+        condition: or

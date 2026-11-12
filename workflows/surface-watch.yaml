@@ -1,0 +1,40 @@
+name: surface-watch
+description: Continuous surface monitoring between engagements — periodic re-recon with diff and alerts
+
+# Designed to run on a schedule (cron). Not hunting: passive recon +
+# diff against the baseline from the last engagement. Detected changes are
+# LEADS for the operator, never automatic findings.
+
+phases:
+  - name: passive-recon
+    skills: [passive-recon, ct-log-enum, dns-enumeration, subdomain-discovery, email-security, tech-stack-fingerprint]
+    budget: 30
+    notes: >
+      Passive or low-noise only: CT logs, DNS, certificates, header
+      fingerprinting. No fuzzing, no heavy traffic — runs without prior
+      notice within the original engagement scope.
+
+  - name: diff
+    notes: >
+      engine/target_diff.py against the previous snapshot:
+      - new subdomains (each one is unaudited surface)
+      - new endpoints/routes on known assets
+      - stack/version changes (upgrade? downgrade?)
+      - new services/ports exposed
+      - new certificates (new environments? phishing lookalike?)
+
+  - name: alert
+    condition: changes_detected
+    notes: >
+      If relevant changes exist: note to the operator/client with the diff
+      and recommendation (is a targeted retest worth it? wait for the next
+      engagement?). If NO changes: silent log — do not generate noise.
+
+  - name: baseline-update
+    notes: >
+      The new snapshot becomes the baseline. Custody event per run
+      (even without changes — the "watched with no changes" record has
+      contractual value).
+
+# Suggested schedule: weekly for critical assets, monthly for the rest.
+# Outside cron, the manual command is /quarry:status --watch.

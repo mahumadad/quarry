@@ -1,0 +1,35 @@
+id: graphql-introspection
+info:
+  name: GraphQL Introspection Enabled
+  author: quarry
+  severity: info
+  description: Confirms schema introspection; impact depends on exposed operations and authorization.
+  tags: graphql,introspection,api,attack-surface
+  reference: ["https://graphql.org/learn/introspection/"]
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: graphql
+    protocols: http,graphql
+    coverage: api-discovery,schema-exposure
+    fixture: graphql-introspection
+    max-request: 3
+http:
+  - method: POST
+    path: ["{{BaseURL}}/graphql", "{{BaseURL}}/api/graphql", "{{BaseURL}}/_v/graphql"]
+    headers:
+      Content-Type: application/json
+    body: '{"query":"{__schema{queryType{name} mutationType{name} types{name}}}"}'
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["__schema", '"types"']
+        condition: and
+      - type: regex
+        part: body
+        regex: ['"data"\s*:\s*\{']

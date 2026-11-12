@@ -1,0 +1,36 @@
+id: magento-public-rest-api
+info:
+  name: Magento Public REST API Surface
+  author: quarry
+  severity: info
+  description: Identifies intentionally public Magento store and directory APIs; validate data sensitivity before escalation.
+  tags: magento,api,fingerprint,ecommerce,rest
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: magento
+    protocols: http,rest
+    coverage: attack-surface,api-discovery
+    fixture: magento-api
+    max-request: 4
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/rest/V1/store/storeConfigs"
+      - "{{BaseURL}}/rest/V1/directory/countries"
+      - "{{BaseURL}}/rest/V1/directory/currency"
+      - "{{BaseURL}}/rest/V1/store/websites"
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: header
+        words: ["application/json"]
+      - type: regex
+        part: body
+        regex:
+          - '"(base_url|base_currency_code|locale|code)"\s*:'
+        condition: or

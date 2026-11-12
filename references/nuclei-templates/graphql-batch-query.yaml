@@ -1,0 +1,33 @@
+id: graphql-batch-query
+info:
+  name: GraphQL Read-Only Batch Accepted
+  author: quarry
+  severity: info
+  description: Confirms two read-only operations in one request; does not claim DoS or rate-limit bypass.
+  tags: graphql,batch,api,attack-surface
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: graphql
+    protocols: http,graphql
+    coverage: api-behavior,batch-support
+    fixture: graphql-batch
+    max-request: 3
+http:
+  - method: POST
+    path: ["{{BaseURL}}/graphql", "{{BaseURL}}/api/graphql", "{{BaseURL}}/_v/graphql"]
+    headers:
+      Content-Type: application/json
+    body: '[{"query":"{__typename}"},{"query":"{__typename}"}]'
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["__typename"]
+      - type: regex
+        part: body
+        regex: ['\[\s*\{[^\r\n]*"data"[^\r\n]*\}\s*,\s*\{[^\r\n]*"data"[^\r\n]*\}\s*\]']

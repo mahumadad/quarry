@@ -1,0 +1,55 @@
+name: closeout
+description: Engagement closeout — artifact cleanup, credential rotation, custody seal, and debrief
+
+# The phase that separates a professional pentest: leave no operational
+# trace and seal the evidence. Skipping closeout leaves forgotten
+# webshells, live test accounts, and client data with no defined
+# destination.
+
+phases:
+  - name: artifact-cleanup
+    gate: human_review
+    notes: >
+      Inventory of EVERYTHING the engagement left on the target, with
+      verified removal:
+      - uploaded files (PoC uploads, test files with unique markers)
+      - test accounts created (or confirm the client disables them)
+      - webhooks/callbacks configured (own OAST listeners on the target)
+      - deliberate state changes (data modified in authorized write tests)
+        — revert or document as irreversible
+      Each item: removed / client-removes / irreversible-documented.
+      A forgotten test webshell is a real security incident.
+
+  - name: credential-hygiene
+    notes: >
+      - Rotate/disable test credentials from the vault (engine/vault.py)
+      - Revoke API tokens issued for the engagement
+      - Confirm no credentials remain in engagement files outside the vault
+
+  - name: evidence-seal
+    notes: >
+      - Final CustodyLog.verify() — the chain must be INTACT
+      - Closing event in custody (actor: operator)
+      - engine/deliver.py: SHA-256 manifest + bundle (+ gpg encryption if
+        the contract requires it)
+      - Verify the bundle against its manifest before delivery
+
+  - name: data-retention
+    gate: human_approval
+    notes: >
+      Engagement data destination per contract:
+      - agreed retention (days, location, encryption)
+      - destruction: what is deleted, when, by what method — record the
+        destruction act in custody as the last event
+      - knowledge.py keeps ONLY anonymized techniques (verify no record
+        carries client identifiers)
+
+  - name: debrief
+    skills: [executive-brief]
+    notes: >
+      Closing session with the client:
+      - walkthrough of critical/high findings with live PoC (optional)
+      - review coverage gaps (what was NOT tested — see engagement report)
+      - open questions from the client
+      - agreed next steps: fix + /quarry:retest, surface-watch,
+        purple-team session

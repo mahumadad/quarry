@@ -1,0 +1,9 @@
+name: quick-recon
+description: Recon rápido — solo descubrimiento de superficie
+workflow: recon-only
+budget:
+  recon: 100
+settings:
+  strategy: breadth-first
+  timeout_default: 60
+  timeout_hard: 300

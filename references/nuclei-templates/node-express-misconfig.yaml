@@ -1,0 +1,37 @@
+id: express-stack-trace-exposed
+info:
+  name: Express Server Stack Trace Exposed
+  author: quarry
+  severity: medium
+  description: Detects server-side Express stack traces, excluding ordinary Cannot GET responses.
+  tags: nodejs,express,debug,info-disclosure
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: nodejs,express
+    protocols: http
+    coverage: debug-exposure,info-disclosure
+    fixture: express-error
+    max-request: 3
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/debug"
+      - "{{BaseURL}}/__express"
+      - "{{BaseURL}}/nonexistent_route_12345"
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [500]
+      - type: regex
+        part: body
+        regex:
+          - '(SyntaxError|ReferenceError|TypeError):[^\r\n]+'
+          - 'at (Object|Module)\.[^(]+\([^)]+node_modules[^)]+\)'
+        condition: or
+      - type: word
+        part: body
+        words: ["node_modules", "Express", "express"]
+        condition: or

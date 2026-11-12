@@ -1,0 +1,243 @@
+{
+  "target": "webgoat",
+  "version": "2026.5",
+  "timestamp": "2026-11-03T20:57:00Z",
+  "total_expected": 21,
+  "demonstrated": 21,
+  "recall": 1.0,
+  "evidence_integrity": 1.0,
+  "operator": "z3ro_m4d",
+  "scope": "localhost:8080 (Docker webgoat/webgoat:latest)",
+  "methodology": "Quarry breadth-first hunt — curl + browser, blind injection, exploit crafting",
+  "findings": [
+    {
+      "id": "webgoat-sqli-basic",
+      "vuln_class": "sqli",
+      "severity": "high",
+      "title": "SQL Injection — basic string and numeric injection",
+      "status": "Demonstrated",
+      "technique": "String injection via ' OR '1'='1 and numeric injection via 0 OR 1=1",
+      "endpoints": [
+        "POST /SqlInjection/attack2",
+        "POST /SqlInjection/assignment5a",
+        "POST /SqlInjection/assignment5b"
+      ],
+      "assignments_completed": 3
+    },
+    {
+      "id": "webgoat-sqli-advanced",
+      "vuln_class": "sqli",
+      "severity": "high",
+      "title": "SQL Injection Advanced — UNION and stacked queries",
+      "status": "Demonstrated",
+      "technique": "Stacked query: '; SELECT * FROM user_system_data--",
+      "endpoints": ["POST /SqlInjectionAdvanced/attack6a"],
+      "data_exfiltrated": "USERID, USER_NAME, PASSWORD from user_system_data"
+    },
+    {
+      "id": "webgoat-sqli-mitigation",
+      "vuln_class": "sqli",
+      "severity": "medium",
+      "title": "SQL Injection Mitigations — blind ORDER BY injection",
+      "status": "Demonstrated",
+      "technique": "Boolean-based blind ORDER BY via CASE WHEN to extract IP char-by-char",
+      "endpoints": [
+        "GET /SqlInjectionMitigations/servers?column=CASE WHEN...",
+        "POST /SqlInjectionMitigations/attack12a"
+      ],
+      "extracted_data": "IP 104.130.219.202 via 14 boolean queries"
+    },
+    {
+      "id": "webgoat-xxe",
+      "vuln_class": "xxe",
+      "severity": "high",
+      "title": "XXE — XML External Entity injection",
+      "status": "Demonstrated",
+      "technique": "External entity reading file:///etc/passwd",
+      "endpoints": ["POST /xxe/simple"],
+      "payload": "<!DOCTYPE foo [<!ENTITY xxe SYSTEM 'file:///etc/passwd'>]>"
+    },
+    {
+      "id": "webgoat-path-traversal",
+      "vuln_class": "lfi-rfi",
+      "severity": "high",
+      "title": "Path Traversal — directory traversal in file upload",
+      "status": "Demonstrated",
+      "technique": "Multipart upload with fullName=../test",
+      "endpoints": ["POST /PathTraversal/profile-upload (multipart)"]
+    },
+    {
+      "id": "webgoat-jwt-decode",
+      "vuln_class": "jwt",
+      "severity": "high",
+      "title": "JWT — alg:none token forgery",
+      "status": "Demonstrated",
+      "technique": "Forged JWT with alg:none, admin:true via access_token cookie",
+      "endpoints": ["POST /JWT/votings (Cookie: access_token=forged)"]
+    },
+    {
+      "id": "webgoat-password-reset",
+      "vuln_class": "auth-bypass",
+      "severity": "high",
+      "title": "Password Reset — insecure reset flow via email interception",
+      "status": "Demonstrated",
+      "evidence_tag": "Demonstrated",
+      "technique": "Triggered password reset, intercepted email from built-in mailbox (/WebGoat/mail), extracted reset token, submitted new password via change-password endpoint, verified login with new credentials",
+      "endpoints": [
+        "POST /PasswordReset/ForgotPassword/create-password-reset-link",
+        "GET /WebGoat/mail (email interception)",
+        "GET /PasswordReset/reset/reset-password/<token>",
+        "POST /PasswordReset/reset/change-password"
+      ],
+      "reset_token": "0bdeacf2-6055-4c2f-9cc7-1eeb18d13982"
+    },
+    {
+      "id": "webgoat-auth-bypass",
+      "vuln_class": "auth-bypass",
+      "severity": "high",
+      "title": "Authentication Bypass — parameter name manipulation",
+      "status": "Demonstrated",
+      "technique": "Changed secQuestion0/1 to secQuestion2/3",
+      "endpoints": ["POST /auth-bypass/verify-account"]
+    },
+    {
+      "id": "webgoat-insecure-login",
+      "vuln_class": "info-disclosure",
+      "severity": "medium",
+      "title": "Insecure Login — cleartext credentials",
+      "status": "Demonstrated",
+      "technique": "Known credentials CaptainJack/BlackPearl over HTTP",
+      "endpoints": ["POST /InsecureLogin/task"]
+    },
+    {
+      "id": "webgoat-xss-reflected",
+      "vuln_class": "xss",
+      "severity": "high",
+      "title": "Reflected XSS — script injection in form field",
+      "status": "Demonstrated",
+      "technique": "GET with <script>alert('xss')</script> in field1",
+      "endpoints": ["GET /CrossSiteScripting/attack5a"]
+    },
+    {
+      "id": "webgoat-xss-dom",
+      "vuln_class": "xss",
+      "severity": "medium",
+      "title": "DOM-based XSS — phoneHome() execution",
+      "status": "Demonstrated",
+      "technique": "Executed webgoat.customjs.phoneHome() via browser JS",
+      "response": "phoneHome Response is 235243931"
+    },
+    {
+      "id": "webgoat-xss-stored",
+      "vuln_class": "xss",
+      "severity": "high",
+      "title": "Stored XSS — persistent script in comment",
+      "status": "Demonstrated",
+      "technique": "POST JSON with <script>webgoat.customjs.phoneHome()</script>",
+      "endpoints": ["POST /CrossSiteScriptingStored/stored-xss"]
+    },
+    {
+      "id": "webgoat-idor",
+      "vuln_class": "idor",
+      "severity": "high",
+      "title": "IDOR — profile enumeration",
+      "status": "Demonstrated",
+      "technique": "Login as Tom (2342384), enumerate to find Buffalo Bill (2342388)",
+      "endpoints": [
+        "POST /IDOR/login",
+        "POST /IDOR/diff-attributes",
+        "GET /IDOR/profile/2342388"
+      ]
+    },
+    {
+      "id": "webgoat-missing-function-level",
+      "vuln_class": "auth-bypass",
+      "severity": "high",
+      "title": "Missing Function Level Access Control",
+      "status": "Demonstrated",
+      "technique": "Hidden admin endpoints discovered and accessed",
+      "endpoints": [
+        "POST /access-control/hidden-menu",
+        "GET /access-control/users"
+      ],
+      "data_leaked": "User list with admin flags and password hashes"
+    },
+    {
+      "id": "webgoat-csrf",
+      "vuln_class": "csrf",
+      "severity": "high",
+      "title": "Cross-Site Request Forgery — flag extraction",
+      "status": "Demonstrated",
+      "technique": "Cross-origin POST with external Referer extracts flag",
+      "endpoints": [
+        "POST /csrf/basic-get-flag",
+        "POST /csrf/confirm-flag-1"
+      ],
+      "flag": 65464
+    },
+    {
+      "id": "webgoat-client-side-filtering",
+      "vuln_class": "info-disclosure",
+      "severity": "medium",
+      "title": "Client-Side Filtering — salary/SSN data leak",
+      "status": "Demonstrated",
+      "technique": "GET to salary endpoint returns all employees' SSN and salary",
+      "endpoints": ["GET /clientSideFiltering/salaries?userId=2"]
+    },
+    {
+      "id": "webgoat-client-side-tampering",
+      "vuln_class": "input-validation",
+      "severity": "medium",
+      "title": "Client-Side Tampering — price manipulation",
+      "status": "Demonstrated",
+      "technique": "POST with Total=0.00 bypasses client-side validation",
+      "endpoints": ["POST /HtmlTampering/task"]
+    },
+    {
+      "id": "webgoat-crypto-basics",
+      "vuln_class": "crypto",
+      "severity": "medium",
+      "title": "Cryptography Basics — Base64 Authorization header decode",
+      "status": "Demonstrated",
+      "technique": "Base64 decode of Authorization header reveals credentials",
+      "endpoints": [
+        "GET /crypto/encoding/basic",
+        "POST /crypto/encoding/basic-auth"
+      ],
+      "decoded": "quarry-bench:admin"
+    },
+    {
+      "id": "webgoat-vulnerable-components",
+      "vuln_class": "vulnerable-components",
+      "severity": "high",
+      "title": "Vulnerable Components — XStream CVE-2013-7285 RCE",
+      "status": "Demonstrated",
+      "technique": "XStream deserialization via EventHandler proxy → ProcessBuilder",
+      "endpoints": ["POST /VulnerableComponents/attack1"],
+      "cve": "CVE-2013-7285"
+    },
+    {
+      "id": "webgoat-ssrf",
+      "vuln_class": "ssrf",
+      "severity": "high",
+      "title": "Server-Side Request Forgery",
+      "status": "Demonstrated",
+      "technique": "URL manipulation to access internal (jerry.png) and external (ifconfig.pro) resources",
+      "endpoints": [
+        "POST /SSRF/task1 (url=images/jerry.png)",
+        "POST /SSRF/task2 (url=http://ifconfig.pro)"
+      ]
+    },
+    {
+      "id": "webgoat-insecure-deserialization",
+      "vuln_class": "deserialization",
+      "severity": "critical",
+      "title": "Insecure Deserialization — VulnerableTaskHolder RCE",
+      "status": "Demonstrated",
+      "technique": "Crafted serialized VulnerableTaskHolder(sleep 5) inside Docker container. 5-second delay confirmed.",
+      "endpoints": ["POST /InsecureDeserialization/task"],
+      "class": "org.dummy.insecure.framework.VulnerableTaskHolder",
+      "response_delay_seconds": 5
+    }
+  ]
+}

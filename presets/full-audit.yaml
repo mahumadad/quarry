@@ -1,0 +1,16 @@
+name: full-audit
+description: Auditoría completa — máxima cobertura
+workflow: full-pentest
+budget:
+  recon: 200
+  hunting: 300
+  chaining: 100
+  validating: 150
+  reporting: 80
+settings:
+  strategy: breadth-first
+  max_identical_retries: 3
+  timeout_default: 120
+  timeout_hard: 1200
+  rebuttal_max_rounds: 3
+  coverage_target: 0.9

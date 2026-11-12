@@ -1,0 +1,40 @@
+id: fastapi-openapi-documentation
+info:
+  name: FastAPI OpenAPI Documentation Surface
+  author: quarry
+  severity: info
+  description: Identifies FastAPI documentation and schema endpoints; public documentation alone is not a vulnerability.
+  tags: python,fastapi,openapi,attack-surface
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: python,fastapi
+    protocols: http,rest
+    coverage: api-discovery,documentation-exposure
+    fixture: fastapi-docs
+    max-request: 8
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/docs"
+      - "{{BaseURL}}/redoc"
+      - "{{BaseURL}}/openapi.json"
+      - "{{BaseURL}}/api/docs"
+      - "{{BaseURL}}/api/redoc"
+      - "{{BaseURL}}/api/openapi.json"
+      - "{{BaseURL}}/api/v1/docs"
+      - "{{BaseURL}}/api/v1/openapi.json"
+    stop-at-first-match: false
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["Swagger UI", "ReDoc", '"openapi"']
+        condition: or
+      - type: word
+        part: body
+        words: ["swagger-ui", "redoc", '"paths"']
+        condition: or

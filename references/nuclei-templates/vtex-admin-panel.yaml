@@ -1,0 +1,34 @@
+id: vtex-admin-login-surface
+info:
+  name: VTEX Admin Login Surface
+  author: quarry
+  severity: info
+  description: Identifies VTEX admin login content without following redirects or attempting authentication.
+  tags: vtex,admin,panel,fingerprint,ecommerce
+  metadata:
+    reviewed: true
+    risk: safe
+    auth: none
+    stacks: vtex
+    protocols: http
+    coverage: attack-surface,admin-panel
+    fixture: vtex-admin
+    max-request: 2
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/admin"
+      - "{{BaseURL}}/admin/Site/FullCleanUp.aspx"
+    stop-at-first-match: true
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["vtex", "VTEX"]
+        condition: or
+      - type: word
+        part: body
+        words: ["vtexid", "vtex-id", "VTEX ID"]
+        condition: or

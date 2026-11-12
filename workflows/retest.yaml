@@ -1,0 +1,50 @@
+name: retest
+description: Remediation verification — confirm every reported finding is dead after the client fix
+
+phases:
+  - name: scope
+    skills: [engagement-flow, scope-discipline]
+    gate: human_approval
+    notes: >
+      Scope = findings from the original engagement + assets touched by
+      the fixes. NOT a new engagement; do not open new surface without
+      explicit authorization.
+
+  - name: baseline
+    skills: [active-recon]
+    agent: recon-agent
+    notes: >
+      Diff del target contra the original engagement snapshot using
+      engine/target_diff.py: what changed, which endpoints disappeared or
+      appeared. Unexpected changes are reported before re-testing.
+
+  - name: re-exploitation
+    skills: [finding-validation, evidence-hygiene]
+    agent: re-exploit-agent
+    budget: 100
+    notes: >
+      For EACH finding from the original report, in a cold session (fresh
+      cookie jar): execute the exact PoC from steps-to-reproduce.
+      Possible results per finding:
+        FIXED     — PoC fails; document observed behavior
+                    (new control visible: 403, validation, parameter rejected)
+        PARTIAL   — original PoC fails but a minor variant works
+                    (same root cause) → reopen with new evidence
+        NOT_FIXED — PoC works the same → reopen, same minimum severity
+        REGRESSED — the fix broke something else (new separate finding)
+
+  - name: variant-sweep
+    skills: [variant-analysis]
+    notes: >
+      For each FIXED finding whose pattern had siblings (variant-analysis
+      from the original engagement): re-run the variant sweep against
+      unreported locations. An instance fix without a pattern fix is
+      the most common result — verify.
+
+  - name: reporting
+    skills: [report-writing]
+    gate: human_approval
+    notes: >
+      Retest report: original-finding × status (FIXED/PARTIAL/NOT_FIXED/
+      REGRESSED) × re-test evidence table. No new hunting findings —
+      that belongs to a new engagement.
