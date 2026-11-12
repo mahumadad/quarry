@@ -73,6 +73,23 @@ If `[class]` is passed and does not match either a skill name or a class
 from `ALL_VULN_CLASSES` (compare with `lower().replace('_','-')`
 normalization), list the valid classes and ask to repeat the command.
 
+## Endpoint understanding before testing
+
+Before testing any endpoint, answer these four questions (from the mapping phase
+output or by inspecting the endpoint directly). Scanners test what code does;
+they don't know what it's supposed to do — that gap is where non-duplicate bugs live.
+
+1. **What is this supposed to do?** — The business function, not the HTTP verb.
+2. **Who is allowed to do it?** — Which roles, auth levels, or identity contexts.
+3. **What parameters does it take, and what could each one be swapped for?** —
+   Especially IDs, enums, and references to other objects.
+4. **What happens if done out of order, twice, or as the wrong person?** —
+   State-dependent bugs (race conditions, TOCTOU, replay) hide here.
+
+If the mapping phase did not produce answers for a specific endpoint, gather them
+before burning budget on scan tools. A single well-understood endpoint yields
+more findings than ten endpoints poked blindly.
+
 ## Exact steps
 
 1. Resolve the granular cell set: `asset × class × endpoint × method ×

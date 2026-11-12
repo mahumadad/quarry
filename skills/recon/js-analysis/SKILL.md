@@ -82,6 +82,23 @@ scraping tool stdout.
 - [ ] Any secret that looks live/production is flagged for immediate escalation per
       `opsec-discipline`, not left in a routine findings queue.
 
+## Historical JS diffing
+
+Wayback Machine stores snapshots of JS files across years. Secrets removed from the current
+version may still be live if they were never rotated:
+```bash
+# fetch historical versions of a specific JS file
+for year in 2021 2022 2023 2024 2025; do
+  curl -sL "https://web.archive.org/web/${year}/https://example.com/static/config.js" \
+    -o "js-history/config-${year}.js"
+done
+# diff across years looking for secrets that appeared then disappeared
+diff js-history/config-2022.js js-history/config-2024.js | grep -Ei "(api[_-]?key|secret|token|password)"
+```
+Focus on `config.js`, `env.js`, `app.js`, `settings.js` — files likely to hold configuration.
+A secret found in an older snapshot that is absent from the current version is still a finding
+if the key/token hasn't been rotated (test it).
+
 ## Gotchas
 
 - Most "secrets" found in client-side JS are meant to be public (analytics keys, public API

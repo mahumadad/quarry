@@ -38,6 +38,13 @@ chains_with: [ssti, deserialization, sqli, lfi-rfi, ssrf]
   straight to RCE via sandbox-escape payloads.
 - Response timing anomalies on params that look like they might shell out (ping/traceroute
   tools, DNS lookup tools).
+- **Framework-specific endpoint/URI injection**: middleware that constructs internal URIs from
+  user input (Apache Camel endpoint options, Spring Integration channel adapters, MuleSoft
+  flows). If form fields are concatenated into a framework URI without encoding, an attacker
+  can inject endpoint options — e.g., Camel's `PropertyBindingSupport` resolves `#class:`
+  references, enabling arbitrary class instantiation → Spring `ClassPathXmlApplicationContext`
+  gadget → RCE. Look for integration middleware (AS2, EDI, ESB) that exposes HTTP endpoints
+  accepting user-controlled routing parameters.
 
 ## Prerequisites
 

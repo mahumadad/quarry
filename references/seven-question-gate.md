@@ -322,6 +322,26 @@ submission, not after a real rejection.
 
 ---
 
+## Rejection is not the end of the surface
+
+A finding that fails this gate is not necessarily a dead end. Before killing it outright:
+
+1. **Re-approach from a different angle.** The same endpoint or parameter may be
+   exploitable through a different technique, a different identity context, or a
+   different request sequence. A killed SQLi attempt doesn't rule out SSTI in the
+   same parameter.
+2. **Keep it as a note.** A finding that can only say "this helps me learn about the
+   target" is a note, not a report — but notes feed future hunting. Record it in
+   `coverage.json` as `inconclusive` with the specific gap, not as `tested_clean`.
+3. **Revisit after chaining.** A weakness that only matters when combined with
+   something else should be kept as a half-finding. Complete the chain first, then
+   report the whole composition.
+4. **Downgrade, don't drop.** If the impact is real but small, report it at the
+   honest small level. The gate removes noise, not honest small findings.
+
+Track killed findings that have re-approach potential in the engagement notes
+with a `re-approach:` tag and the alternative angle to try.
+
 ## Relationship to adversarial review
 
 This 7-question gate is a **pre-submit self-check** — it runs before the

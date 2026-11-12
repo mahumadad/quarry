@@ -32,6 +32,30 @@ chains_with: [auth-bypass, info-disclosure, rce]
   (`{"user": {"$ne": null}}` style auth bypass candidates).
 - Second-order candidates: data stored now (profile name, order note) and rendered later in an
   admin panel, report, or export — the injection fires on *read*, not *write*.
+- **JSON parameter type confusion**: APIs that pass column names or sort fields in JSON bodies
+  may use type-casting syntax (`column::int` in Postgres, `CAST(column AS int)` in MSSQL).
+  A type-cast error on a legitimate column name (`customerName::int`) reveals injection into
+  the query's column/expression context — not value context, so standard quote-based payloads
+  miss it. Test by appending `::int` or similar casts to string-typed JSON parameters.
+
+## Response-time profiling as a discovery signal
+
+Before injecting anything, baseline response times per endpoint and parameter.
+Significant deviations from the baseline (even without explicit payloads) can
+reveal backend query complexity, heavy joins, or unindexed lookups that hint at
+injectable paths. This is especially valuable for:
+- Endpoints where boolean/error-based signals are suppressed (custom error pages,
+  uniform 200 responses).
+- Parameters that feed `ORDER BY` or aggregate clauses (no error, but timing shifts
+  with different values).
+- APIs behind WAFs that normalize payloads but can't hide timing side-channels.
+
+```bash
+for param in "id=1" "id=99999" "sort=name" "sort=name;--"; do
+  echo -n "$param: "; curl -s -o /dev/null -w '%{time_total}' "https://target/api?${param}"
+  echo
+done
+```
 
 ## Prerequisites
 
