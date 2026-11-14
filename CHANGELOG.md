@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fully contained and non-overlapping with out-of-scope, host/path split, wildcard-on-host,
   IPv6/hex forms, and recovery of hosts embedded in tool syntax (`ssh user@`, `socat TCP:`,
   `bash -c`). `tests/test_scope_matching.py`.
+- **Offensive skills:** `hunt/authz-matrix` (multi-identity authorization sweep), `hunt/saml`
+  (XSW, signature stripping, assertion replay, RelayState), `hunt/parser-desync` (JSON/multipart/
+  encoding/path discrepancies across layers), `recon/historical-endpoints` (Wayback/gau/CDX/
+  Common Crawl/source-map/git pipeline with live-probe). New vuln classes `saml`, `parser-desync`
+  in `coverage.py`.
+- **Skill augmentations:** `hunt/race-condition` single-packet (HTTP/2 + last-byte sync) and
+  OTP/2FA counter race; `hunt/oauth` OIDC id_token validation, token confusion, refresh/prompt;
+  `core/oob-interactions` points to new `references/oob-infra.md` (self-hosted interactsh recipe).
 
 ### Fixed
 - **Policy engine hardening (C3):** command_policy() now tokenizes full commands, unwraps
