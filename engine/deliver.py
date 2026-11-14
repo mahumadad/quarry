@@ -22,8 +22,10 @@ from pathlib import Path
 from .storage import atomic_write_json
 
 
-EXCLUDE_PATTERNS = {".DS_Store", "__pycache__"}
-EXCLUDE_FILES = {"manifest.json", "vault.json", "vault.key"}
+# Operator-internal state never belongs in a client deliverable: the engagement
+# vault, its key, and provider configs that hold plaintext LLM API keys.
+EXCLUDE_PATTERNS = {".DS_Store", "__pycache__", ".pentest-state"}
+EXCLUDE_FILES = {"manifest.json", "vault.json", "vault.key", "providers.json"}
 
 
 def hash_file(path: Path) -> str:

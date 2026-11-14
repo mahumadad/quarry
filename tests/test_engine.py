@@ -5,6 +5,7 @@ Run: python3 tests/test_engine.py
 No external deps, no network. Each test uses a temp dir as engagement root.
 """
 
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -181,6 +182,15 @@ def test_deliver():
     out = Path(tempfile.mkdtemp()) / "bundle.tar.gz"
     r = bundle(str(d), str(out))
     assert Path(r["bundle"]).exists() and r["bundle_sha256"]
+    # secretos del operador nunca entran al bundle entregable (dir aislado)
+    s = Path(tempfile.mkdtemp())
+    (s / "report.md").write_text("# Reporte\n")
+    (s / "providers.json").write_text('{"providers": {"x": {"api_key": "sk-secret"}}}')
+    (s / ".pentest-state").mkdir()
+    (s / ".pentest-state" / "providers.json").write_text('{"api_key": "sk-secret"}')
+    ms = build_manifest(str(s))
+    assert list(ms["files"]) == ["report.md"], f"secretos filtrados: {list(ms['files'])}"
+    shutil.rmtree(s)
 
 
 def main() -> int:
