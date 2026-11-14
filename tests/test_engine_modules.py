@@ -144,8 +144,9 @@ def test_priority_batch():
     assert results[-1]["tier"] == "ice"
 
 
-def test_guard_blocks_shutdown():
-    result = check_command("shutdown -h now")
+def test_guard_blocks_shutdown(tmp_path):
+    (tmp_path / ".pentest-state").mkdir()
+    result = check_command("shutdown -h now", audit_dir=str(tmp_path))
     assert not result["allowed"]
     assert "shutdown" in result["blocked_reason"].lower()
 

@@ -6,12 +6,32 @@ import json
 import sys
 from pathlib import Path
 
-try:
-    from .policy import PolicyDenied, command_policy
-except ImportError:
-    from policy import PolicyDenied, command_policy
+import shlex
 
-BLOCKED_ALWAYS = ("shutdown", "reboot", "halt", "poweroff", "init 0", "init 6")
+try:
+    from .policy import PolicyDenied, _find_engagement_dir, command_policy
+except ImportError:
+    from policy import PolicyDenied, _find_engagement_dir, command_policy
+
+BLOCKED_ALWAYS = ("shutdown", "reboot", "halt", "poweroff")
+
+
+def _blocked_always(command: str) -> str | None:
+    """Match a host-destructive command by executable token, not substring.
+
+    `grep -i halting app.log` must pass; `shutdown -h now` and `init 0` must not.
+    """
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        tokens = command.split()
+    names = {Path(t).name for t in tokens}
+    for marker in BLOCKED_ALWAYS:
+        if marker in names:
+            return marker
+    if "init" in names and any(t in ("0", "6") for t in tokens):
+        return "init"
+    return None
 
 INJECTION_PATTERNS: list[str] = [
     "ignore previous instructions",
@@ -74,12 +94,13 @@ def detect_injection_attempt(text: str) -> dict:
 def check_command(command: str, scope_file: str | None = None,
                   audit_dir: str | None = None, approved_digest: str = "") -> dict:
     """Backward-compatible API. scope_file selects the engagement containing it."""
-    lowered = command.lower()
-    for marker in BLOCKED_ALWAYS:
-        if marker in lowered:
-            return {"allowed": False, "warnings": [],
-                    "blocked_reason": f"Blocked: '{marker}' is never allowed"}
     root = audit_dir or (str(Path(scope_file).parent.parent) if scope_file else ".")
+    if _find_engagement_dir(root) is None:
+        return {"allowed": True, "warnings": []}
+    blocked = _blocked_always(command)
+    if blocked:
+        return {"allowed": False, "warnings": [],
+                "blocked_reason": f"Blocked: '{blocked}' is never allowed"}
     try:
         return command_policy(command, root, approved_digest)
     except PolicyDenied as exc:
