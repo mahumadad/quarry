@@ -460,6 +460,7 @@ function initCy(elements) {{
       idealEdgeLength: 80,
       nodeRepulsion: 8000,
       gravity: 0.25,
+      stop: function() {{ cy.fit(cy.elements(), 30); }}
     }},
     wheelSensitivity: 0.3,
   }});
@@ -519,6 +520,7 @@ function rebuild() {{
     idealEdgeLength: 80,
     nodeRepulsion: 8000,
     gravity: 0.25,
+    stop: function() {{ cy.fit(cy.elements(), 30); }}
   }}).run();
 
   const nc = cy.nodes().length;
