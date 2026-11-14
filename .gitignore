@@ -21,3 +21,6 @@ evidencia-*
 superficie-*
 comparacion-*
 research/
+
+# Audit notes — may reference real client engagements; keep local only
+TODO-AUDIT.md
