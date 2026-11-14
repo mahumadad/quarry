@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Guard/tripwire hardening:** `command_policy` is a no-op outside an engagement (no
+  `.pentest-state/`), fails closed on parse errors, and detects adjacency/substitution/inline-code
+  bypasses (`;`, `$()`, backticks, `&&`/`||`/`|`, `/dev/tcp`); `BLOCKED_ALWAYS` matches by token.
+  `tests/test_guard_hardening.py`.
+- **Scope matching hardening:** host-only matching (ports stripped), CIDR/range in scope only when
+  fully contained and non-overlapping with out-of-scope, host/path split, wildcard-on-host,
+  IPv6/hex forms, and recovery of hosts embedded in tool syntax (`ssh user@`, `socat TCP:`,
+  `bash -c`). `tests/test_scope_matching.py`.
+
 ### Fixed
 - **Policy engine hardening (C3):** command_policy() now tokenizes full commands, unwraps
   shell wrappers (bash -c, env, sudo), and covers ssh/openssl/socat/telnet
