@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Skill augmentations:** `hunt/race-condition` single-packet (HTTP/2 + last-byte sync) and
   OTP/2FA counter race; `hunt/oauth` OIDC id_token validation, token confusion, refresh/prompt;
   `core/oob-interactions` points to new `references/oob-infra.md` (self-hosted interactsh recipe).
+- **Differential retest (`engine/retest.py`):** auto-fires a prior finding's stored HTTP PoC
+  through `ProtectedHTTPClient` (current-scope validation + single-use operator approval gate via
+  `grant_retest`), classifies fixed / not_fixed / regressed / inconclusive, and persists per
+  finding to `.pentest-state/retest.jsonl` for cross-run regression detection. Out-of-scope and
+  destructive PoCs are never auto-fired. Wired into the `retest` command/workflow.
+  `tests/test_retest.py`.
 
 ### Fixed
 - **Policy engine hardening (C3):** command_policy() now tokenizes full commands, unwraps

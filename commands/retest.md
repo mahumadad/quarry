@@ -26,6 +26,15 @@ the client applied fixes and we need to verify the exploits are dead.
    - fresh cookie jar, fresh credentials from the vault,
    - execute the EXACT PoC from the report,
    - classify: FIXED / PARTIAL / NOT_FIXED / REGRESSED (see retest.yaml).
+   - **Auto-fire (optional):** findings with a stored replayable HTTP PoC can be
+     retested mechanically via `engine/retest.py`. The operator first runs
+     `grant_retest(...)` (the gate: reviews the PoC list and grants single-use
+     approvals); then `run_retest(...)` fires each PoC through
+     `ProtectedHTTPClient` — every request validated against the CURRENT scope and
+     consuming its approval — and labels it fixed / not_fixed / regressed /
+     inconclusive, appending to `.pentest-state/retest.jsonl`. Out-of-scope and
+     destructive PoCs are NEVER auto-fired (reported inconclusive); PARTIAL stays a
+     human judgment via the agent.
 4. **Variant sweep**: for findings whose pattern had siblings
    (variant-analysis), sweep unreported locations — an instance fix without
    a pattern fix is the most common false "fix".
