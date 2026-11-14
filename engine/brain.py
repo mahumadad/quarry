@@ -141,9 +141,10 @@ class Hint:
 
 
 class Brain:
-    def __init__(self, audit_dir: str):
+    def __init__(self, audit_dir: str, graph=None):
         self.state_dir = Path(audit_dir) / ".pentest-state"
         self.brain_file = self.state_dir / "brain.json"
+        self._graph = graph
         self._data = self._load()
 
     def _load(self) -> dict:
@@ -176,6 +177,14 @@ class Brain:
         )
         self._data["capabilities"].append(asdict(entry))
         self._save()
+        if self._graph:
+            cap_nid = self._graph.add_node("capability", capability,
+                properties={"confidence": confidence, "notes": notes},
+                source=f"brain:{source_finding_id}")
+            if self._graph.get_node(source_finding_id):
+                conf = "demonstrated" if confidence >= 0.8 else "inferred"
+                self._graph.add_edge("grants", source_finding_id, cap_nid,
+                                     confidence=conf)
         return True
 
     def add_capabilities_from_finding(self, finding_id: str, vuln_class: str,
@@ -198,6 +207,18 @@ class Brain:
         )
         self._data["exhausted"].append(asdict(entry))
         self._save()
+        if self._graph:
+            nid = self._graph.add_node("test_execution",
+                f"exhausted:{vuln_class}@{asset}",
+                properties={"vuln_class": vuln_class, "asset": asset,
+                            "technique": technique, "reason": reason,
+                            "attempts": attempts, "outcome": "exhausted"},
+                source="brain")
+            for n in self._graph.nodes_by_type("asset"):
+                if n.label == asset:
+                    self._graph.add_edge("tested_by", n.id, nid,
+                                         confidence="demonstrated")
+                    break
 
     def is_exhausted(self, vuln_class: str, asset: str) -> list[dict]:
         return [e for e in self._data["exhausted"]
@@ -211,6 +232,18 @@ class Brain:
         )
         self._data["active"].append(asdict(entry))
         self._save()
+        if self._graph:
+            nid = self._graph.add_node("test_execution",
+                f"active:{vuln_class}@{asset}",
+                properties={"vuln_class": vuln_class, "asset": asset,
+                            "hypothesis": hypothesis, "agent": agent,
+                            "outcome": "in_progress"},
+                source="brain")
+            for n in self._graph.nodes_by_type("asset"):
+                if n.label == asset:
+                    self._graph.add_edge("tested_by", n.id, nid,
+                                         confidence="observed")
+                    break
 
     def close_vector(self, vuln_class: str, asset: str):
         self._data["active"] = [
@@ -218,6 +251,13 @@ class Brain:
             if not (a["vuln_class"] == vuln_class and a["asset"] == asset)
         ]
         self._save()
+        if self._graph:
+            for n in self._graph.nodes_by_type("test_execution"):
+                if (n.properties.get("vuln_class") == vuln_class and
+                        n.properties.get("asset") == asset and
+                        n.properties.get("outcome") == "in_progress"):
+                    self._graph.update_node(n.id, {"outcome": "closed"})
+                    break
 
     def get_active_vectors(self) -> list[dict]:
         return list(self._data["active"])

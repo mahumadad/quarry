@@ -52,9 +52,10 @@ class CoverageEntry:
 
 
 class CoverageTracker:
-    def __init__(self, audit_dir: str):
+    def __init__(self, audit_dir: str, graph=None):
         self.state_dir = Path(audit_dir) / ".pentest-state"
         self.coverage_file = self.state_dir / "coverage.json"
+        self._graph = graph
         self._entries: dict[str, CoverageEntry] = {}
         self._assets: set[str] = set()
         self._load()
@@ -123,6 +124,20 @@ class CoverageTracker:
                 evidence_complete=evidence_complete, run_id=run_id, task_id=task_id)
             self._entries[entry.key] = entry
             self._save()
+        if self._graph:
+            nid = self._graph.add_node("test_execution",
+                f"coverage:{vuln_class}@{asset}",
+                properties={"vuln_class": vuln_class, "asset": asset,
+                            "endpoint": endpoint, "method": method.upper(),
+                            "parameter": parameter, "identity": identity,
+                            "technique": technique, "status": status,
+                            "skill_used": skill_used},
+                source="coverage")
+            for n in self._graph.nodes_by_type("asset"):
+                if n.label == asset:
+                    self._graph.add_edge("tested_by", n.id, nid,
+                                         confidence="observed")
+                    break
 
     def mark_skipped(self, asset: str, vuln_class: str, reason: str = ""):
         self.mark_tested(asset, vuln_class, status="skipped", notes=reason)

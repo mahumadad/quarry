@@ -109,9 +109,10 @@ class Chain:
 
 
 class ChainEngine:
-    def __init__(self, audit_dir: str):
+    def __init__(self, audit_dir: str, graph=None):
         self.state_dir = Path(audit_dir) / ".pentest-state"
         self.chains_file = self.state_dir / "chains.json"
+        self._graph = graph
         self._chains: dict[str, Chain] = {}
         self._load()
 
@@ -189,6 +190,20 @@ class ChainEngine:
         for c in unique:
             self._chains[c.id] = c
         self._save()
+        if self._graph:
+            for c in unique:
+                self._graph.add_node("chain", c.name, node_id=c.id,
+                    properties={"vuln_classes": c.vuln_classes,
+                                "combined_severity": c.combined_severity,
+                                "combined_impact": c.combined_impact,
+                                "status": c.status},
+                    source="chain_engine")
+                for i in range(len(c.findings) - 1):
+                    src, tgt = c.findings[i], c.findings[i + 1]
+                    if self._graph.get_node(src) and self._graph.get_node(tgt):
+                        self._graph.add_edge("chains_to", src, tgt,
+                            confidence="inferred",
+                            properties={"chain_id": c.id})
         return unique
 
     def build_pivot_graph(self, findings: list[dict], assets: list[str]) -> dict:
@@ -315,6 +330,20 @@ class ChainEngine:
                     self._chains[chain.id] = chain
 
         self._save()
+        if self._graph:
+            for c in chains:
+                self._graph.add_node("chain", c.name, node_id=c.id,
+                    properties={"vuln_classes": c.vuln_classes,
+                                "combined_severity": c.combined_severity,
+                                "combined_impact": c.combined_impact,
+                                "status": c.status},
+                    source="chain_engine")
+                for i in range(len(c.findings) - 1):
+                    src, tgt = c.findings[i], c.findings[i + 1]
+                    if self._graph.get_node(src) and self._graph.get_node(tgt):
+                        self._graph.add_edge("chains_to", src, tgt,
+                            confidence="inferred",
+                            properties={"chain_id": c.id})
         return chains
 
     def suggest_next_from_capabilities(self, findings: list[dict], brain) -> list[dict]:
