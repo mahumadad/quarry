@@ -42,10 +42,13 @@ jobs:
       - name: Benchmark scorer self-test (synthetic fixture)
         run: python3 tests/test_benchmark_score.py
 
-      - name: Pytest regression tests (guard hardening, scope matching, differential retest)
+      - name: Pytest regression suite (guard, scope, retest, policy, YAML, artifacts, graph, phase3)
         run: |
           python3 -m pip install pytest
-          python3 -m pytest -q tests/test_guard_hardening.py tests/test_scope_matching.py tests/test_retest.py
+          # Run the whole suite so regression guards can't silently drop out of CI.
+          # Nuclei/Docker live fixtures are __main__-only scripts (no test_ funcs) and
+          # are exercised in the nuclei-fixtures job, so pytest does not collect them here.
+          python3 -m pytest -q tests/
 
   nuclei-fixtures:
     runs-on: ubuntu-latest
