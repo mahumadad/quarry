@@ -18,7 +18,7 @@ metadata:
   tools: [burpsuite, curl, jwt_tool, mitmproxy]
 depends_on: [active-recon, web-crawling]
 feeds_into: [chain-analysis]
-chains_with: [host-header, session-management, crlf-injection]
+chains_with: [host-header, session-management, crlf-injection, jwt, saml]
 ---
 
 ## Signals
@@ -83,6 +83,25 @@ chains_with: [host-header, session-management, crlf-injection]
 
 8. **PKCE downgrade.** If the client is public (SPA/mobile) and PKCE (`code_challenge`) is advertised as supported, try omitting `code_challenge` entirely — if the IdP still issues a code without it, code interception via a malicious app on the same device becomes viable.
 
+9. **OIDC id_token validation & token confusion.** The `id_token` is an authentication assertion,
+   not an access credential — probe whether the client validates it correctly and whether the two
+   token types are confused:
+   - **Claim validation:** tamper `iss`, `aud`/`azp`, and `nonce` in the id_token (via the `jwt`
+     skill's signing attacks) and check the client still accepts it. A client that ignores `aud`
+     accepts an id_token minted for a *different* client of the same IdP.
+   - **id_token used as access token:** present the `id_token` to the resource API where the
+     `access_token` is expected (and vice versa). If the API accepts the id_token as a bearer, a
+     token leaked to the browser/front-channel grants API access (token confusion).
+   - **Hybrid / response_mode confusion:** request `response_type=code id_token` or flip
+     `response_mode` (query/fragment/form_post) and see whether front-channel delivery of the
+     id_token or code changes what leaks to referers/scripts.
+   - **Refresh-token rotation:** if `offline_access` yields a refresh token, use it twice — a
+     non-rotating/non-revoked refresh token is long-lived credential exposure.
+   - **`prompt=none` silent auth:** check whether `prompt=none` combined with a loose
+     `redirect_uri` enables silent assertion of an existing IdP session to an attacker callback.
+   - **Dynamic client registration:** if `/register` is open, register a client with an
+     attacker `redirect_uri` and observe whether the IdP honors it without review.
+
 ## Tooling
 
 - `burpsuite` (Proxy + Repeater) for flow capture/replay.
@@ -122,6 +141,7 @@ Before declaring this finding complete, probe these escalation paths:
 2. **state parameter absence (CSRF)** — Is the state parameter missing or not validated, enabling CSRF-based account linking?
 3. **Scope escalation** — Can you request or retain scopes beyond what the client application was granted?
 4. **Token leakage via implicit flow/referer** — Does the access token leak via the URL fragment/Referer header to third-party resources loaded on the callback page?
+5. **id_token confusion** — Does the resource API accept the `id_token` as a bearer, or does the client skip `aud`/`iss`/`nonce` validation, so a front-channel id_token becomes API access?
 
 A finding without chain anchor results is INCOMPLETE. Record each anchor as
 tested/not-applicable/blocked with the reason.

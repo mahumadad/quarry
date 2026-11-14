@@ -18,7 +18,7 @@ ALL_VULN_CLASSES = [
     "clickjacking", "host-header-injection", "parameter-pollution", "prototype-pollution",
     "mass-assignment", "broken-access-control", "business-logic", "rate-limiting",
     "password-reset", "2fa-bypass", "session-management", "email-injection",
-    "css-injection", "cryptographic-oracle",
+    "css-injection", "cryptographic-oracle", "saml", "parser-desync",
 ]
 STATUSES = {"not_tested", "tested_clean", "finding_detected", "partial", "inconclusive",
             "blocked", "skipped", "not_applicable", "tool_unavailable", "out_of_scope",

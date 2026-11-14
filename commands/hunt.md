@@ -68,6 +68,9 @@ variants of the same technique:
 | 2fa-bypass             | 2fa-bypass                                            |
 | session-management     | session-management                                    |
 | email-injection        | email-injection                                        |
+| authz-matrix           | broken-access-control (multi-identity sweep)         |
+| saml                   | saml                                                  |
+| parser-desync          | parser-desync                                         |
 
 If `[class]` is passed and does not match either a skill name or a class
 from `ALL_VULN_CLASSES` (compare with `lower().replace('_','-')`

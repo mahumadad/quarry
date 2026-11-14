@@ -44,6 +44,8 @@ machinery. Without OOB confirmation, blind findings cap at `Inferred`.
 1. **Get a callback host BEFORE injecting.** In order of preference:
    - `interactsh-client` (self-hosted for client-confidential engagements —
      public `oast.*` servers are shared infrastructure, treat as disclosure).
+     Standing up your own server: see `references/oob-infra.md` (dedicated
+     domain, DNS delegation, TLS, auth token, egress verification).
    - Burp Collaborator (if Burp MCP is connected).
    - Own listener: VPS with `python3 -m http.server` + access log, or
      `dnsmasq`/authoritative DNS logging for DNS-only vectors.
