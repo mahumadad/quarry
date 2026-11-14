@@ -117,9 +117,10 @@ class Finding:
 
 
 class FindingsStore:
-    def __init__(self, audit_dir: str):
+    def __init__(self, audit_dir: str, graph=None):
         self.state_dir = Path(audit_dir) / ".pentest-state"
         self.findings_file = self.state_dir / "findings.json"
+        self._graph = graph
         self._findings: dict[str, Finding] = {}
         self._load()
 
@@ -151,6 +152,14 @@ class FindingsStore:
             CustodyLog(self.state_dir.parent).append("finding_created", {
                 "finding_id": finding.id, "vuln_class": finding.vuln_class,
                 "target_asset": finding.target_asset})
+        if self._graph:
+            self._graph.add_node("finding", finding.title, node_id=finding.id,
+                properties={"vuln_class": finding.vuln_class,
+                            "severity": finding.severity,
+                            "cvss_score": finding.cvss_score,
+                            "target_asset": finding.target_asset,
+                            "status": finding.status},
+                source="findings")
         return finding
 
     def get(self, finding_id: str) -> Finding | None:
@@ -181,6 +190,8 @@ class FindingsStore:
             CustodyLog(self.state_dir.parent).append("status_change", {
                 "finding_id": finding_id, "from": previous, "to": new_status.value,
                 "reason": reason})
+        if self._graph and self._graph.get_node(finding_id):
+            self._graph.update_node(finding_id, {"status": new_status.value})
         return True
 
     def add_evidence(self, finding_id: str, evidence: Evidence) -> bool:
@@ -196,6 +207,15 @@ class FindingsStore:
             self._save()
             CustodyLog(self.state_dir.parent).evidence_captured(
                 finding_id, ev_dict["sha256"], evidence.tool or evidence.type)
+        if self._graph:
+            ev_nid = self._graph.add_node("evidence",
+                f"{evidence.type}:{finding_id}",
+                properties={"type": evidence.type, "tool": evidence.tool,
+                            "tag": evidence.tag, "sha256": ev_dict["sha256"]},
+                source="findings")
+            if self._graph.get_node(finding_id):
+                self._graph.add_edge("supports", ev_nid, finding_id,
+                                     confidence="observed")
         return True
 
     def verify_evidence_integrity(self, finding_id: str) -> list[dict]:
