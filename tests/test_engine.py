@@ -109,14 +109,22 @@ def test_toolrunner():
 
 
 def test_exporters():
-    from engine.findings import FindingsStore, Finding, FindingStatus
+    from engine.findings import FindingsStore, Finding, FindingStatus, Evidence, EvidenceTag
     from engine.exporters import to_sarif, to_json, to_csv
     d = tempfile.mkdtemp()
     store = FindingsStore(d)
+    # Follow the runtime path: findings are born 'detected' and advanced through
+    # the evidence gate, not constructed pre-validated.
     f = Finding(title="IDOR en invoices", vuln_class="idor", severity="high",
                 cvss_score=7.1, cvss_vector="CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N",
-                target_asset="https://{target}/api/invoices", status="validated")
+                target_asset="https://{target}/api/invoices",
+                evidence_tag=EvidenceTag.DEMONSTRATED.value,
+                steps_to_reproduce=["GET /api/invoices/42 as user B returns user A's invoice"])
     store.add(f)
+    store.add_evidence(f.id, Evidence(type="request_response", content="GET /api/invoices/42 -> 200",
+                                      tag=EvidenceTag.DEMONSTRATED.value))
+    store.update_status(f.id, FindingStatus.CONFIRMED)
+    store.update_status(f.id, FindingStatus.VALIDATED)
     sarif = to_sarif(store)
     assert sarif["version"] == "2.1.0"
     assert sarif["runs"][0]["results"][0]["properties"]["cvss_score"] == 7.1
