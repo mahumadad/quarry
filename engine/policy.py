@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shlex
 from datetime import datetime, timezone
 from pathlib import Path
@@ -115,53 +116,58 @@ class PolicyEngine:
             atomic_write_json(self.approvals_file, data)
 
 
-def _extract_executables(command: str) -> set[str]:
-    """Extract all executable names from a command, unwrapping shells and wrappers."""
-    found: set[str] = set()
+# Shell metacharacters that separate or embed commands. Normalizing them to
+# spaces defeats adjacency bypasses like 'true;curl', '$(curl ...)' and backticks.
+_METACHAR_RE = re.compile(r"\$\(|\)|`|<\(|>\(|[;|&<>]")
+# Flags whose argument is inline code to be scanned recursively.
+_INLINE_CODE_FLAGS = {"-c", "-lc", "-ic", "-e", "--eval", "--command"}
+
+
+def _find_engagement_dir(audit_dir: str | Path) -> Path | None:
+    """Return the nearest ancestor (inclusive) holding a `.pentest-state/` dir, else None.
+
+    Quarry only polices directories that are actual engagements. Elsewhere the
+    guard is a no-op so the plugin can be installed without blocking ordinary
+    shell use (curl, pip, python -c) in unrelated projects.
+    """
     try:
-        argv = shlex.split(command)
-    except ValueError:
+        start = Path(audit_dir).resolve()
+    except (OSError, RuntimeError):
+        return None
+    for cand in (start, *start.parents):
+        if (cand / ".pentest-state").is_dir():
+            return cand
+    return None
+
+
+def _extract_executables(command: str, _depth: int = 0) -> set[str]:
+    """Collect network-tool and interpreter names from a command.
+
+    Robust against adjacency (`true;curl`), command substitution (`$(curl)`,
+    backticks), pipelines without spaces and inline shell/interpreter code
+    (`bash -lc '... curl ...'`). Fails closed: a token that cannot be parsed
+    is scanned as whitespace-split text rather than silently skipped.
+    """
+    found: set[str] = set()
+    if _depth > 5:
         return found
-    if not argv:
-        return found
-
-    i = 0
-    while i < len(argv):
-        name = Path(argv[i]).name
-        if name in SHELL_WRAPPERS:
-            if name in {"bash", "sh", "zsh", "dash"} and i + 2 < len(argv) and argv[i + 1] == "-c":
-                found.update(_extract_executables(argv[i + 2]))
-                i += 3
-                continue
-            if name == "env":
-                i += 1
-                while i < len(argv) and "=" in argv[i]:
-                    i += 1
-                continue
-            if name in {"sudo", "doas"}:
-                i += 1
-                while i < len(argv) and argv[i].startswith("-"):
-                    if argv[i] in ("-u", "-g", "-C", "-D"):
-                        i += 1
-                    i += 1
-                continue
-            i += 1
-            continue
-        if name in SCRIPT_INTERPRETERS:
-            found.add(name)
-            if i + 2 < len(argv) and argv[i + 1] == "-c":
-                found.update(_extract_executables(argv[i + 2]))
-        else:
-            found.add(name)
-        break
-
-    for token in argv:
-        if token == "|" or token == "&&" or token == "||" or token == ";":
-            continue
-        name = Path(token).name
-        if name in NETWORK_TOOLS:
-            found.add(name)
-
+    normalized = _METACHAR_RE.sub(" ", command)
+    for variant in {command, normalized}:
+        try:
+            tokens = shlex.split(variant)
+        except ValueError:
+            tokens = variant.split()
+        for j, token in enumerate(tokens):
+            name = Path(token).name
+            if name in NETWORK_TOOLS or name in SCRIPT_INTERPRETERS:
+                found.add(name)
+            if name in SHELL_WRAPPERS or name in SCRIPT_INTERPRETERS:
+                for k in range(j + 1, len(tokens)):
+                    if tokens[k] in _INLINE_CODE_FLAGS:
+                        if k + 1 < len(tokens):
+                            found.update(_extract_executables(tokens[k + 1], _depth + 1))
+                    elif not tokens[k].startswith("-"):
+                        break
     return found
 
 
@@ -169,16 +175,22 @@ def command_policy(command: str, audit_dir: str | Path, approved_digest: str = "
     """Validate network-looking commands; local non-network commands remain usable.
 
     Inspects the full command — not just argv[0] — to catch wrappers like
-    'bash -c "nmap ..."', 'env curl ...', 'sudo nmap ...', and pipelines.
-    This is a tripwire, not a sandbox: a determined attacker can bypass it.
+    'bash -c "nmap ..."', 'env curl ...', 'sudo nmap ...', pipelines and
+    command substitution. This is a tripwire, not a sandbox: a determined
+    attacker can bypass it. Outside an engagement the guard does not act.
     """
+    if _find_engagement_dir(audit_dir) is None:
+        return {"allowed": True, "targets": [], "dangerous": False}
     executables = _extract_executables(command)
-    dangerous = any(marker in command.lower() for marker in DANGEROUS_MARKERS)
     network_hits = executables & NETWORK_TOOLS
     interpreter_hits = executables & SCRIPT_INTERPRETERS
-    network = bool(network_hits) or dangerous or bool(interpreter_hits)
+    network_channel = "/dev/tcp/" in command or "/dev/udp/" in command
+    network = bool(network_hits) or bool(interpreter_hits) or network_channel
     if not network:
+        # A purely local command (even a destructive one like `rm -rf`) is not a
+        # scope matter; host safety is handled outside this scope tripwire.
         return {"allowed": True, "targets": [], "dangerous": False}
+    dangerous = any(marker in command.lower() for marker in DANGEROUS_MARKERS)
     targets = Scope._extract_targets(command)
     return PolicyEngine(audit_dir).authorize(command, targets, dangerous, approved_digest)
 

@@ -113,11 +113,33 @@ chains_with: [idor, auth-bypass]
    the same state (e.g., "apply discount" and "finalize order" both mutate the cart total) —
    fire both concurrently rather than N copies of one request.
 
-7. **Single-packet attack variant** for HTTP/2-capable targets (reduces jitter further than
-   HTTP/1.1 pipelining by sending all request frames in one TCP packet) — Turbo Intruder's
-   `engine=Engine.THREADED2` or HTTP/2-specific single-packet tooling; use when the 20-connection
-   burst in step 2 shows partial-but-inconsistent results, suggesting network jitter is masking
-   a real, narrower race window.
+7. **Single-packet attack** — the highest-reliability technique; defeats network jitter by making
+   many requests arrive at the server in the *same* instant rather than merely being fired close
+   together.
+   - **HTTP/2 (single packet):** send ~20–30 requests as frames in one TCP packet so they are
+     processed with sub-millisecond spread. In Turbo Intruder, use the HTTP/2 engine and the
+     single-packet gate:
+     ```python
+     def queueRequests(target, wordlists):
+         engine = RequestEngine(endpoint=target.endpoint, engine=Engine.BURP2,
+                                concurrentConnections=1)
+         for i in range(20):
+             engine.queue(target.req, gate='race1')
+         engine.openGate('race1')   # all 20 leave in one packet
+     ```
+   - **HTTP/1.1 (last-byte sync):** when the target is HTTP/1.1 only, pre-send all but the final
+     byte of each request over N keep-alive connections, then release the last byte of all of them
+     together. Turbo Intruder does this automatically under the gate engine; the point is to
+     withhold completion until every connection is primed.
+   Use this when step 2's 20-connection burst shows partial-but-inconsistent results, which
+   usually means client/network jitter — not a real lock — is masking a narrow window.
+
+8. **OTP / 2FA attempt-counter race.** When a code-verification endpoint enforces "N attempts then
+   lock," race many guesses concurrently against the *same* counter: if the check-then-increment
+   isn't atomic, far more than N guesses are evaluated before the lock engages, collapsing a
+   6-digit space's effective difficulty. Fire the concurrent burst (step 7 technique) with
+   distinct candidate codes rather than identical requests, and confirm whether attempts beyond
+   the stated limit were still evaluated. Cross-reference `2fa-bypass`.
 
 ## Tooling
 

@@ -44,10 +44,15 @@ def test_fail_closed_policy():
         pass
     assert not Scope.load(Path(root) / ".pentest-state" / "scope.json").is_in_scope(
         "https://example.test/admin/users")
+    # No engagement here (no .pentest-state/): the guard is a no-op, not fail-closed.
     empty = tempfile.mkdtemp()
+    assert command_policy("curl https://example.test", empty)["allowed"]
+    # But an engagement dir with no scope.json still fails closed.
+    noscope = tempfile.mkdtemp()
+    (Path(noscope) / ".pentest-state").mkdir()
     try:
-        command_policy("curl https://example.test", empty)
-        raise AssertionError("missing scope was fail-open")
+        command_policy("curl https://example.test", noscope)
+        raise AssertionError("engagement without scope was fail-open")
     except PolicyDenied:
         pass
 

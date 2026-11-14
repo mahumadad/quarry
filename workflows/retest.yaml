@@ -24,7 +24,10 @@ phases:
     budget: 100
     notes: >
       For EACH finding from the original report, in a cold session (fresh
-      cookie jar): execute the exact PoC from steps-to-reproduce.
+      cookie jar): execute the exact PoC from steps-to-reproduce. Findings with a
+      stored replayable HTTP PoC may be auto-fired via engine/retest.py
+      (grant_retest gate, then run_retest) — each request is scope-validated and
+      approval-gated; out-of-scope and destructive PoCs are never auto-fired.
       Possible results per finding:
         FIXED     — PoC fails; document observed behavior
                     (new control visible: 403, validation, parameter rejected)
