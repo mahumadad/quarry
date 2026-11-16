@@ -31,6 +31,8 @@ NODE_COLORS = {
     "evidence": "#87CEEB",
     "capability": "#9370DB",
     "chain": "#FF6347",
+    "prompt_template": "#E91E63",
+    "model_target": "#00BCD4",
 }
 
 NODE_SHAPES = {
@@ -45,6 +47,8 @@ NODE_SHAPES = {
     "evidence": "round-tag",
     "capability": "barrel",
     "chain": "vee",
+    "prompt_template": "concave-hexagon",
+    "model_target": "octagon",
 }
 
 CONFIDENCE_STYLES = {

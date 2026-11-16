@@ -1,0 +1,103 @@
+name: ai-red-team
+description: >
+  AI Red Team + Enhanced Pentest bridge. Uses system prompt analysis
+  to test LLM/agent safeguards AND to generate optimized agent prompts
+  for running pentests without unnecessary friction.
+references:
+  - OWASP Top 10 for LLM Applications
+  - OWASP Top 10 for Agentic Systems (ASI01-ASI10)
+  - MITRE ATLAS
+  - CL4R1T4S system prompt corpus
+
+modes:
+  - name: ai_red_team
+    description: Test the LLM/agent itself for injection, boundary bypass, confused deputy
+  - name: enhanced_pentest
+    description: Use system prompt knowledge to optimize agent prompts for real pentests
+
+phases:
+  - name: scope
+    skills: [engagement-flow, scope-discipline]
+    gate: human_approval
+    notes: >
+      Define target(s): LLM endpoint, pentest target, or both.
+      Load or generate SafeguardProfile from system prompt analysis.
+      Set mode: ai_red_team, enhanced_pentest, or both.
+    questions:
+      - What LLM/agent system is the target (or tool)?
+      - What system prompt analysis is available?
+      - What is the pentest target (if enhanced_pentest mode)?
+      - What tools/capabilities does the agent have?
+
+  - name: analysis
+    skills: [passive-recon]
+    ai_specific:
+      - sysprompt-analysis
+    notes: >
+      Load system prompt analysis (SafeguardProfile.load_from_analysis).
+      Map injection surfaces, permission gates, exceptions, delegation model.
+      Record profile nodes in the engagement graph.
+      If no analysis exists, generate one from the target's observable behavior.
+    outputs:
+      - profile.json in .pentest-state/ai_red_team/
+      - model_target + endpoint + trust_boundary + capability nodes in graph
+    budget: 40
+
+  - name: template_setup
+    skills: [ai-red-team-bridge]
+    notes: >
+      Register relevant prompt templates for the engagement.
+      For ai_red_team: injection_test, boundary_bypass, exfiltration_audit.
+      For enhanced_pentest: scope_framing, tool_chain_recon, enhanced_exploit,
+        delegation_chain, routine_generator.
+      Generate initial agent prompts with generate_agent_prompt().
+      Record prompt_template nodes in graph.
+    outputs:
+      - templates.jsonl in .pentest-state/ai_red_team/
+      - prompt_template nodes linked to model_target
+    budget: 20
+
+  - name: execution
+    notes: >
+      Run tests using generated prompts. The bridge generates, the operator
+      or agents execute. Two sub-phases by mode:
+
+      ai_red_team:
+        - Injection baseline (each surface, standard payloads)
+        - Boundary escalation (testing exception, credential tool)
+        - Confused deputy (email handling, form pre-fill, file-write chain)
+        - Delegation weakness (fork context leak, fresh agent injection)
+        - Exfiltration channels (URL params, JS exec, artifact, memory)
+
+      enhanced_pentest:
+        - Scope-framed recon (all regular-tier tools, no friction)
+        - Parallel delegation (fork per attack class)
+        - Exploit execution (framed within permission model)
+        - Routine generation (repeatable test cases)
+    strategy: breadth-first
+    budget: 150
+    rules:
+      - One vector at a time for ai_red_team (baseline before chaining)
+      - Record every execution via bridge.record_execution()
+      - Use canary strings for OOB detection
+      - Confirm before modifying target state
+
+  - name: validation
+    skills: [evidence-hygiene, dedup, finding-validation, triage-gate]
+    gate: rebuttal_complete
+    notes: >
+      Verify all findings have reproducible evidence.
+      For ai_red_team: re-test with variations to confirm.
+      For enhanced_pentest: standard finding validation.
+      Cross-reference: does a safeguard bypass enable a pentest finding?
+    budget: 40
+
+  - name: reporting
+    skills: [report-writing, framework-mapping]
+    gate: human_approval
+    notes: >
+      Generate report covering both modes if used together.
+      Map findings to OWASP LLM Top 10 / ATLAS for ai_red_team.
+      Map findings to standard frameworks for enhanced_pentest.
+      Include: attack surface graph, coverage gaps, chain analysis.
+    framework: OWASP LLM + MITRE ATLAS + standard pentest frameworks

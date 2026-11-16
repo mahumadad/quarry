@@ -115,7 +115,7 @@ class TestNodeOperations:
         assert all(n.type == "asset" for n in assets)
 
     def test_all_node_types_valid(self):
-        assert len(NODE_TYPES) == 11
+        assert len(NODE_TYPES) == 13
 
 
 # -- Edge operations --------------------------------------------------------

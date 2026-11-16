@@ -31,6 +31,7 @@ NODE_TYPES = frozenset({
     "asset", "service", "endpoint", "identity", "trust_boundary",
     "finding", "hypothesis", "test_execution", "evidence", "capability",
     "chain",
+    "prompt_template", "model_target",
 })
 
 EDGE_TYPES = frozenset({
@@ -38,6 +39,7 @@ EDGE_TYPES = frozenset({
     "produced", "supports", "grants", "enables", "chains_to", "calls",
     "trusts", "protects", "refutes", "scoped_to", "weakens", "involves",
     "derived_from",
+    "bypasses", "generates", "configured_for",
 })
 
 CONFIDENCE_LEVELS = ("hypothesized", "inferred", "observed", "demonstrated", "disproved")
