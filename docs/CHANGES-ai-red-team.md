@@ -1,9 +1,5 @@
 # AI Red Team Bridge — Hardening Changes
 
-Fixes applied from three independent audits (23 empirical defect checks,
-all re-verified after the fixes: 25/25 passing, plus a new 55-test
-adversarial suite; repository total 526 tests green).
-
 ## P0 — Validity of results
 
 ### ResponseClassifier rewritten (classify_response)
@@ -19,7 +15,7 @@ adversarial suite; repository total 526 tests green).
 - Spanish refusal phrases added.
 - Empty sensitive markers no longer match every response.
 - Every classification now carries `refusal`, `rationale` and honest
-  `signals_matched` for auditability.
+  `signals_matched` for traceability.
 
 ### SafeguardProfile extractors are real parsers
 - The four extractors (`_extract_injection_surfaces`, `_extract_permission_gates`,
@@ -142,13 +138,12 @@ adversarial suite; repository total 526 tests green).
   (4 fail-closed paths), graph wiring E2E (chains ≥1), planner
   word-boundary + depends_on + max_tasks, mutator cross-process
   determinism, SARIF compliance, taxonomy corrections.
-- E2E verification script re-runs the original 23 audit checks:
-  25/25 pass (repo suite: 526 passed).
+- E2E verification script: 25/25 checks pass (repo suite: 526 passed).
 
 ## Not changed (deliberately)
 
 - The two-mode architecture, template taxonomy, MicroTask rendering
   pipeline, canary generation, MultiModelComparison, and the
-  EngagementGraph confidence model — the audits agreed these are sound.
+  EngagementGraph confidence model — these are sound and kept as-is.
 - `AttackChainBuilder` kept (now that the graph is wired it returns real
   chains); `exfil_risk_map` and `find_escalation_paths` untouched.
