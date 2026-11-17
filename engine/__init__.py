@@ -32,4 +32,7 @@ Modules:
   redaction       Central secret redaction for logs, views and exports
   nuclei_templates Hash-locked custom template policy and AppProfile selection
   nuclei_runner   Scoped, risk-gated Nuclei execution and JSONL evidence
+  chain_exploit   Oracle-based multi-step chain composition (kill chains from 2+ findings)
+  defense_evasion WAF fingerprinting (8 vendors), bypass planning, adaptive backoff, UA/TLS rotation plans
+  mcp_supply_chain MCP server catalog static analysis (description injection, schema poisoning, name collision, drift)
 """

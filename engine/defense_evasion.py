@@ -1,601 +1,726 @@
-"""Defense Evasion Module — WAF bypass, rate limit evasion, fingerprint rotation.
+"""Defense evasion support — WAF fingerprinting, bypass, rate-limit backoff
+and client fingerprint rotation.
 
-Provides tactical infrastructure so that scans and exploitation steps
-are not blocked by defensive controls before they can demonstrate impact.
+Support infrastructure for the bridge: it does not generate findings on its
+own, it keeps scans from dying at the WAF. Everything here is deterministic
+and offline where possible:
 
-Components:
-  - WAFProfile: fingerprint and configuration of a detected WAF
-  - BypassEngine: encoding chains, header manipulation, protocol tricks
-  - RateLimitEvader: adaptive backoff with jitter
-  - FingerprintRotator: TLS/JA3, User-Agent, header order rotation
+  - WAFFingerprinter: passive + active probe classification for 8 vendors.
+  - WAFBypassEngine: ordered bypass strategies (encoding chains, header
+    manipulation, chunked transfer, HTTP/2 smuggling notes) with per-WAF
+    ordering.
+  - AdaptiveThrottle: exponential backoff with jitter and budget, driven by
+    observed 429/503/403 signals instead of fixed sleeps.
+  - FingerprintRotator: TLS/JA3/JA4/UA rotation plans. The engine cannot
+    change the process TLS stack, so it PLANS rotations (which header/UA/cipher
+    set to use next) and logs them — execution stays with the caller's HTTP
+    client.
+
+Every network-touching method takes a `policy` (engine.policy.PolicyEngine)
+and authorizes the target first, fail-closed. No network calls are performed
+by this module directly: probes are declarative and executed by the caller
+via the provided `send` callable, keeping the module testable offline.
+
+Module: defense_evasion
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
 import random
-import time
-import urllib.parse
-from dataclasses import asdict, dataclass, field
+import re
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
+from urllib.parse import quote
 
 try:
+    from .policy import PolicyEngine, PolicyDenied
     from .graph import EngagementGraph
 except ImportError:
+    from policy import PolicyEngine, PolicyDenied
     from graph import EngagementGraph
 
 
-WAF_SIGNATURES: dict[str, dict[str, Any]] = {
+MODULE_SOURCE = "defense_evasion"
+
+# ---------------------------------------------------------------------------
+# WAF fingerprinting — 8 vendors, passive signals + active probes
+# ---------------------------------------------------------------------------
+
+WAF_VENDORS: dict[str, dict[str, Any]] = {
     "cloudflare": {
-        "headers": ["cf-ray", "cf-cache-status", "cf-request-id"],
-        "cookies": ["__cfruid", "__cf_bm", "cf_clearance"],
-        "server": ["cloudflare"],
-        "status_codes": [403, 503],
-        "body_patterns": ["attention required", "cloudflare ray id",
-                          "enable javascript and cookies"],
-    },
-    "aws_waf": {
-        "headers": ["x-amzn-requestid", "x-amzn-trace-id"],
-        "cookies": ["awsalb", "awsalbcors"],
-        "server": [],
-        "status_codes": [403],
-        "body_patterns": ["request blocked", "automated access"],
+        "passive_signals": [
+            (r"cloudflare", "server_header"),
+            (r"cf-ray", "header"),
+            (r"__cfduid", "cookie"),
+            (r"cloudflare-nginx", "server_header"),
+        ],
+        "block_status": [403, 429, 503],
+        "block_markers": [r"cloudflare", r"Attention Required! \| Cloudflare",
+                          r"cf-error-details"],
+        "active_probes": [
+            {"path": "/cdn-cgi/trace", "expect": r"fl=", "description":
+             "Cloudflare trace endpoint"},
+        ],
+        "bypass_order": ["case_folding", "encoding_chain", "header_spoof",
+                         "chunked_transfer"],
     },
     "akamai": {
-        "headers": ["x-akamai-transformed", "akamai-grn"],
-        "cookies": ["ak_bmsc", "bm_sv", "bm_sz"],
-        "server": ["akamaighost", "akamai"],
-        "status_codes": [403],
-        "body_patterns": ["access denied", "reference #"],
+        "passive_signals": [
+            (r"akamaighost", "server_header"),
+            (r"x-akamai", "header"),
+            (r"akamai", "server_header"),
+        ],
+        "block_status": [403, 429],
+        "block_markers": [r"Access Denied", r"akamai reference",
+                          r"#[0-9a-f]{7}\.", r"Reference #"],
+        "active_probes": [],
+        "bypass_order": ["encoding_chain", "header_spoof", "chunked_transfer",
+                         "case_folding"],
     },
-    "imperva_incapsula": {
-        "headers": ["x-cdn", "x-iinfo"],
-        "cookies": ["incap_ses_", "visid_incap_", "nlbi_"],
-        "server": [],
-        "status_codes": [403],
-        "body_patterns": ["incapsula incident", "powered by incapsula"],
+    "aws-waf": {
+        "passive_signals": [
+            (r"awswaf", "header"),
+            (r"x-amzn-requestid", "header"),
+            (r"awselb", "server_header"),
+        ],
+        "block_status": [403],
+        "block_markers": [r"Request blocked\.", r"aws-waf",
+                          r"Request too large"],
+        "active_probes": [],
+        "bypass_order": ["encoding_chain", "header_spoof", "case_folding"],
+    },
+    "imperva": {
+        "passive_signals": [
+            (r"imperva", "header"),
+            (r"incapsula", "header"),
+            (r"visid_incap_", "cookie"),
+            (r"_incap_", "cookie"),
+        ],
+        "block_status": [403, 429, 503],
+        "block_markers": [r"Request unsuccessful\. Incapsula",
+                          r"incident id", r"imperva"],
+        "active_probes": [],
+        "bypass_order": ["encoding_chain", "header_spoof", "case_folding",
+                         "chunked_transfer"],
+    },
+    "f5-bigip": {
+        "passive_signals": [
+            (r"bigipserver", "cookie"),
+            (r"f5", "server_header"),
+            (r"ts=", "cookie"),
+            (r"x-waf", "header"),
+        ],
+        "block_status": [403, 200],  # 200 with block page body
+        "block_markers": [r"The requested URL was rejected",
+                          r"bigip", r"support id"],
+        "active_probes": [],
+        "bypass_order": ["header_spoof", "encoding_chain", "case_folding"],
     },
     "modsecurity": {
-        "headers": ["x-mod-security"],
-        "cookies": [],
-        "server": ["modsecurity"],
-        "status_codes": [403, 406],
-        "body_patterns": ["mod_security", "not acceptable",
-                          "rules triggered"],
+        "passive_signals": [
+            (r"mod_security", "server_header"),
+            (r"modsecurity", "server_header"),
+            # ModSecurity is frequently identified ONLY by its block page.
+            (r"mod_security|modsecurity", "body"),
+        ],
+        "block_status": [403, 406, 500],
+        "block_markers": [r"ModSecurity", r"not acceptable",
+                          r"internal server error.*mod"],
+        "active_probes": [],
+        "bypass_order": ["case_folding", "encoding_chain", "comment_split",
+                         "whitespace_padding"],
     },
     "sucuri": {
-        "headers": ["x-sucuri-id", "x-sucuri-cache"],
-        "cookies": ["sucuri_cloudproxy_uuid"],
-        "server": ["sucuri"],
-        "status_codes": [403],
-        "body_patterns": ["sucuri website firewall", "access denied - sucuri"],
-    },
-    "f5_big_ip": {
-        "headers": [],
-        "cookies": ["bigipserver", "ts"],
-        "server": ["bigip", "big-ip"],
-        "status_codes": [403],
-        "body_patterns": ["the requested url was rejected"],
+        "passive_signals": [
+            (r"sucuri", "server_header"),
+            (r"cloudproxy", "server_header"),
+            (r"sucuri-cloudproxy", "server_header"),
+        ],
+        "block_status": [403],
+        "block_markers": [r"Sucuri", r"cloudproxy", r"blocked by sucuri"],
+        "active_probes": [],
+        "bypass_order": ["encoding_chain", "case_folding", "header_spoof"],
     },
     "fastly": {
-        "headers": ["x-served-by", "x-cache", "x-fastly-request-id"],
-        "cookies": [],
-        "server": ["fastly"],
-        "status_codes": [403, 503],
-        "body_patterns": ["fastly error", "varnish cache server"],
+        "passive_signals": [
+            (r"fastly", "header"),
+            (r"via:.*varnish", "header"),
+            (r"x-served-by", "header"),
+        ],
+        "block_status": [403, 429],
+        "block_markers": [r"fastly", r"rate limit exceeded"],
+        "active_probes": [],
+        "bypass_order": ["header_spoof", "encoding_chain", "case_folding"],
+    },
+    "generic": {
+        "passive_signals": [],
+        "block_status": [403, 429, 503],
+        "block_markers": [r"blocked", r"forbidden", r"rate limit",
+                          r"security"],
+        "active_probes": [],
+        "bypass_order": ["case_folding", "encoding_chain", "header_spoof",
+                         "chunked_transfer", "comment_split",
+                         "whitespace_padding"],
     },
 }
 
-BYPASS_TECHNIQUES: dict[str, list[dict[str, str]]] = {
-    "encoding": [
-        {"name": "double_url_encode", "description": "Double URL-encode special characters",
-         "example": "%253Cscript%253E → <script>"},
-        {"name": "unicode_normalize", "description": "Unicode normalization bypass (NFKC/NFKD)",
-         "example": "\\uff1cscript\\uff1e → <script>"},
-        {"name": "hex_encode", "description": "Hex-encode payload characters",
-         "example": "\\x3cscript\\x3e → <script>"},
-        {"name": "html_entity", "description": "HTML entity encoding",
-         "example": "&#60;script&#62; → <script>"},
-        {"name": "mixed_encoding", "description": "Mix URL + HTML + Unicode encodings",
-         "example": "%3C&#115;cript%3E"},
-        {"name": "overlong_utf8", "description": "Overlong UTF-8 encoding",
-         "example": "\\xc0\\xbc → < (non-canonical)"},
-    ],
-    "header_manipulation": [
-        {"name": "method_override", "description": "X-HTTP-Method-Override to change verb",
-         "example": "POST with X-HTTP-Method-Override: PUT"},
-        {"name": "ip_spoof_headers", "description": "X-Forwarded-For, X-Real-IP, X-Client-IP",
-         "example": "X-Forwarded-For: 127.0.0.1"},
-        {"name": "content_type_mismatch", "description": "Send payload in unexpected Content-Type",
-         "example": "Content-Type: text/plain with JSON body"},
-        {"name": "transfer_encoding", "description": "Chunked Transfer-Encoding tricks",
-         "example": "Transfer-Encoding: chunked with split payload"},
-        {"name": "host_header_variation", "description": "Host header case/port variations",
-         "example": "Host: TARGET.com:443 vs target.com"},
-    ],
-    "request_structure": [
-        {"name": "parameter_pollution", "description": "HPP — duplicate parameters",
-         "example": "?id=1&id=2 (server picks first or last)"},
-        {"name": "path_normalization", "description": "Path traversal in URL",
-         "example": "/./admin/../admin/users"},
-        {"name": "case_variation", "description": "URL path case sensitivity abuse",
-         "example": "/ADMIN vs /admin vs /Admin"},
-        {"name": "null_byte", "description": "Null byte injection in parameters",
-         "example": "file.php%00.jpg"},
-        {"name": "json_key_collision", "description": "Duplicate JSON keys",
-         "example": '{"cmd":"safe","cmd":"malicious"}'},
-    ],
-    "protocol": [
-        {"name": "http2_smuggling", "description": "HTTP/2 to HTTP/1.1 request smuggling",
-         "example": "CL:TE or TE:CL via H2 downgrade"},
-        {"name": "websocket_upgrade", "description": "Upgrade to WebSocket to bypass WAF",
-         "example": "Connection: Upgrade + Upgrade: websocket"},
-        {"name": "http_version_switch", "description": "Use HTTP/0.9 or HTTP/1.0",
-         "example": "GET /path HTTP/0.9"},
-    ],
-    "timing": [
-        {"name": "slow_request", "description": "Slow drip payload to evade timeout-based inspection",
-         "example": "1 byte per second through chunked encoding"},
-        {"name": "burst_then_pause", "description": "Send burst of legitimate requests, then payload",
-         "example": "50 normal requests → 1 malicious → pause"},
-    ],
-}
-
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:132.0) Gecko/20100101 Firefox/132.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1",
-]
-
 
 @dataclass
-class WAFProfile:
-    vendor: str = "unknown"
-    confidence: float = 0.0
-    detected_headers: list[str] = field(default_factory=list)
-    detected_cookies: list[str] = field(default_factory=list)
-    detected_server: str = ""
-    block_status_codes: list[int] = field(default_factory=list)
-    block_body_patterns: list[str] = field(default_factory=list)
-    bypass_history: list[dict[str, Any]] = field(default_factory=list)
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-    @property
-    def suggested_bypasses(self) -> list[str]:
-        """Return bypass technique categories most likely to work."""
-        effective = {b["technique"] for b in self.bypass_history
-                     if b.get("success")}
-        blocked = {b["technique"] for b in self.bypass_history
-                   if not b.get("success")}
-        all_techniques = []
-        for cat, techs in BYPASS_TECHNIQUES.items():
-            for t in techs:
-                if t["name"] not in blocked:
-                    all_techniques.append(t["name"])
-        return [t for t in all_techniques if t not in effective]
-
-
-@dataclass
-class RateLimitProfile:
-    requests_per_window: int = 0
-    window_seconds: float = 0.0
-    detected_headers: list[str] = field(default_factory=list)
-    retry_after: float | None = None
-    limit_by: str = "unknown"
+class WAFMatch:
+    vendor: str
+    confidence: float
+    signals: list[dict[str, str]] = field(default_factory=list)
+    method: str = "passive"  # passive, active, combined
 
 
 class WAFFingerprinter:
-    """Identify WAF vendor from HTTP response characteristics."""
 
-    def fingerprint(self, headers: dict[str, str],
-                    cookies: list[str],
-                    status_code: int,
-                    body: str = "") -> WAFProfile:
-        scores: dict[str, float] = {}
-        details: dict[str, dict] = {}
+    def fingerprint(self, response: dict[str, Any]) -> WAFMatch | None:
+        """Passive classification from one response dict.
 
-        headers_lower = {k.lower(): v.lower() for k, v in headers.items()}
-        cookies_lower = [c.lower() for c in cookies]
-        body_lower = body.lower()
-        server = headers_lower.get("server", "")
+        response: {"status": int, "headers": {str: str},
+                   "body": str, "cookies": {str: str}}
+        """
+        best: tuple[str, float, list[dict[str, str]]] | None = None
+        for vendor, spec in WAF_VENDORS.items():
+            if vendor == "generic":
+                continue
+            hits: list[dict[str, str]] = []
+            for pattern, where in spec["passive_signals"]:
+                target = self._search_space(response, where)
+                if target and re.search(pattern, target, re.I):
+                    hits.append({"pattern": pattern, "where": where})
+            # A block-body marker only double-confirms a vendor that already
+            # showed a vendor-specific passive signal. Generic phrases like
+            # "rate limit exceeded" must never classify a vendor alone.
+            if hits:
+                status = response.get("status", 0)
+                body = response.get("body", "") or ""
+                if status in spec["block_status"]:
+                    for pattern in spec["block_markers"]:
+                        if re.search(pattern, body, re.I):
+                            hits.append({"pattern": pattern,
+                                         "where": "block_body"})
+                            break
+            if hits:
+                confidence = min(0.95, 0.4 + 0.15 * len(hits))
+                if best is None or confidence > best[1]:
+                    best = (vendor, round(confidence, 2), hits)
+        if best:
+            return WAFMatch(vendor=best[0], confidence=best[1],
+                            signals=best[2], method="passive")
+        # Generic fallback: blocking status + generic markers, low confidence.
+        status = response.get("status", 0)
+        body = (response.get("body", "") or "").lower()
+        if status in (403, 429, 503):
+            if any(m in body for m in ("blocked", "forbidden",
+                                       "rate limit", "security")):
+                return WAFMatch(
+                    vendor="generic", confidence=0.3,
+                    signals=[{"pattern": "status+generic-marker",
+                              "where": "block_body"}],
+                    method="passive")
+        return None
 
-        for vendor, sig in WAF_SIGNATURES.items():
-            score = 0.0
-            matched_headers = []
-            matched_cookies = []
-            matched_patterns = []
+    @staticmethod
+    def _search_space(response: dict[str, Any], where: str) -> str:
+        if where == "server_header":
+            return response.get("headers", {}).get("Server", "")
+        if where == "header":
+            return " ".join("{}: {}".format(k, v) for k, v in
+                            response.get("headers", {}).items())
+        if where == "cookie":
+            return "; ".join(response.get("cookies", {}).keys())
+        return response.get("body", "") or ""
 
-            for h in sig["headers"]:
-                if h in headers_lower:
-                    score += 2.0
-                    matched_headers.append(h)
+    def active_probe(self, vendor: str,
+                     send: Callable[[str], dict[str, Any]]) -> WAFMatch | None:
+        """Send vendor-specific probes (e.g. /cdn-cgi/trace for Cloudflare).
 
-            for c in sig["cookies"]:
-                for actual in cookies_lower:
-                    if c in actual:
-                        score += 1.5
-                        matched_cookies.append(actual)
-                        break
-
-            for s in sig["server"]:
-                if s in server:
-                    score += 3.0
-
-            if status_code in sig["status_codes"]:
-                score += 1.0
-
-            for p in sig["body_patterns"]:
-                if p in body_lower:
-                    score += 2.0
-                    matched_patterns.append(p)
-
-            if score > 0:
-                scores[vendor] = score
-                details[vendor] = {
-                    "headers": matched_headers,
-                    "cookies": matched_cookies,
-                    "patterns": matched_patterns,
-                }
-
-        if not scores:
-            return WAFProfile(vendor="none_detected", confidence=0.5)
-
-        best = max(scores, key=lambda k: scores[k])
-        max_score = scores[best]
-        confidence = min(0.95, max_score / 10.0)
-
-        return WAFProfile(
-            vendor=best,
-            confidence=round(confidence, 2),
-            detected_headers=details[best].get("headers", []),
-            detected_cookies=details[best].get("cookies", []),
-            detected_server=server,
-            block_status_codes=[status_code] if status_code in (403, 406, 429, 503) else [],
-            block_body_patterns=details[best].get("patterns", []),
-        )
+        `send` is a callable executed by the CALLER (already policy-checked);
+        it receives a path and returns a response dict.
+        """
+        spec = WAF_VENDORS.get(vendor)
+        if not spec or not spec["active_probes"]:
+            return None
+        for probe in spec["active_probes"]:
+            resp = send(probe["path"])
+            body = resp.get("body", "") or ""
+            if re.search(probe["expect"], body):
+                return WAFMatch(
+                    vendor=vendor, confidence=0.9,
+                    signals=[{"pattern": probe["expect"],
+                              "where": probe["path"]}],
+                    method="active")
+        return None
 
 
-class BypassEngine:
-    """Generate WAF bypass payloads using encoding chains."""
+# ---------------------------------------------------------------------------
+# Bypass engine — ordered strategies per WAF
+# ---------------------------------------------------------------------------
 
-    def __init__(self, waf_profile: WAFProfile | None = None,
-                 seed: int | None = None):
-        self.waf_profile = waf_profile or WAFProfile()
-        self._rng = random.Random(seed)
+def case_folding(payload: str) -> str:
+    return payload.replace("select", "SeLeCt").replace(
+        "union", "UnIoN").replace("or 1=1", "Or 1=1")
 
-    def double_url_encode(self, payload: str) -> str:
-        first = urllib.parse.quote(payload, safe="")
-        return urllib.parse.quote(first, safe="")
 
-    def unicode_fullwidth(self, payload: str) -> str:
-        result = []
-        for c in payload:
-            cp = ord(c)
-            if 0x21 <= cp <= 0x7E:
-                result.append(chr(cp + 0xFEE0))
-            else:
-                result.append(c)
-        return "".join(result)
+def encoding_chain(payload: str) -> str:
+    """Double URL-encoding of the most telling keywords."""
+    once = quote(quote(payload, safe=""), safe="")
+    return once
 
-    def html_entities(self, payload: str) -> str:
-        return "".join("&#{};".format(ord(c)) for c in payload)
 
-    def hex_encode(self, payload: str) -> str:
-        return "".join("\\x{:02x}".format(ord(c)) for c in payload)
+def comment_split(payload: str) -> str:
+    return re.sub(r"\b(select|union|insert|update|delete)\b",
+                  r"\g<1>/**/", payload, flags=re.I)
 
-    def mixed_case(self, payload: str) -> str:
-        return "".join(
-            c.upper() if self._rng.random() > 0.5 else c.lower()
-            for c in payload)
 
-    def comment_insertion(self, payload: str, comment: str = "/**/") -> str:
-        """Insert comments between characters for SQL/JS bypass."""
-        if len(payload) < 4:
-            return payload
-        mid = len(payload) // 2
-        return payload[:mid] + comment + payload[mid:]
+def whitespace_padding(payload: str) -> str:
+    return payload.replace(" ", "\t").replace("=", " =")
 
-    def null_byte_inject(self, payload: str) -> str:
-        return payload + "%00"
 
-    def path_normalization(self, path: str) -> list[str]:
-        """Generate path variations for directory traversal."""
-        variants = [
-            path,
-            path.replace("/", "//"),
-            "/." + path,
-            path.rstrip("/") + "/.",
-            path.replace("/", "/%2e/"),
-        ]
-        if "/" in path.strip("/"):
-            parts = path.strip("/").split("/")
-            if len(parts) >= 2:
-                variants.append("/{}/..%2f{}/{}".format(
-                    parts[0], parts[0], "/".join(parts[1:])))
-        return list(dict.fromkeys(variants))
+def double_url_encode(payload: str) -> str:
+    """Double URL-encode: %253C -> %3C -> <. Bypasses single-decode WAFs."""
+    first = quote(payload, safe="")
+    return quote(first, safe="")
+
+
+def unicode_fullwidth(payload: str) -> str:
+    """Replace ASCII with fullwidth equivalents (U+FF01..U+FF5E)."""
+    return "".join(
+        chr(ord(c) + 0xFEE0) if 0x21 <= ord(c) <= 0x7E else c
+        for c in payload)
+
+
+def html_entities(payload: str) -> str:
+    return "".join("&#{};".format(ord(c)) for c in payload)
+
+
+def hex_encode(payload: str) -> str:
+    return "".join("\\x{:02x}".format(ord(c)) for c in payload)
+
+
+def null_byte_inject(payload: str) -> str:
+    return payload + "%00"
+
+
+def mixed_encoding_chain(payload: str) -> str:
+    """Mix URL + case alternation — multiple encoding layers."""
+    mc = "".join(c.upper() if i % 2 else c.lower()
+                 for i, c in enumerate(payload))
+    return quote(mc, safe="")
+
+
+def parameter_pollution(payload: str) -> str:
+    """HPP: duplicate parameter with clean then dirty value."""
+    return "{}&{}".format(quote(payload[:4], safe=""), quote(payload, safe=""))
+
+
+def path_normalization(path: str) -> list[str]:
+    """Generate path variants for directory traversal bypass."""
+    variants = [
+        path,
+        path.replace("/", "//"),
+        "/." + path,
+        path.rstrip("/") + "/.",
+        path.replace("/", "/%2e/"),
+    ]
+    if "/" in path.strip("/"):
+        parts = path.strip("/").split("/")
+        if len(parts) >= 2:
+            variants.append("/{}/..%2f{}/{}".format(
+                parts[0], parts[0], "/".join(parts[1:])))
+    return list(dict.fromkeys(variants))
+
+
+def header_spoof(headers: dict[str, str]) -> dict[str, str]:
+    out = dict(headers)
+    out["User-Agent"] = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                         "AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/126.0.0.0 Safari/537.36")
+    out["X-Forwarded-For"] = "127.0.0.1"
+    out["Accept"] = ("text/html,application/xhtml+xml,application/xml;"
+                     "q=0.9,*/*;q=0.8")
+    return out
+
+
+# Chunked transfer and HTTP/2 smuggling are protocol-level: the engine
+# emits a PLAN (headers/notes) because the transport is the caller's.
+CHUNKED_TRANSFER_PLAN = {
+    "strategy": "chunked_transfer",
+    "instructions": [
+        "Send the request body with Transfer-Encoding: chunked and split "
+        "the payload across chunks so no single chunk contains the full "
+        "signature (e.g. one byte per chunk for the keyword).",
+        "Only over raw sockets / HTTP client with chunk control; verify the "
+        "origin reassembles correctly with a benign marker first.",
+    ],
+    "headers": {"Transfer-Encoding": "chunked"},
+}
+
+HTTP2_SMUGGLING_PLAN = {
+    "strategy": "h2_smuggling_note",
+    "instructions": [
+        "CL.TE / TE.TE smuggling requires an h2 frontend with an h1 backend "
+        "and a desync; test ONLY with a benign canary GET (no payloads) to "
+        "avoid poisoning shared caches.",
+        "If the canary request reaches the origin bypassing the WAF, record "
+        "the desync; do not run active payloads through it without operator "
+        "approval (dangerous action).",
+    ],
+    "headers": {"Content-Length": "", "Transfer-Encoding": "chunked"},
+}
+
+
+BYPASS_TECHNIQUES: dict[str, list[dict[str, str]]] = {
+    "encoding": [
+        {"name": "double_url_encode", "description": "Double URL-encode special characters"},
+        {"name": "unicode_fullwidth", "description": "Unicode fullwidth normalization bypass"},
+        {"name": "hex_encode", "description": "Hex-encode payload characters"},
+        {"name": "html_entities", "description": "HTML entity encoding"},
+        {"name": "mixed_encoding_chain", "description": "Mix URL + case encodings"},
+        {"name": "encoding_chain", "description": "Double URL-encode the full payload"},
+    ],
+    "request_structure": [
+        {"name": "parameter_pollution", "description": "HPP — duplicate parameters"},
+        {"name": "path_normalization", "description": "Path traversal in URL"},
+        {"name": "case_folding", "description": "SQL/keyword case alternation"},
+        {"name": "null_byte_inject", "description": "Null byte injection"},
+        {"name": "comment_split", "description": "SQL comment insertion between keywords"},
+        {"name": "whitespace_padding", "description": "Tab/space substitution"},
+    ],
+    "header_manipulation": [
+        {"name": "header_spoof", "description": "IP spoof headers + UA + Content-Type"},
+    ],
+    "protocol": [
+        {"name": "chunked_transfer", "description": "Chunked Transfer-Encoding split"},
+        {"name": "h2_smuggling", "description": "HTTP/2 to HTTP/1.1 request smuggling"},
+    ],
+}
+
+EXTRA_STRATEGIES: dict[str, Callable[[str], str]] = {
+    "double_url_encode": double_url_encode,
+    "unicode_fullwidth": unicode_fullwidth,
+    "html_entities": html_entities,
+    "hex_encode": hex_encode,
+    "null_byte_inject": null_byte_inject,
+    "mixed_encoding_chain": mixed_encoding_chain,
+}
+
+
+class WAFBypassEngine:
+
+    def __init__(self, fingerprint: WAFMatch | None = None):
+        self.fingerprint = fingerprint
+        self.attempts: list[dict[str, Any]] = []
+
+    def strategy_order(self) -> list[str]:
+        if self.fingerprint:
+            return list(WAF_VENDORS[self.fingerprint.vendor]["bypass_order"])
+        return list(WAF_VENDORS["generic"]["bypass_order"])
+
+    def next_request_plan(self, payload: str,
+                          headers: dict[str, str] | None = None,
+                          body: str = "") -> dict[str, Any]:
+        """Build the next request plan (transformed payload + headers +
+        transport notes) following the vendor-ordered strategies.
+
+        Deterministic rotation by attempt count (no RNG): attempt N uses
+        strategy N mod len(order).
+        """
+        order = self.strategy_order()
+        idx = len(self.attempts) % len(order)
+        strategy = order[idx]
+        plan: dict[str, Any] = {
+            "attempt": len(self.attempts) + 1,
+            "strategy": strategy,
+            "vendor": self.fingerprint.vendor if self.fingerprint else "generic",
+        }
+        new_payload = payload
+        new_headers = dict(headers or {})
+        if strategy in ("case_folding", "encoding_chain", "comment_split",
+                        "whitespace_padding"):
+            new_payload = {
+                "case_folding": case_folding,
+                "encoding_chain": encoding_chain,
+                "comment_split": comment_split,
+                "whitespace_padding": whitespace_padding,
+            }[strategy](payload)
+        elif strategy == "header_spoof":
+            new_headers = header_spoof(new_headers)
+        elif strategy == "chunked_transfer":
+            plan["transport"] = CHUNKED_TRANSFER_PLAN
+        plan["payload"] = new_payload
+        plan["headers"] = new_headers
+        plan["body"] = body
+        self.attempts.append({
+            "attempt": plan["attempt"], "strategy": strategy,
+            "payload_sha": hashlib.sha256(
+                new_payload.encode()).hexdigest()[:12],
+            "at": datetime.now(timezone.utc).isoformat(),
+        })
+        return plan
+
+    def record_result(self, blocked: bool) -> None:
+        """Record the result of the oldest plan without a result yet.
+
+        Plans are generated ahead of execution; execution is FIFO, so the
+        result attaches to the first attempt that has no 'blocked' key.
+        """
+        for attempt in self.attempts:
+            if "blocked" not in attempt:
+                attempt["blocked"] = blocked
+                return
+        if self.attempts:
+            self.attempts[-1]["blocked"] = blocked
 
     def generate_bypass_variants(self, payload: str,
-                                 max_variants: int = 10) -> list[dict[str, str]]:
-        """Generate multiple bypass variants of a payload."""
-        variants = []
-        encoders = [
-            ("double_url_encode", self.double_url_encode),
-            ("unicode_fullwidth", self.unicode_fullwidth),
-            ("html_entities", self.html_entities),
-            ("hex_encode", self.hex_encode),
-            ("mixed_case", self.mixed_case),
-            ("comment_insertion", self.comment_insertion),
-            ("null_byte", self.null_byte_inject),
-        ]
-        for name, fn in encoders:
+                                 max_variants: int = 15) -> list[dict[str, str]]:
+        """Generate multiple bypass variants using ALL available encoding
+        techniques (not just the vendor-ordered rotation).
+
+        Returns [{"technique": name, "payload": transformed}, ...].
+        """
+        variants: list[dict[str, str]] = []
+        all_transforms: dict[str, Callable] = {
+            "case_folding": case_folding,
+            "encoding_chain": encoding_chain,
+            "comment_split": comment_split,
+            "whitespace_padding": whitespace_padding,
+            **EXTRA_STRATEGIES,
+        }
+        for name, fn in all_transforms.items():
             try:
                 result = fn(payload)
                 if result != payload:
                     variants.append({"technique": name, "payload": result})
             except Exception:
                 continue
-
-        chained = self._chain_encodings(payload)
-        for name, result in chained:
-            variants.append({"technique": name, "payload": result})
-
-        self._rng.shuffle(variants)
         return variants[:max_variants]
 
-    def _chain_encodings(self, payload: str) -> list[tuple[str, str]]:
-        chains = []
-        mc = self.mixed_case(payload)
-        dbl = self.double_url_encode(mc)
-        chains.append(("mixed_case+double_url", dbl))
-
-        ent = self.html_entities(payload)
-        url_ent = urllib.parse.quote(ent, safe="")
-        chains.append(("html_entity+url_encode", url_ent))
-
-        fw = self.unicode_fullwidth(payload)
-        url_fw = urllib.parse.quote(fw, safe="")
-        chains.append(("fullwidth+url_encode", url_fw))
-
-        return chains
-
     def generate_header_bypasses(self) -> list[dict[str, str]]:
-        """Generate header-based bypass attempts."""
+        """Generate header-based bypass attempts (IP spoof, method override)."""
         bypasses = []
         for ip in ["127.0.0.1", "10.0.0.1", "::1", "localhost"]:
             bypasses.append({"X-Forwarded-For": ip})
             bypasses.append({"X-Real-IP": ip})
             bypasses.append({"X-Client-IP": ip})
-            bypasses.append({"X-Originating-IP": ip})
-
         bypasses.append({"X-HTTP-Method-Override": "PUT"})
         bypasses.append({"X-HTTP-Method-Override": "PATCH"})
         bypasses.append({"Content-Type": "text/plain"})
         bypasses.append({"Content-Type": "application/xml"})
         bypasses.append({"Transfer-Encoding": "chunked"})
-
         return bypasses
 
+    def exhausted(self) -> bool:
+        """True when every strategy has been tried once and blocked."""
+        if len(self.attempts) < len(self.strategy_order()):
+            return False
+        return all(a.get("blocked") for a in self.attempts)
 
-class RateLimitEvader:
-    """Adaptive rate limit detection and evasion."""
 
-    def __init__(self, seed: int | None = None):
-        self._rng = random.Random(seed)
-        self._history: list[dict[str, Any]] = []
-        self._profile: RateLimitProfile | None = None
-        self._consecutive_429 = 0
-        self._base_delay = 1.0
-        self._current_delay = 1.0
+# ---------------------------------------------------------------------------
+# Adaptive rate-limit throttle
+# ---------------------------------------------------------------------------
 
-    def record_response(self, status_code: int,
-                        headers: dict[str, str]) -> dict[str, Any]:
-        """Record a response and update rate limit profile."""
-        entry = {
-            "status": status_code,
-            "timestamp": time.time(),
-            "headers": {k.lower(): v for k, v in headers.items()},
-        }
-        self._history.append(entry)
+class AdaptiveThrottle:
+    """Exponential backoff driven by observed responses, with budget.
 
-        if status_code == 429:
-            self._consecutive_429 += 1
-            retry_after = headers.get("retry-after", headers.get("Retry-After"))
-            if retry_after:
-                try:
-                    entry["retry_after"] = float(retry_after)
-                except ValueError:
-                    pass
+    The caller reports each response; the throttle advises wait seconds.
+    429/503 with Retry-After is honored; 403-WAF-blocks trigger slower
+    growth; 2xx resets. No sleeps are performed here (testability).
+    """
 
-            self._update_profile(entry)
-            self._backoff()
-            return {"action": "wait", "delay": self._current_delay,
-                    "consecutive_429": self._consecutive_429}
-        else:
-            self._consecutive_429 = 0
-            self._decay_delay()
-            return {"action": "continue", "delay": self._current_delay}
+    BASE_DELAY = 1.0
+    MAX_DELAY = 120.0
+    MULTIPLIER = 2.0
 
-    def _update_profile(self, entry: dict) -> None:
-        if self._profile is None:
-            self._profile = RateLimitProfile()
+    def __init__(self, budget_seconds: float = 600.0, seed: int = 0):
+        self._delay = self.BASE_DELAY
+        self._consecutive_blocks = 0
+        self._spent = 0.0
+        self._budget = budget_seconds
+        # Seeded jitter: deterministic per instance for reproducibility.
+        self._rng = random.Random(seed or 20261117)
 
-        headers = entry.get("headers", {})
-        for h in ["x-ratelimit-limit", "x-ratelimit-remaining",
-                   "x-ratelimit-reset", "ratelimit-limit",
-                   "ratelimit-remaining", "ratelimit-reset"]:
-            if h in headers:
-                if h not in self._profile.detected_headers:
-                    self._profile.detected_headers.append(h)
+    def advise(self, status: int, retry_after: float | None = None) -> float:
+        """Advise how long to wait before the next request."""
+        if status in (429, 503):
+            self._consecutive_blocks += 1
+            if retry_after is not None and retry_after > 0:
+                self._delay = min(float(retry_after), self.MAX_DELAY)
+            else:
+                self._delay = min(self._delay * self.MULTIPLIER, self.MAX_DELAY)
+        elif status == 403:
+            # WAF block without explicit rate signal: mild growth.
+            self._consecutive_blocks += 1
+            self._delay = min(self._delay * 1.3, self.MAX_DELAY)
+        elif 200 <= status < 400:
+            # Success: decay back toward the base delay.
+            self._consecutive_blocks = 0
+            self._delay = max(self.BASE_DELAY, self._delay / self.MULTIPLIER)
+        # Jitter: +/- 15%, deterministic from the seeded rng.
+        jitter = 1.0 + self._rng.uniform(-0.15, 0.15)
+        wait = round(self._delay * jitter, 2)
+        self._spent += wait
+        return wait
 
-        limit_header = headers.get("x-ratelimit-limit",
-                                    headers.get("ratelimit-limit"))
-        if limit_header:
-            try:
-                self._profile.requests_per_window = int(limit_header)
-            except ValueError:
-                pass
+    def budget_exhausted(self) -> bool:
+        return self._spent >= self._budget
 
-        if "retry_after" in entry:
-            self._profile.retry_after = entry["retry_after"]
+    def stats(self) -> dict[str, float]:
+        return {"consecutive_blocks": self._consecutive_blocks,
+                "current_delay": round(self._delay, 2),
+                "spent_waiting": round(self._spent, 2),
+                "budget": self._budget}
 
-    def _backoff(self) -> None:
-        """Exponential backoff with jitter."""
-        exp = min(self._consecutive_429, 6)
-        base = self._base_delay * (2 ** exp)
-        jitter = self._rng.uniform(0, base * 0.3)
-        self._current_delay = min(base + jitter, 120.0)
 
-    def _decay_delay(self) -> None:
-        """Gradually reduce delay after successful requests."""
-        self._current_delay = max(
-            self._base_delay,
-            self._current_delay * 0.8)
+# ---------------------------------------------------------------------------
+# Client fingerprint rotation (planner)
+# ---------------------------------------------------------------------------
 
-    @property
-    def recommended_delay(self) -> float:
-        return self._current_delay
+UA_POOL = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 "
+    "Firefox/127.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 "
+    "Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+]
 
-    @property
-    def profile(self) -> RateLimitProfile | None:
-        return self._profile
-
-    def get_stats(self) -> dict[str, Any]:
-        total = len(self._history)
-        rate_limited = sum(1 for h in self._history if h["status"] == 429)
-        return {
-            "total_requests": total,
-            "rate_limited": rate_limited,
-            "rate_limit_pct": round(rate_limited / total * 100, 1) if total else 0.0,
-            "current_delay": round(self._current_delay, 2),
-            "consecutive_429": self._consecutive_429,
-            "profile": asdict(self._profile) if self._profile else None,
-        }
+# JA3/JA4 rotation is planned, not executed: changing the TLS stack is the
+# HTTP client's job. We emit ordered rotation plans with stable pseudo-
+# random selection seeded per engagement for reproducibility.
+CIPHER_SUITES = [
+    "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256",
+    "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384",
+    "AES128-GCM-SHA256:AES256-GCM-SHA384",
+]
+TLS_VERSIONS = ["1.2", "1.3"]
 
 
 class FingerprintRotator:
-    """Rotate client fingerprint to avoid behavioral detection."""
+    """Plan UA/TLS/JA3/JA4 rotations deterministically.
 
-    def __init__(self, seed: int | None = None):
-        self._rng = random.Random(seed)
-        self._rotation_index = 0
-        self._used: set[str] = set()
+    ja4_note: JA4 fingerprints sort ciphers and add extension counts; a
+    real JA3 change requires an actual TLS re-handshake, so the plan marks
+    WHICH properties to change and the caller applies them.
+    """
 
-    def next_user_agent(self) -> str:
-        ua = USER_AGENTS[self._rotation_index % len(USER_AGENTS)]
-        self._rotation_index += 1
-        return ua
+    def __init__(self, seed: int = 0):
+        self._rng = random.Random(seed or 20261117)
+        self._rotations = 0
 
-    def random_user_agent(self) -> str:
-        return self._rng.choice(USER_AGENTS)
+    def next_profile(self) -> dict[str, str]:
+        profile = {
+            "user_agent": self._rng.choice(UA_POOL),
+            "tls_version": self._rng.choice(TLS_VERSIONS),
+            "ciphers": self._rng.choice(CIPHER_SUITES),
+        }
+        # JA4-style digest of the planned handshake profile (stable hash).
+        digest = hashlib.sha256(
+            "|".join(profile.values()).encode()).hexdigest()[:12]
+        profile["profile_digest"] = digest
+        self._rotations += 1
+        return profile
+
+    def should_rotate(self, blocked_streak: int) -> bool:
+        """Rotate after 3 consecutive blocks (WAF fingerprinting the client)."""
+        return blocked_streak >= 3
 
     def generate_headers(self) -> dict[str, str]:
-        """Generate a consistent set of browser-like headers."""
-        ua = self.next_user_agent()
+        """Generate a consistent set of browser-like headers for the
+        current rotation profile."""
+        profile = self.next_profile()
+        ua = profile["user_agent"]
         headers: dict[str, str] = {
             "User-Agent": ua,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept": ("text/html,application/xhtml+xml,application/xml;"
+                       "q=0.9,*/*;q=0.8"),
             "Accept-Language": self._rng.choice([
-                "en-US,en;q=0.9",
-                "en-GB,en;q=0.9",
-                "es-ES,es;q=0.9,en;q=0.8",
-                "fr-FR,fr;q=0.9,en;q=0.8",
+                "en-US,en;q=0.9", "en-GB,en;q=0.9",
+                "es-ES,es;q=0.9,en;q=0.8", "fr-FR,fr;q=0.9,en;q=0.8",
             ]),
             "Accept-Encoding": "gzip, deflate, br",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
         }
-        if "Chrome" in ua:
-            headers["Sec-Ch-Ua"] = '"Chromium";v="131", "Not_A Brand";v="24"'
+        if "Chrome" in ua and "Safari" in ua and "Edg" not in ua:
+            headers["Sec-Ch-Ua"] = '"Chromium";v="126", "Not_A Brand";v="24"'
             headers["Sec-Ch-Ua-Mobile"] = "?0"
             headers["Sec-Ch-Ua-Platform"] = self._rng.choice(
                 ['"Windows"', '"macOS"', '"Linux"'])
             headers["Sec-Fetch-Site"] = "none"
             headers["Sec-Fetch-Mode"] = "navigate"
             headers["Sec-Fetch-Dest"] = "document"
-
         return headers
 
-    def tls_config_hint(self) -> dict[str, str]:
-        """Return TLS configuration hints for the current rotation."""
-        configs = [
-            {"cipher_preference": "ECDHE-RSA-AES128-GCM-SHA256",
-             "tls_version": "TLSv1.3", "alpn": "h2"},
-            {"cipher_preference": "ECDHE-ECDSA-AES256-GCM-SHA384",
-             "tls_version": "TLSv1.3", "alpn": "h2"},
-            {"cipher_preference": "TLS_AES_256_GCM_SHA384",
-             "tls_version": "TLSv1.3", "alpn": "h2,http/1.1"},
-        ]
-        return configs[self._rotation_index % len(configs)]
+    @property
+    def rotations(self) -> int:
+        return self._rotations
 
 
-class DefenseEvasionOrchestrator:
-    """Coordinate evasion tactics across an engagement."""
+# ---------------------------------------------------------------------------
+# Facade with policy enforcement
+# ---------------------------------------------------------------------------
 
-    SOURCE = "defense_evasion"
+class DefenseEvader:
+    """Bundles fingerprinter, bypass engine, throttle and rotator with
+    fail-closed policy checks on every target the caller wants to probe."""
 
-    def __init__(self, graph: EngagementGraph):
+    def __init__(self, policy: PolicyEngine | None = None,
+                 graph: EngagementGraph | None = None):
+        self.policy = policy
         self.graph = graph
-        self.waf_fingerprinter = WAFFingerprinter()
-        self.bypass_engine = BypassEngine()
-        self.rate_limiter = RateLimitEvader()
+        self.fingerprinter = WAFFingerprinter()
+        self.bypass: WAFBypassEngine | None = None
+        self.throttle = AdaptiveThrottle()
         self.rotator = FingerprintRotator()
-        self._waf_profiles: dict[str, WAFProfile] = {}
 
-    def fingerprint_waf(self, target: str,
-                        headers: dict[str, str],
-                        cookies: list[str],
-                        status_code: int,
-                        body: str = "") -> WAFProfile:
-        """Fingerprint WAF for a target and record to graph."""
-        profile = self.waf_fingerprinter.fingerprint(
-            headers, cookies, status_code, body)
-        self._waf_profiles[target] = profile
+    def authorize_target(self, target: str) -> dict[str, Any]:
+        if self.policy is None:
+            raise PolicyDenied(
+                "DefenseEvader requires a PolicyEngine (fail-closed); pass "
+                "policy=PolicyEngine(audit_dir)")
+        return self.policy.authorize("defense_evasion_probe", [target])
 
-        if profile.vendor != "none_detected":
-            self.graph.add_node(
-                type="capability",
-                label="WAF: {} ({})".format(profile.vendor, target),
-                properties={
-                    "waf_vendor": profile.vendor,
-                    "confidence": profile.confidence,
-                    "target": target,
-                    "detected_headers": profile.detected_headers,
-                    "source": self.SOURCE,
-                },
-                source=self.SOURCE,
-            )
+    def identify_waf(self, response: dict[str, Any]) -> WAFMatch | None:
+        match = self.fingerprinter.fingerprint(response)
+        if match:
+            self.bypass = WAFBypassEngine(match)
+            self._record_waf(match)
+        return match
 
-        return profile
+    def _record_waf(self, match: WAFMatch) -> None:
+        if self.graph is None:
+            return
+        self.graph.add_node(
+            type="capability",
+            label="WAF: {}".format(match.vendor),
+            properties={
+                "waf_vendor": match.vendor,
+                "confidence": match.confidence,
+                "signals": match.signals,
+                "method": match.method,
+                "source": MODULE_SOURCE,
+            },
+            source=MODULE_SOURCE,
+        )
 
-    def suggest_bypass_strategy(self, target: str,
-                                payload: str) -> list[dict[str, str]]:
-        """Suggest bypass techniques based on WAF profile."""
-        profile = self._waf_profiles.get(target)
-        if profile:
-            self.bypass_engine = BypassEngine(waf_profile=profile)
-
-        variants = self.bypass_engine.generate_bypass_variants(payload)
-        header_bypasses = self.bypass_engine.generate_header_bypasses()
-
-        return variants + [{"technique": "header", "headers": json.dumps(h)}
-                           for h in header_bypasses[:5]]
-
-    def get_evasion_summary(self) -> dict[str, Any]:
-        """Summary of all evasion state."""
-        return {
-            "waf_profiles": {t: p.to_dict()
-                             for t, p in self._waf_profiles.items()},
-            "rate_limit_stats": self.rate_limiter.get_stats(),
-            "rotation_index": self.rotator._rotation_index,
-            "bypass_techniques_available": sum(
-                len(techs) for techs in BYPASS_TECHNIQUES.values()),
-        }
+    def next_plan(self, payload: str, headers: dict[str, str] | None = None,
+                  body: str = "") -> dict[str, Any]:
+        if self.bypass is None:
+            self.bypass = WAFBypassEngine(None)
+        return self.bypass.next_request_plan(payload, headers, body)
