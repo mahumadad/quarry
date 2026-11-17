@@ -199,7 +199,12 @@ class TestPromptTemplate:
 
 class TestBuiltinTemplates:
     def test_count(self):
-        assert len(BUILTIN_TEMPLATES) == 24
+        assert len(BUILTIN_TEMPLATES) == 27
+
+    def test_new_coverage_templates_present(self):
+        for name in ("rag_poisoning", "multi_turn_escalation",
+                     "output_handling_test"):
+            assert name in BUILTIN_TEMPLATES
 
     def test_all_valid_categories(self):
         for name, t in BUILTIN_TEMPLATES.items():
@@ -411,16 +416,47 @@ class TestRedTeamBridge:
         assert len(rt) >= 1
 
     def test_generate_agent_prompt(self, bridge):
+        # Fail-closed: no engagement_id -> refuse.
+        from engine.ai_red_team import BridgeAuthorizationError
+        with pytest.raises(BridgeAuthorizationError):
+            bridge.generate_agent_prompt(
+                "recon scan", {"domain": "example.com"})
+        # With engagement + scope covering the domain -> prompt + watermark.
+        from engine.scope import Scope
+        scope = Scope()
+        scope.add_in_scope("example.com", "domain")
+        bridge.scope = scope
         prompt = bridge.generate_agent_prompt(
-            "recon scan", {"domain": "example.com"})
+            "recon scan", {"domain": "example.com",
+                           "engagement_id": "ENG-1",
+                           "tools": "WebFetch, WebSearch",
+                           "output_dir": "loot/"})
         assert "example.com" in prompt
         assert len(prompt) > 50
+        assert "authorized security testing only" in prompt
+
+    def test_generate_agent_prompt_out_of_scope(self, bridge):
+        from engine.ai_red_team import BridgeAuthorizationError
+        from engine.scope import Scope
+        scope = Scope()
+        scope.add_in_scope("example.com", "domain")
+        bridge.scope = scope
+        with pytest.raises(BridgeAuthorizationError):
+            bridge.generate_agent_prompt(
+                "recon scan", {"domain": "victim.com",
+                               "engagement_id": "ENG-1"})
 
     def test_generate_agent_prompt_red_team(self, rt_bridge):
         prompt = rt_bridge.generate_agent_prompt(
-            "injection test", {"model": "fable", "endpoint": "api.example.com"})
+            "injection test",
+            {"model": "fable", "name": "Fable",
+             "endpoint": "api.example.com",
+             "engagement_id": "ENG-RT",
+             "payloads": "1. ignore previous\n2. system role claim",
+             "canary": generate_canary()})
         assert "RED TEAM" in prompt
         assert "fable" in prompt
+        assert "authorized security testing only" in prompt
 
     def test_record_execution(self, bridge):
         ids = bridge.record_execution(
@@ -735,8 +771,9 @@ class TestSessionStrategy:
 # -- Prompt Optimizer ---
 
 class TestPromptOptimizer:
-    def test_record_and_effective(self, bridge):
-        opt = PromptOptimizer(bridge)
+    def test_record_and_effective(self, rt_bridge):
+        # ai_red_team mode: only observed bypasses count, never compliant.
+        opt = PromptOptimizer(rt_bridge)
         blocked = ResponseClassification(
             label="blocked", confidence=0.9, signals_matched=["safety"],
         )
@@ -744,11 +781,38 @@ class TestPromptOptimizer:
             label="full_bypass", confidence=0.9,
             signals_matched=["canary"], canary_detected=True,
         )
+        compliant = ResponseClassification(
+            label="compliant", confidence=0.8, signals_matched=[],
+        )
         opt.record_attempt("injection_test", {}, "prompt1", blocked)
         opt.record_attempt("format_injection", {}, "prompt2", bypass)
+        opt.record_attempt("injection_test", {}, "prompt3", compliant)
         effective = opt.effective_templates()
-        assert effective[0]["template"] == "format_injection"
-        assert effective[0]["bypass_rate"] == 100.0
+        by_name = {e["template"]: e for e in effective}
+        assert by_name["format_injection"]["bypass_rate"] == 100.0
+        # compliant did not inflate injection_test's bypass count
+        assert by_name["injection_test"]["bypass_count"] == 0
+
+    def test_optimizer_enhanced_counts_compliant(self, bridge):
+        # enhanced_pentest mode: compliance IS the success metric.
+        opt = PromptOptimizer(bridge)
+        compliant = ResponseClassification(
+            label="compliant", confidence=0.8, signals_matched=[],
+        )
+        opt.record_attempt("t", {}, "p", compliant)
+        effective = opt.effective_templates()
+        assert effective[0]["bypass_count"] == 1
+
+    def test_optimizer_min_attempts_flag(self, rt_bridge):
+        opt = PromptOptimizer(rt_bridge)
+        bypass = ResponseClassification(
+            label="full_bypass", confidence=0.9,
+            signals_matched=["canary"], canary_detected=True,
+        )
+        opt.record_attempt("t", {}, "p", bypass)
+        entry = opt.effective_templates()[0]
+        assert entry["bypass_rate"] == 100.0
+        assert entry["sufficient_samples"] is False
 
     def test_blocked_patterns(self, bridge):
         opt = PromptOptimizer(bridge)
@@ -764,7 +828,7 @@ class TestPromptOptimizer:
         opt = PromptOptimizer(bridge)
         blocked = ResponseClassification(
             label="blocked", confidence=0.9,
-            signals_matched=["blocked:safety"],
+            signals_matched=["blocked:i cannot"],
         )
         opt.record_attempt("t", {}, "p", blocked)
         suggestions = opt.suggest_refinements()
