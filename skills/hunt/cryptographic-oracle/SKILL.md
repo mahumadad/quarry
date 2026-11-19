@@ -38,6 +38,37 @@ forgery of another user's token and account takeover require separate explicit g
    exact token family, endpoint, sample counts and artifact IDs. A different protocol/version is a
    new coverage cell, not covered by the old result.
 
+## Tooling
+
+```bash
+# Padding-oracle distinguisher: interleave valid/invalid/random controls and
+# record status, body hash and timing for each. A difference is a LEAD until
+# the controls rule out rate limits and generic error pages.
+python3 - <<'PY'
+import time, statistics, urllib.request
+URL="https://TARGET/verify"; TOK="<base64url token>"
+def probe(tok):
+    t=time.perf_counter()
+    try: r=urllib.request.urlopen(URL+"?t="+tok, timeout=10); body=r.read(); code=r.status
+    except urllib.error.HTTPError as e: body=e.read(); code=e.code
+    return code, len(body), time.perf_counter()-t
+# flip the last byte of the second-to-last block (CBC padding probe)
+# collect >=30 paired samples; report distributions, not a single diff.
+PY
+
+# CBC padding oracle (own fixture / separately gated): padbuster / python-paddingoracle
+padbuster https://TARGET/verify $TOK 16 -cookies "session=..." -encoding 2
+```
+
+## Validation Gate (minimum proof)
+
+- **Demonstrated:** a reproducible, control-separated distinction (padding vs
+  MAC vs decryption error, or a timing distribution with reported variance over
+  ≥30 paired samples) AND a minimal benign consequence on your own fixture
+  (one recovered byte / one forged-then-accepted token). Separately gated.
+- **Inferred:** a distinguishable error exists but no byte/forgery shown.
+- **Unproven:** a single average timing difference, or "CBC/ECB/SHA-1 is used".
+
 ## Evidence and gotchas
 
 - Preserve raw inputs as hex/baseurl-safe artifacts plus exact request/response pairs and code used.

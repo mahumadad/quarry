@@ -59,6 +59,39 @@ internal assets, services, or network segments.
 - Check for jump boxes or bastion hosts
 - Document: what additional access each pivot provides
 
+## Commands
+
+```bash
+# Internal discovery from a foothold (scope every new host before touching it)
+ip -br a; arp -a; cat /etc/hosts
+for h in 10.0.0.{1..254}; do (ping -c1 -W1 $h >/dev/null && echo "up $h") & done; wait
+
+# Service / credential-reuse testing with recovered creds (authorized reuse only)
+crackmapexec smb 10.0.0.0/24 -u USER -p 'PASS' --continue-on-success
+# SSH key reuse:
+for h in $HOSTS; do ssh -o BatchMode=yes -i loot_key user@$h id 2>/dev/null; done
+
+# Trust / AD relationships (Windows domains)
+# bloodhound-python -d DOMAIN -u USER -p PASS -c All -ns DC_IP
+# then query shortest paths to Domain Admins in the BloodHound UI
+
+# Pivot feasibility (do not establish without a separate gate)
+ss -tnp; netstat -rn   # routes/reachable segments from this host
+```
+
+Each reached host is NEW scope: stop and confirm authorization before enumerating
+or authenticating to it. Pivoting/tunnel setup needs its own explicit gate.
+
+## Validation Gate (minimum proof)
+
+- **Demonstrated:** authenticated access to a second in-scope host obtained from
+  the first (command output proving identity on host B, e.g. `id`/`whoami` +
+  hostname), with the exact credential/path used and the trust it crossed.
+- **Inferred:** a reuse path looks viable (same cred hash, open service) but no
+  second-host access was shown.
+- Record the blast radius: which segment/identities the move exposes, as a
+  chain anchor — lateral movement is a chain step, not a standalone finding.
+
 ## Gotchas
 
 - Internal services may have different WAF/IDS rules than external

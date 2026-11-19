@@ -65,6 +65,41 @@ This is a DEFENSIVE check, not an offensive implant exercise.
 - Review DNS configuration for unauthorized resolvers
 - Evidence: unexpected network listeners or configurations
 
+## Commands
+
+```bash
+# Scheduled tasks / cron
+crontab -l 2>/dev/null; ls -la /etc/cron.* /var/spool/cron/crontabs 2>/dev/null
+systemctl list-timers --all 2>/dev/null
+# Windows: schtasks /query /fo LIST /v  ;  Get-ScheduledTask
+
+# Service / startup persistence
+systemctl list-unit-files --state=enabled 2>/dev/null
+ls -la /etc/init.d /etc/rc*.d ~/.config/autostart 2>/dev/null
+# Windows: Get-CimInstance Win32_Service | ? {$_.StartMode -eq 'Auto'}
+#          reg query HKLM\Software\Microsoft\Windows\CurrentVersion\Run
+
+# Account persistence
+awk -F: '$3>=1000{print}' /etc/passwd; grep -v '^#' /etc/sudoers.d/* 2>/dev/null
+ls -la ~/.ssh/authorized_keys /root/.ssh/authorized_keys 2>/dev/null
+
+# Web shell indicators (callback eval/exec in web roots)
+grep -rEl "eval\(|base64_decode\(|assert\(|system\(" /var/www 2>/dev/null
+```
+
+Post-exploitation step: requires the standing exploitation gate and a host you
+are authorized to inspect.
+
+## Validation Gate (minimum proof)
+
+- **Demonstrated:** a specific persistence artifact identified with its exact
+  location and content (the cron line, the service unit, the authorized_keys
+  entry, the web-shell file hash), plus how it would re-grant access.
+- **Inferred:** an anomaly consistent with persistence but not confirmed as
+  attacker-controlled (could be legitimate admin tooling — say so).
+- Attribution matters: do not label legitimate automation as malicious
+  persistence without evidence it is attacker-placed.
+
 ## Gotchas
 
 - This is DETECTION, not IMPLANTATION — never create persistence
