@@ -1698,6 +1698,36 @@ class RedTeamBridge:
         out = "{}\n\n{}".format(preamble, rendered) if preamble else rendered
         return "{}\n\n{}".format(out, watermark)
 
+    def _profile_tokens(self) -> set[str]:
+        """Lowercase tokens from the target's OWN declared weak spots: the
+        channels it leaves ungated, its injection surfaces, its exceptions.
+        Template selection should test what the target says it allows, not
+        just return the first candidate."""
+        if not self.profile:
+            return set()
+        tokens: set[str] = set()
+        for name in self.profile.ungated_channels():
+            tokens.update(re.split(r"[^a-z0-9]+", str(name).lower()))
+        for surface in getattr(self.profile, "injection_surfaces", []) or []:
+            tokens.update(re.split(r"[^a-z0-9]+", str(surface.get("name", "")).lower()))
+        for exc in getattr(self.profile, "exceptions", []) or []:
+            tokens.update(re.split(r"[^a-z0-9]+", str(exc.get("name", "")).lower()))
+        return {t for t in tokens if len(t) > 2}
+
+    def _rank_by_profile(self, candidates: list[PromptTemplate]
+                         ) -> list[PromptTemplate]:
+        """Stable-sort candidates so those matching the profile's declared
+        weak spots come first. No profile ⇒ original order preserved."""
+        tokens = self._profile_tokens()
+        if not tokens:
+            return candidates
+
+        def score(t: PromptTemplate) -> int:
+            hay = "{} {} {}".format(t.vector, t.category, t.name).lower()
+            return sum(1 for tok in tokens if tok in hay)
+
+        return sorted(candidates, key=score, reverse=True)
+
     def _select_template(self, task: str, mode: str) -> PromptTemplate:
         task_lower = task.lower()
         keyword_map = {
@@ -1714,11 +1744,11 @@ class RedTeamBridge:
                 candidates = [t for t in self._templates.values()
                               if t.category == category and t.mode == mode]
                 if candidates:
-                    return candidates[0]
+                    return self._rank_by_profile(candidates)[0]
 
         candidates = [t for t in self._templates.values() if t.mode == mode]
         if candidates:
-            return candidates[0]
+            return self._rank_by_profile(candidates)[0]
         return BUILTIN_TEMPLATES["scope_framing"]
 
     def _build_pentest_preamble(self, target: dict[str, str]) -> str:
@@ -2807,6 +2837,22 @@ class SessionStrategy:
         }
 
 
+def _wilson_lower_bound(successes: int, n: int, z: float = 1.96) -> float:
+    """Wilson score interval lower bound for a binomial proportion.
+
+    Ranks a template by what its bypass rate could plausibly be given the
+    sample size, so 1/1 does not outrank 8/10. z=1.96 ≈ 95% confidence.
+    """
+    if n <= 0:
+        return 0.0
+    import math
+    phat = successes / n
+    denom = 1.0 + z * z / n
+    centre = phat + z * z / (2 * n)
+    margin = z * math.sqrt((phat * (1 - phat) + z * z / (4 * n)) / n)
+    return max(0.0, (centre - margin) / denom)
+
+
 class PromptOptimizer:
     """Attempt analytics over templates.
 
@@ -2817,15 +2863,38 @@ class PromptOptimizer:
 
     MIN_ATTEMPTS_FOR_RANKING = 3
 
-    def __init__(self, bridge: RedTeamBridge, mode: str | None = None):
+    def __init__(self, bridge: RedTeamBridge, mode: str | None = None,
+                 persist: bool = True):
         self.bridge = bridge
         self.mode = mode or bridge.mode
         self._history: list[dict[str, Any]] = []
+        # Persist attempts so "what worked against model X" survives the
+        # process and accrues across runs, instead of dying with the object.
+        self._state_path: Path | None = None
+        if persist:
+            try:
+                self._state_path = (Path(bridge.graph.audit_dir)
+                                    / ".pentest-state" / "red_team_attempts.jsonl")
+                self._load_history()
+            except Exception:
+                self._state_path = None  # degrade to in-memory only
+
+    def _load_history(self) -> None:
+        if not self._state_path or not self._state_path.exists():
+            return
+        for line in self._state_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                self._history.append(json.loads(line))
+            except ValueError:
+                continue  # a torn line never loses the rest of the history
 
     def record_attempt(self, template_name: str, context: dict[str, str],
                        rendered_prompt: str,
                        classification: ResponseClassification) -> None:
-        self._history.append({
+        entry = {
             "template": template_name,
             "context_keys": list(context.keys()),
             "prompt_len": len(rendered_prompt),
@@ -2835,7 +2904,15 @@ class PromptOptimizer:
             "canary": classification.canary_detected,
             "mode": self.mode,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+        self._history.append(entry)
+        if self._state_path:
+            try:
+                self._state_path.parent.mkdir(parents=True, exist_ok=True)
+                with self._state_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(entry) + "\n")
+            except OSError:
+                pass  # persistence is best-effort; memory still has it
 
     def _success_labels(self) -> tuple[str, ...]:
         if self.mode == "enhanced_pentest":
@@ -2859,6 +2936,11 @@ class PromptOptimizer:
                 "attempts": len(attempts),
                 "bypass_count": bypasses,
                 "bypass_rate": round(bypasses / len(attempts) * 100, 1),
+                # Wilson lower bound: a 1/1 ("100%") ranks BELOW a steady
+                # 8/10, because one lucky attempt is not evidence of a
+                # reliable template. This is what the ranking sorts on.
+                "wilson_lower": round(
+                    _wilson_lower_bound(bypasses, len(attempts)) * 100, 1),
                 "avg_confidence": round(
                     sum(a["confidence"] for a in attempts) / len(attempts), 2),
                 # Below-minimum samples are flagged: a single lucky attempt
@@ -2870,7 +2952,7 @@ class PromptOptimizer:
         # unsorted so the caller sees there is data, but not a verdict.
         ranked = [r for r in results if r["sufficient_samples"]]
         unranked = [r for r in results if not r["sufficient_samples"]]
-        ranked.sort(key=lambda r: r["bypass_rate"], reverse=True)
+        ranked.sort(key=lambda r: r["wilson_lower"], reverse=True)
         return ranked + unranked
 
     def blocked_patterns(self) -> list[str]:

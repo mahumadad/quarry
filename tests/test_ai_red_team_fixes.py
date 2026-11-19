@@ -715,3 +715,67 @@ class TestDualClassify:
         gw = _FakeGateway('{"label":"blocked","confidence":0.9}')
         verdict = judge_response("I refuse", gw, target_model="deepseek-chat")
         assert verdict.get("self_graded") is True
+
+
+class TestWilsonRanking:
+    def test_wilson_penalizes_tiny_samples(self):
+        from engine.ai_red_team import _wilson_lower_bound
+        assert _wilson_lower_bound(1, 1) < _wilson_lower_bound(8, 10)
+        assert _wilson_lower_bound(0, 0) == 0.0
+
+    def test_effective_templates_sorts_by_wilson_not_raw_rate(self):
+        from engine.ai_red_team import PromptOptimizer
+        bridge = types.SimpleNamespace(mode="ai_red_team", graph=None)
+        opt = PromptOptimizer(bridge, persist=False)
+        # A: 3/3 = 100% raw; B: 9/10 = 90% raw. Wilson ranks B above A.
+        for _ in range(3):
+            opt._history.append({"template": "A", "classification": "full_bypass",
+                                 "confidence": 0.9})
+        for i in range(10):
+            opt._history.append({
+                "template": "B",
+                "classification": "full_bypass" if i < 9 else "blocked",
+                "confidence": 0.9})
+        ranked = opt.effective_templates()
+        order = [r["template"] for r in ranked if r["sufficient_samples"]]
+        assert order[0] == "B"
+
+
+class TestProfileGuidedSelection:
+    def test_profile_tokens_extracted(self, graph):
+        profile = SafeguardProfile(
+            name="m", model="m1",
+            injection_surfaces=[{"name": "exfiltration channel", "channel": "c",
+                                 "defense": "d", "risk": "high"}])
+        b = RedTeamBridge(graph, profile=profile, mode="ai_red_team")
+        tokens = b._profile_tokens()
+        assert "exfiltration" in tokens
+        assert "c" not in tokens  # tokens <=2 chars dropped
+
+    def test_ranking_prefers_profile_relevant_template(self, graph):
+        profile = SafeguardProfile(
+            name="m", model="m1",
+            injection_surfaces=[{"name": "exfiltration channel", "channel": "c",
+                                 "defense": "d", "risk": "high"}])
+        b = RedTeamBridge(graph, profile=profile, mode="ai_red_team")
+        cands = [t for t in b._templates.values() if t.mode == "ai_red_team"]
+        top = b._rank_by_profile(cands)[0]
+        hay = "{} {} {}".format(top.vector, top.category, top.name).lower()
+        assert any(tok in hay for tok in b._profile_tokens())
+
+    def test_no_profile_preserves_order(self, graph):
+        b = RedTeamBridge(graph, mode="ai_red_team")  # no profile
+        cands = [t for t in b._templates.values() if t.mode == "ai_red_team"]
+        assert b._rank_by_profile(cands) == cands
+
+
+class TestOptimizerPersistence:
+    def test_attempts_survive_a_new_optimizer(self, rt_bridge):
+        from engine.ai_red_team import PromptOptimizer, classify_response
+        opt1 = PromptOptimizer(rt_bridge)
+        opt1.record_attempt("injection_test", {"name": "t"}, "prompt body",
+                            classify_response("I can't help with that"))
+        # A fresh optimizer on the same engagement loads prior attempts.
+        opt2 = PromptOptimizer(rt_bridge)
+        assert len(opt2._history) == 1
+        assert opt2._history[0]["template"] == "injection_test"
