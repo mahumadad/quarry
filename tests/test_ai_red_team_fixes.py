@@ -769,6 +769,60 @@ class TestProfileGuidedSelection:
         assert b._rank_by_profile(cands) == cands
 
 
+SYSPROMPT_ANALYSIS_EXAMPLE = """\
+Source: Acme Assistant
+model: acme-llm-1
+
+### Action categories
+
+#### Prohibited
+- execute financial trades on the user's behalf
+- enter credentials into third-party forms
+
+#### Explicit permission
+- send an email on the user's behalf
+
+#### Regular
+- read files in the working directory
+
+### Injection surfaces
+- tool result (high risk, defense: ISB)
+- retrieved document content (medium risk)
+
+### Permission gates
+- send_email — gated (explicit) via confirm_tool
+- file_write — ungated
+- shell — requires confirmation (operator)
+
+### Exceptions
+- local-dev test values — when: host is localhost — effect: allows test credentials
+
+### Delegation model
+- subagents: yes, inherit parent permissions
+"""
+
+
+class TestSysPromptAnalysisSkill:
+    def test_skill_template_parses_to_a_populated_profile(self, tmp_path):
+        from engine.ai_red_team import SafeguardProfile
+        doc = tmp_path / "analysis.md"
+        doc.write_text(SYSPROMPT_ANALYSIS_EXAMPLE)
+        p = SafeguardProfile.load_from_analysis(doc)
+        assert p.model == "acme-llm-1"
+        assert "file_write" in p.ungated_channels()
+        assert "send_email" in p.gated_channels()
+        assert any(s["name"] == "tool result" for s in p.injection_surfaces)
+        assert p.exceptions
+        assert p.delegation_model
+        # The documented format must satisfy every extractor — no warnings.
+        assert p.parse_warnings == []
+
+    def test_skill_file_exists(self):
+        skill = (Path(__file__).resolve().parent.parent / "skills" /
+                 "ai-security" / "sysprompt-analysis" / "SKILL.md")
+        assert skill.exists()
+
+
 class TestOptimizerPersistence:
     def test_attempts_survive_a_new_optimizer(self, rt_bridge):
         from engine.ai_red_team import PromptOptimizer, classify_response
