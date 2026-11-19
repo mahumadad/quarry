@@ -333,7 +333,7 @@ class Orchestrator:
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="engine.orchestrator")
-    parser.add_argument("command", choices=["create", "plan", "resume", "recover", "doctor"])
+    parser.add_argument("command", choices=["create", "plan", "resume", "run", "recover", "doctor"])
     parser.add_argument("--audit-dir", default=".")
     parser.add_argument("--workflow")
     parser.add_argument("--run-id")
@@ -346,6 +346,15 @@ def main() -> int:
         result = orchestrator.create_run(args.workflow, json.loads(args.cells) if args.cells else None)
     elif args.command in {"plan", "resume"}:
         result = orchestrator.resume_plan(args.run_id)
+    elif args.command == "run":
+        if not args.run_id:
+            parser.error("run requires --run-id")
+        try:
+            from .executor import ReferenceExecutor
+        except ImportError:
+            from executor import ReferenceExecutor
+        result = orchestrator.run(args.run_id,
+                                  executor=ReferenceExecutor(args.audit_dir))
     elif args.command == "recover":
         if not args.run_id:
             parser.error("recover requires --run-id")
