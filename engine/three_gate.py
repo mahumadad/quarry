@@ -220,3 +220,141 @@ def verify_finding(
         noise_stripped=noise_stripped,
         reason=reason,
     )
+
+
+def _evidence_content(verdict: ThreeGateVerdict) -> str:
+    """Human + machine readable record of the baseline/attack round-trip."""
+    b, a = verdict.baseline, verdict.attack
+    return json.dumps({
+        "verdict": verdict.verdict,
+        "confidence": verdict.confidence,
+        "reason": verdict.reason,
+        "diff_ratio": round(verdict.diff_ratio, 4),
+        "significant_diffs": verdict.significant_diffs,
+        "baseline": {"status": b.status if b else None,
+                     "body_hash": b.body_hash if b else "",
+                     "snippet": b.body_snippet if b else ""},
+        "attack": {"status": a.status if a else None,
+                   "body_hash": a.body_hash if a else "",
+                   "snippet": a.body_snippet if a else ""},
+        "verified_at": verdict.verified_at,
+    }, indent=2)
+
+
+def verify_and_record(
+    audit_dir: str,
+    finding_id: str,
+    baseline_url: str,
+    baseline_method: str = "GET",
+    baseline_headers: dict[str, str] | None = None,
+    baseline_body: bytes | None = None,
+    attack_url: str = "",
+    attack_method: str = "",
+    attack_headers: dict[str, str] | None = None,
+    attack_body: bytes | None = None,
+    http_client: Any = None,
+    store: Any = None,
+) -> ThreeGateVerdict:
+    """Run the 3-gate protocol and persist the verdict to the finding.
+
+    Only a ``confirmed`` verdict promotes the finding: evidence_tag becomes
+    ``demonstrated`` and the status advances DETECTED→CONFIRMED. An
+    ``inconclusive`` or ``likely_fp`` verdict is recorded as evidence (so the
+    operator sees the finding WAS tested) but never silently promotes it —
+    that is the whole point of the gate and of the anti-fabrication rule.
+    """
+    try:
+        from .http_client import ProtectedHTTPClient
+        from .findings import (Evidence, EvidenceTag, FindingsStore,
+                               FindingStatus)
+    except ImportError:  # top-level script mode
+        from http_client import ProtectedHTTPClient
+        from findings import (Evidence, EvidenceTag, FindingsStore,
+                              FindingStatus)
+
+    client = http_client or ProtectedHTTPClient(audit_dir)
+    store = store or FindingsStore(audit_dir)
+
+    verdict = verify_finding(
+        finding_id=finding_id,
+        baseline_url=baseline_url, baseline_method=baseline_method,
+        baseline_headers=baseline_headers, baseline_body=baseline_body,
+        attack_url=attack_url, attack_method=attack_method,
+        attack_headers=attack_headers, attack_body=attack_body,
+        http_client=client,
+    )
+
+    if store.get(finding_id) is None:
+        return verdict  # nothing to persist onto; caller owns the finding
+
+    confirmed = verdict.verdict == "confirmed"
+    tag = EvidenceTag.DEMONSTRATED if confirmed else EvidenceTag.UNPROVEN
+    store.add_evidence(finding_id, Evidence(
+        type="request_response",
+        content=_evidence_content(verdict),
+        tool="three_gate" if confirmed else "three_gate:{}".format(verdict.verdict),
+        tag=tag.value,
+    ))
+    if confirmed:
+        store.set_evidence_tag(finding_id, EvidenceTag.DEMONSTRATED,
+                               reason="three_gate: {}".format(verdict.reason))
+        # Advance only from DETECTED; a no-op if already further along.
+        if store.get(finding_id).status == FindingStatus.DETECTED.value:
+            store.update_status(finding_id, FindingStatus.CONFIRMED,
+                                reason="three_gate confirmed")
+    return verdict
+
+
+def main() -> int:
+    import argparse
+
+    ap = argparse.ArgumentParser(
+        prog="engine.three_gate",
+        description="Run the 3-gate verification protocol for a finding.")
+    ap.add_argument("--audit-dir", default=".")
+    ap.add_argument("--spec", help="JSON file with finding_id/baseline_url/"
+                    "attack_url (+ optional method/headers/body fields)")
+    ap.add_argument("--finding-id")
+    ap.add_argument("--baseline-url")
+    ap.add_argument("--attack-url")
+    ap.add_argument("--record", dest="record", action="store_true", default=True)
+    ap.add_argument("--no-record", dest="record", action="store_false")
+    args = ap.parse_args()
+
+    spec: dict[str, Any] = {}
+    if args.spec:
+        import pathlib
+        spec = json.loads(pathlib.Path(args.spec).read_text())
+    finding_id = args.finding_id or spec.get("finding_id", "")
+    baseline_url = args.baseline_url or spec.get("baseline_url", "")
+    attack_url = args.attack_url or spec.get("attack_url", "")
+    if not finding_id or not baseline_url:
+        ap.error("finding_id and baseline_url are required (flag or --spec)")
+
+    common = dict(
+        audit_dir=args.audit_dir, finding_id=finding_id,
+        baseline_url=baseline_url,
+        baseline_method=spec.get("baseline_method", "GET"),
+        baseline_headers=spec.get("baseline_headers"),
+        baseline_body=(spec.get("baseline_body") or "").encode() or None,
+        attack_url=attack_url,
+        attack_method=spec.get("attack_method", ""),
+        attack_headers=spec.get("attack_headers"),
+        attack_body=(spec.get("attack_body") or "").encode() or None,
+    )
+    if args.record:
+        verdict = verify_and_record(**common)
+    else:
+        try:
+            from .http_client import ProtectedHTTPClient
+        except ImportError:
+            from http_client import ProtectedHTTPClient
+        verdict = verify_finding(http_client=ProtectedHTTPClient(args.audit_dir),
+                                 **{k: v for k, v in common.items()
+                                    if k != "audit_dir"})
+    print(json.dumps(verdict.to_dict(), indent=2, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

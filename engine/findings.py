@@ -221,6 +221,29 @@ class FindingsStore:
                                      confidence="observed")
         return True
 
+    def set_evidence_tag(self, finding_id: str, tag: EvidenceTag,
+                         reason: str = "") -> bool:
+        """Set a finding's evidence tag (e.g. promote to 'demonstrated' after
+        a passing verification gate). Locked + custody-logged like the other
+        mutators; a downgrade is as legitimate as a promotion."""
+        with engagement_lock(self.state_dir.parent):
+            self._load()
+            f = self._findings.get(finding_id)
+            if not f:
+                return False
+            previous = f.evidence_tag
+            if previous == tag.value:
+                return True
+            f.evidence_tag = tag.value
+            f.updated_at = datetime.now(timezone.utc).isoformat()
+            self._save()
+            CustodyLog(self.state_dir.parent).append("evidence_tag_change", {
+                "finding_id": finding_id, "from": previous,
+                "to": tag.value, "reason": reason})
+        if self._graph and self._graph.get_node(finding_id):
+            self._graph.update_node(finding_id, {"evidence_tag": tag.value})
+        return True
+
     def verify_evidence_integrity(self, finding_id: str) -> list[dict]:
         """Check all evidence hashes. Returns list of tampered items."""
         f = self._findings.get(finding_id)
