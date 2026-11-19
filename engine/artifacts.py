@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import json
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -79,14 +80,20 @@ class ArtifactStore:
         return read_json(self.index_file).get("artifacts", [])
 
     def verify(self) -> dict:
-        missing, altered = [], []
+        missing, altered, escaped = [], [], []
         for record in self.list():
-            path = self.root / record["path"]
+            path = (self.root / record["path"]).resolve()
+            # A tampered index must not be able to point verification at files
+            # OUTSIDE the artifact root (path traversal).
+            if not str(path).startswith(str(self.root.resolve()) + os.sep):
+                escaped.append(record["path"])
+                continue
             if not path.exists():
                 missing.append(record["path"])
             elif hashlib.sha256(path.read_bytes()).hexdigest() != record["sha256"]:
                 altered.append(record["path"])
-        return {"intact": not missing and not altered, "missing": missing, "altered": altered}
+        return {"intact": not missing and not altered and not escaped,
+                "missing": missing, "altered": altered, "escaped": escaped}
 
     @staticmethod
     def _safe(value: str) -> str:

@@ -90,15 +90,23 @@ def check_claude_md():
         error("Missing CLAUDE.md")
         return
     text = p.read_text()
+    # CLAUDE.md was translated to English (changelog I3); accept either
+    # language so the validator does not force a regression to Spanish.
     required_sections = [
-        "Scope", "Anti-fabricación", "CLI anti-alucinación",
-        "Memory-first", "Gates humanos", "Evidencia", "Cobertura", "Budget"
+        ("Scope", "Scope"),
+        ("Anti-fabricación", "Anti-fabrication"),
+        ("CLI anti-alucinación", "CLI anti-hallucination"),
+        ("Memory-first", "Memory-first"),
+        ("Gates humanos", "Human gates"),
+        ("Evidencia", "Evidence"),
+        ("Cobertura", "Coverage"),
+        ("Budget", "Budget"),
     ]
-    for section in required_sections:
-        if section.lower() in text.lower():
-            ok(f"CLAUDE.md has section: {section}")
+    for section, alt in required_sections:
+        if section.lower() in text.lower() or alt.lower() in text.lower():
+            ok(f"CLAUDE.md has section: {alt}")
         else:
-            warn(f"CLAUDE.md missing section: {section}")
+            warn(f"CLAUDE.md missing section: {alt}")
 
 
 def check_hooks():

@@ -118,9 +118,18 @@ class ChainEngine:
 
     def _load(self):
         if self.chains_file.exists():
-            data = json.loads(self.chains_file.read_text())
+            try:
+                data = json.loads(self.chains_file.read_text())
+            except (json.JSONDecodeError, OSError):
+                # Corrupt/truncated chains.json must not brick the engine:
+                # start from empty and let the next analysis regenerate.
+                data = {"chains": []}
             for cd in data.get("chains", []):
-                c = Chain(**cd)
+                try:
+                    c = Chain(**{k: v for k, v in cd.items()
+                                 if k in Chain.__dataclass_fields__})
+                except TypeError:
+                    continue
                 self._chains[c.id] = c
 
     def _save(self):
@@ -187,7 +196,14 @@ class ChainEngine:
                 seen.add(key)
                 unique.append(c)
 
+        # Dedup across runs too: re-analyzing the same findings used to append
+        # a new copy (new UUID) to chains.json on every call.
+        existing_by_key = {(frozenset(c.findings), c.name): c.id
+                           for c in self._chains.values()}
         for c in unique:
+            key = (frozenset(c.findings), c.name)
+            if key in existing_by_key:
+                c.id = existing_by_key[key]
             self._chains[c.id] = c
         self._save()
         if self._graph:
@@ -282,7 +298,10 @@ class ChainEngine:
         satisfy another finding's 'needs', producing multi-step chains
         with trust-boundary crossings scored higher.
         """
-        from .brain import FINDING_CAPABILITIES, TRUST_BOUNDARIES
+        try:
+            from .brain import FINDING_CAPABILITIES, TRUST_BOUNDARIES
+        except ImportError:  # top-level script mode
+            from brain import FINDING_CAPABILITIES, TRUST_BOUNDARIES
 
         capabilities_by_finding: dict[str, set[str]] = {}
         needs_by_finding: dict[str, set[str]] = {}
@@ -348,7 +367,10 @@ class ChainEngine:
 
     def suggest_next_from_capabilities(self, findings: list[dict], brain) -> list[dict]:
         """Given current capabilities, suggest vuln classes worth hunting."""
-        from .brain import FINDING_CAPABILITIES
+        try:
+            from .brain import FINDING_CAPABILITIES
+        except ImportError:  # top-level script mode
+            from brain import FINDING_CAPABILITIES
 
         current_caps = {c["capability"] for c in brain.get_capabilities()}
         already_found = {f.get("vuln_class", "").lower() for f in findings}
@@ -422,7 +444,15 @@ class ChainEngine:
     def _class_matches(finding_class: str, pattern: str) -> bool:
         fc = finding_class.lower().replace("_", "-").replace(" ", "-")
         pt = pattern.lower().replace("_", "-").replace(" ", "-")
-        return pt in fc or fc in pt
+        # An empty class matched EVERY pattern ("" in "sqli" is True), making
+        # class-less findings spawn all 42 known chains as false criticals.
+        if not fc or not pt:
+            return False
+        # Token match, not bidirectional substring: "xss" must not match
+        # "xss-stored" as a different class unless the pattern says so.
+        fc_tokens = set(fc.split("-"))
+        pt_tokens = set(pt.split("-"))
+        return fc == pt or pt_tokens <= fc_tokens or fc_tokens <= pt_tokens
 
     @staticmethod
     def _escalate_severity(sev_a: str, sev_b: str) -> str:

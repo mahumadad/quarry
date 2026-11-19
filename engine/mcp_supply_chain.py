@@ -727,7 +727,20 @@ class MCPSupplyChainTester:
     def coverage_report(self) -> dict[str, Any]:
         tested = {r["vector"] for r in self._results}
         all_vectors = set(MCP_ATTACK_VECTORS.keys())
-        untested = all_vectors - tested
+        # Static analyzer checks use internal names (e.g. description_injection)
+        # while MCP_ATTACK_VECTORS keys the catalog (tool_description_injection):
+        # map them so coverage/export report the canonical vector names.
+        CHECK_TO_VECTOR = {
+            "description_injection": "tool_description_injection",
+            "response_injection": "response_injection",
+            "schema_poisoning": "schema_poisoning",
+            "name_collision": "tool_shadowing",
+            "capability_escalation": "capability_escalation",
+            "post_discovery_escalation": "post_discovery_escalation",
+        }
+        canonical_tested = {CHECK_TO_VECTOR.get(v, v) for v in tested}
+        untested = all_vectors - canonical_tested
+        tested = canonical_tested
         return {
             "total_tests": len(self._results),
             "vectors_tested": sorted(tested),
@@ -747,11 +760,20 @@ class MCPSupplyChainTester:
 
     def export_findings(self) -> list[dict[str, Any]]:
         findings = []
+        CHECK_TO_VECTOR = {
+            "description_injection": "tool_description_injection",
+            "response_injection": "response_injection",
+            "schema_poisoning": "schema_poisoning",
+            "name_collision": "tool_shadowing",
+            "capability_escalation": "capability_escalation",
+            "post_discovery_escalation": "post_discovery_escalation",
+        }
         for r in self._results:
             if r["result"] in ("vulnerable", "suspicious"):
-                vector_info = MCP_ATTACK_VECTORS.get(r["vector"], {})
+                vector = CHECK_TO_VECTOR.get(r["vector"], r["vector"])
+                vector_info = MCP_ATTACK_VECTORS.get(vector, {})
                 findings.append({
-                    "vector": r["vector"], "server": r["server"],
+                    "vector": vector, "server": r["server"],
                     "tool": r.get("tool", ""), "severity": r["severity"],
                     "result": r["result"],
                     "owasp_llm": vector_info.get("owasp_llm", []),
@@ -779,7 +801,10 @@ def load_manifest(path: str) -> dict[str, Any]:
     if isinstance(data, dict) and "tools" not in data:
         result = data.get("result") or {}
         if "tools" in result:
-            data = {"name": data.get("serverInfo", {}).get("name",
-                                                           "unknown-server"),
+            # serverInfo may be null in real captures — don't crash on it.
+            info = data.get("serverInfo") or {}
+            if not isinstance(info, dict):
+                info = {}
+            data = {"name": info.get("name", "unknown-server"),
                     "tools": result["tools"]}
     return data

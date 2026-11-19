@@ -1,79 +1,81 @@
 # Pentest Plugin — Always-On Rules
 
-Estas reglas se inyectan en toda sesión. No son opcionales.
+These rules are injected into every session. They are not optional.
 
 ## Scope
 
-- **NUNCA** ejecutar herramientas, scans o requests contra un target sin
-  scope definido y confirmado por el operador en la sesión actual.
-- El scope se define con `/quarry:engage` o `/quarry:scope`. Sin scope activo,
-  rechazar cualquier acción ofensiva.
-- Si un finding o técnica lleva fuera del scope definido, PARAR y pedir
-  autorización antes de continuar.
+- **NEVER** run tools, scans, or requests against a target without a scope
+  defined and confirmed by the operator in the current session.
+- Scope is defined with `/quarry:engage` or `/quarry:scope`. Without an active
+  scope, reject any offensive action.
+- If a finding or technique leads outside the defined scope, STOP and ask
+  for authorization before continuing.
 
-## Anti-fabricación
+## Anti-fabrication
 
-- No inventar findings. Cada finding requiere evidencia reproducible
-  (request + response, o output de herramienta).
-- No reportar vulnerabilidades basándose solo en versión detectada o CVE
-  público sin disparo real que demuestre el impacto.
-- No asumir impacto sin demostración. "Podría permitir X" no es un finding
-  — es una hipótesis que debe verificarse.
-- Etiquetar cada claim como: **Demonstrated** (PoC funcional),
-  **Inferred** (evidencia parcial) o **Unproven** (hipótesis).
+- Do not invent findings. Every finding requires reproducible evidence
+  (request + response, or tool output).
+- Do not report vulnerabilities based only on a detected version or a public
+  CVE without a real trigger that demonstrates impact.
+- Do not assume impact without a demonstration. "Could allow X" is not a
+  finding — it is a hypothesis that must be verified.
+- Label every claim as: **Demonstrated** (working PoC), **Inferred**
+  (partial evidence), or **Unproven** (hypothesis).
 
-## CLI anti-alucinación
+## CLI anti-hallucination
 
-- Ejecutar `--help` (o `-h`) antes del PRIMER uso de cualquier herramienta
-  en el engagement para verificar flags disponibles.
-- No copiar flags de una herramienta a otra sin verificar compatibilidad.
-- Preferir output estructurado: `-oX` (nmap), `-json` (nuclei), `-o json`
+- Run `--help` (or `-h`) before the FIRST use of any tool in the engagement
+  to verify the available flags.
+- Do not copy flags from one tool to another without verifying compatibility.
+- Prefer structured output: `-oX` (nmap), `-json` (nuclei), `-o json`
   (ffuf), etc.
-- Máximo 3 reintentos idénticos de un mismo comando. Si falla 3 veces,
-  cambiar enfoque.
-- Timeout default: 120 segundos. Hard limit: 20 minutos.
-- Usar `msfconsole -q -x "...; exit"` para Metasploit (no modo interactivo).
+- Maximum of 3 identical retries of the same command. If it fails 3 times,
+  change approach.
+- Default timeout: 120 seconds. Hard limit: 20 minutes.
+- Use `msfconsole -q -x "...; exit"` for Metasploit (not interactive mode).
 
 ## Memory-first
 
-- Antes de ejecutar un scan o técnica, buscar en findings existentes del
-  engagement actual. No duplicar trabajo.
-- Guardar técnicas nuevas con targets anonimizados (`{target_ip}`,
-  `{target_domain}`) para reutilización.
+- Before running a scan or technique, search existing findings from the
+  current engagement. Do not duplicate work.
+- Save new techniques with anonymized targets (`{target_ip}`,
+  `{target_domain}`) for reuse.
 
-## Gates humanos
+## Human gates
 
-Pedir confirmación explícita del operador ANTES de:
-- Explotar una vulnerabilidad confirmada
-- Ejecutar payloads que modifiquen estado del target
-- Acciones fuera del scope inicial
-- Cualquier acción destructiva o irreversible
-- Pivotar a un nuevo asset/servicio no enumerado en scope
+Ask for the operator's explicit confirmation BEFORE:
+- Exploiting a confirmed vulnerability
+- Running payloads that modify the target's state
+- Actions outside the initial scope
+- Any destructive or irreversible action
+- Pivoting to a new asset/service not enumerated in scope
 
-## Evidencia
+## Evidence
 
-Cada finding DEBE incluir:
-- Request/response reproducible O output de herramienta con timestamp
-- Steps to reproduce numerados
-- Impacto demostrado (no teórico)
-- CVSS 4.0 con vector string, justificando cada métrica con lo verificado
-  (ver `references/cvss4-epss-kev.md`; incluir 3.1 además si la
-  plataforma/cliente lo exige)
-- EPSS score + CISA KEV membership cuando el finding tiene CVE asociado
-- Mapeo MITRE ATT&CK (tactic + technique ID)
-- Findings blind: callback OOB correlacionado por token único
-  (`engine/oast.py`, skill oob-interactions) — sin callback, cap en Inferred
-- Toda evidencia registrada en el custody log (`engine/custody.py`) —
+Every finding MUST include:
+- Reproducible request/response OR tool output with timestamp
+- Numbered steps to reproduce
+- Demonstrated impact (not theoretical)
+- CVSS 4.0 with vector string, justifying each metric with what was
+  verified (see `references/cvss4-epss-kev.md`; include 3.1 as well if the
+  platform/client requires it)
+- EPSS score + CISA KEV membership when the finding has an associated CVE
+- MITRE ATT&CK mapping (tactic + technique ID)
+- Blind findings: OOB callback correlated by unique token
+  (`engine/oast.py`, skill oob-interactions) — without a callback, cap at
+  Inferred
+- All evidence recorded in the custody log (`engine/custody.py`) —
   append-only, hash-chained, locally tamper-evident
 
-## Cobertura
+## Coverage
 
-- Breadth-first: cubrir todas las clases de vuln antes de profundizar en una.
-- Abrir 2-3 rutas de ataque independientes antes de profundizar en ninguna.
-- Registrar callejones sin salida — son información, no fracasos.
-- Al finalizar, reportar gaps de cobertura (qué no se probó y por qué).
+- Breadth-first: cover all vuln classes before going deep on any one.
+- Open 2-3 independent attack paths before deepening any of them.
+- Record dead ends — they are information, not failures.
+- When finished, report coverage gaps (what was not tested and why).
 
 ## Budget
 
-- Respetar los límites de tool calls del engine (default: 100 por fase).
-- Si un agente llega al 80% del budget sin progreso, escalar al operador.
+- Respect the engine's tool-call limits (default: 100 per phase).
+- If an agent reaches 80% of the budget without progress, escalate to the
+  operator.

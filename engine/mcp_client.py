@@ -87,14 +87,35 @@ class MCPClient:
             return self._connect_http()
         raise MCPClientError(f"Unknown transport: {self.config.transport}")
 
+    # Executables allowed to be spawned as stdio MCP servers. A server config
+    # is operator-controlled but may come from a shareable catalog, so the
+    # surface is limited to the standard runtimes.
+    ALLOWED_STDBIN = {"npx", "node", "python3", "python", "uvx", "docker",
+                      "ruby", "go", "bunx"}
+
     def _connect_stdio(self) -> dict:
         if not self.config.command:
             raise MCPClientError("stdio transport requires command")
         import os
-        env = {**os.environ, **self.config.env}
+        import shutil as _shutil
+        exe = _shutil.which(self.config.command[0]) or self.config.command[0]
+        exe_base = Path(exe).name if os.sep not in self.config.command[0] \
+            else Path(self.config.command[0]).name
+        if exe_base not in self.ALLOWED_STDBIN:
+            raise MCPClientError(
+                f"MCP server executable {self.config.command[0]!r} not in "
+                f"allowlist {sorted(self.ALLOWED_STDBIN)}")
+        # Minimal environment: do NOT inherit the operator's full env (API
+        # keys and secrets would leak into a third-party server process).
+        keep = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "TERM",
+                "http_proxy", "https_proxy", "no_proxy", "HTTP_PROXY",
+                "HTTPS_PROXY", "NO_PROXY", "NODE_PATH", "PYTHONPATH",
+                "SSL_CERT_FILE", "SSL_CERT_DIR")
+        env = {k: v for k, v in os.environ.items() if k in keep}
+        env.update(self.config.env)
         self._process = subprocess.Popen(
-            self.config.command, stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            [exe, *self.config.command[1:]], stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             env=env, text=True,
         )
         resp = self._send_jsonrpc("initialize", {
@@ -186,17 +207,34 @@ class MCPClient:
             raise MCPClientError("Not connected — call connect() first")
 
     def _send_jsonrpc(self, method: str, params: dict) -> dict:
+        req_id = self._next_id()
         msg = json.dumps({
-            "jsonrpc": "2.0", "id": self._next_id(),
+            "jsonrpc": "2.0", "id": req_id,
             "method": method, "params": params,
         }) + "\n"
         try:
             self._process.stdin.write(msg)
             self._process.stdin.flush()
-            line = self._process.stdout.readline()
-            if not line:
-                raise MCPClientError("Server closed connection")
-            return json.loads(line)
+            # Read until the response with OUR id arrives: a notification or
+            # log line printed first used to be returned as if it were the
+            # result of this call.
+            for _ in range(100):
+                line = self._process.stdout.readline()
+                if not line:
+                    raise MCPClientError("Server closed connection")
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue  # server log line, not JSON-RPC
+                if rec.get("id") != req_id:
+                    continue  # notification or unrelated response
+                if "error" in rec:
+                    err = rec["error"]
+                    raise MCPClientError(
+                        f"JSON-RPC error {err.get('code')}: {err.get('message')}")
+                return rec
+            raise MCPClientError("Too many non-matching lines while waiting "
+                                 "for JSON-RPC response")
         except (BrokenPipeError, OSError) as exc:
             raise MCPClientError(f"stdio communication failed: {exc}") from exc
 

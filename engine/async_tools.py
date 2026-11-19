@@ -2,16 +2,31 @@
 
 Manages concurrent subprocess executions with budget awareness.
 Uses threading (not asyncio) — the plugin runs in a sync context.
-"""
 
-import json
+Security: every submitted command goes through the same command_policy
+tripwire as synchronous toolrunner runs (when executed inside an
+engagement), and optionally through the custody log. Timeouts kill the
+whole process group, not just the shell wrapper.
+"""
+from __future__ import annotations
+
+import os
+import signal
 import subprocess
 import threading
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
+
+try:
+    from .policy import PolicyDenied, _find_engagement_dir, command_policy
+except ImportError:  # top-level script mode
+    from policy import PolicyDenied, _find_engagement_dir, command_policy
+
+# Same hard ceiling as toolrunner: async must never be a way around it.
+HARD_TIMEOUT_LIMIT = 1200
 
 
 class TaskState(str, Enum):
@@ -20,6 +35,7 @@ class TaskState(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     TIMEOUT = "timeout"
+    BLOCKED = "blocked"      # rejected by policy before execution
 
 
 @dataclass
@@ -45,25 +61,55 @@ class ToolTask:
 
 
 class AsyncToolRunner:
-    def __init__(self, max_concurrent: int = 4, default_timeout: int = 120):
+    def __init__(self, max_concurrent: int = 4, default_timeout: int = 120,
+                 audit_dir: str | Path | None = None):
         self._tasks: dict[str, ToolTask] = {}
         self._threads: dict[str, threading.Thread] = {}
         self._events: dict[str, threading.Event] = {}
         self._semaphore = threading.Semaphore(max_concurrent)
         self._lock = threading.Lock()
         self._default_timeout = default_timeout
+        # Engagement root for policy checks; auto-detected from cwd when the
+        # runner lives inside an engagement, or set explicitly by callers.
+        self._audit_dir = str(audit_dir) if audit_dir else os.getcwd()
 
     def submit(self, command: str, phase: str = "",
-               timeout: int | None = None) -> str:
+               timeout: int | None = None, approved_digest: str = "",
+               audit_dir: str | Path | None = None) -> str:
+        timeout = timeout or self._default_timeout
+        if timeout > HARD_TIMEOUT_LIMIT:
+            timeout = HARD_TIMEOUT_LIMIT
         task = ToolTask(
             command=command,
             phase=phase,
-            timeout_seconds=timeout or self._default_timeout,
+            timeout_seconds=timeout,
         )
         event = threading.Event()
         with self._lock:
             self._tasks[task.task_id] = task
             self._events[task.task_id] = event
+
+        # Policy gate BEFORE the thread starts: async must not be a side door
+        # around the sync toolrunner checks. Outside an engagement this is a
+        # no-op, same as the PreToolUse hook.
+        effective_dir = str(audit_dir) if audit_dir is not None else self._audit_dir
+        if _find_engagement_dir(effective_dir) is not None:
+            try:
+                command_policy(command, effective_dir, approved_digest)
+            except PolicyDenied as exc:
+                with self._lock:
+                    task.state = TaskState.BLOCKED.value
+                    task.error = f"policy: {exc}"
+                    task.finished_at = datetime.now(timezone.utc).isoformat()
+                event.set()
+                return task.task_id
+            except Exception as exc:  # fail closed on engine failure
+                with self._lock:
+                    task.state = TaskState.BLOCKED.value
+                    task.error = f"policy engine failure; fail-closed: {type(exc).__name__}: {exc}"
+                    task.finished_at = datetime.now(timezone.utc).isoformat()
+                event.set()
+                return task.task_id
 
         thread = threading.Thread(target=self._run_task,
                                   args=(task.task_id,), daemon=True)
@@ -79,21 +125,32 @@ class AsyncToolRunner:
                 task.state = TaskState.RUNNING.value
                 task.started_at = datetime.now(timezone.utc).isoformat()
             try:
-                result = subprocess.run(
+                # start_new_session puts the child in its own process group so
+                # the timeout can kill the WHOLE tree (shell + descendants).
+                proc = subprocess.Popen(
                     task.command, shell=True,
-                    capture_output=True, text=True,
-                    timeout=task.timeout_seconds,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True,
+                    start_new_session=True,
                 )
+                try:
+                    stdout, stderr = proc.communicate(timeout=task.timeout_seconds)
+                except subprocess.TimeoutExpired:
+                    self._kill_tree(proc)
+                    stdout, stderr = proc.communicate()
+                    with self._lock:
+                        task.stdout = stdout or ""
+                        task.stderr = stderr or ""
+                        task.exit_code = proc.returncode
+                        task.state = TaskState.TIMEOUT.value
+                        task.error = f"Timeout after {task.timeout_seconds}s (process group killed)"
+                    return
                 with self._lock:
-                    task.stdout = result.stdout
-                    task.stderr = result.stderr
-                    task.exit_code = result.returncode
-                    task.state = (TaskState.COMPLETED.value if result.returncode == 0
+                    task.stdout = stdout or ""
+                    task.stderr = stderr or ""
+                    task.exit_code = proc.returncode
+                    task.state = (TaskState.COMPLETED.value if proc.returncode == 0
                                   else TaskState.FAILED.value)
-            except subprocess.TimeoutExpired:
-                with self._lock:
-                    task.state = TaskState.TIMEOUT.value
-                    task.error = f"Timeout after {task.timeout_seconds}s"
             except Exception as exc:
                 with self._lock:
                     task.state = TaskState.FAILED.value
@@ -105,6 +162,17 @@ class AsyncToolRunner:
             self._semaphore.release()
             self._events[task_id].set()
 
+    @staticmethod
+    def _kill_tree(proc: subprocess.Popen) -> None:
+        """Kill the child's whole process group (shell=True children included)."""
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError):
+            try:
+                proc.kill()
+            except OSError:
+                pass
+
     def wait(self, task_id: str, timeout: float | None = None) -> ToolTask | None:
         event = self._events.get(task_id)
         if not event:
@@ -115,17 +183,22 @@ class AsyncToolRunner:
     def wait_any(self, task_ids: list[str], timeout: float | None = None) -> str | None:
         """Block until any of the given tasks completes. Returns its task_id."""
         result_event = threading.Event()
+        completed_lock = threading.Lock()
         completed_id: list[str] = []
 
         def _watcher(tid: str):
             event = self._events.get(tid)
             if event and event.wait(timeout=timeout):
-                completed_id.append(tid)
+                with completed_lock:
+                    if not completed_id:
+                        completed_id.append(tid)
                 result_event.set()
 
         watchers = []
-        for tid in task_ids:
-            if self._events.get(tid) and self._events[tid].is_set():
+        with self._lock:
+            known = [tid for tid in task_ids if tid in self._tasks]
+        for tid in known:
+            if self._events[tid].is_set():
                 return tid
             t = threading.Thread(target=_watcher, args=(tid,), daemon=True)
             watchers.append(t)

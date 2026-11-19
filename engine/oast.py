@@ -24,6 +24,11 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from .storage import atomic_write_json, engagement_lock
+except ImportError:  # top-level script mode
+    from storage import atomic_write_json, engagement_lock
+
 
 # How long to wait for a callback before declaring "no interaction" (seconds).
 # Blind injections can fire late (stored XSS, queued jobs, cron-driven fetchers).
@@ -75,6 +80,12 @@ class OASTManager:
         self._interactions: list[Interaction] = []
         self._load()
 
+    def _reload(self):
+        """Re-read state, replacing in-memory tokens/interactions."""
+        self._tokens = {}
+        self._interactions = []
+        self._load()
+
     def _load(self):
         if self.oast_file.exists():
             data = json.loads(self.oast_file.read_text())
@@ -84,12 +95,14 @@ class OASTManager:
             self._interactions = [Interaction(**i) for i in data.get("interactions", [])]
 
     def _save(self):
+        """Atomic write. Callers performing read-modify-write must already
+        hold the engagement lock (flock is not reentrant — nesting deadlocks)."""
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        self.oast_file.write_text(json.dumps({
+        atomic_write_json(self.oast_file, {
             "tokens": [asdict(t) for t in self._tokens.values()],
             "interactions": [asdict(i) for i in self._interactions],
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, indent=2))
+        })
 
     # ---- token lifecycle ----
 
@@ -106,8 +119,10 @@ class OASTManager:
         host = callback_host.rstrip("/") if callback_host else "{CALLBACK_HOST}"
         tok.payload_url = f"http://{tok.token}.{host}/" if not host.startswith("http") \
             else f"{host}/{tok.token}"
-        self._tokens[tok.token] = tok
-        self._save()
+        with engagement_lock(self.state_dir.parent):
+            self._reload()
+            self._tokens[tok.token] = tok
+            self._save()
         return tok
 
     def record_interaction(self, interaction: Interaction) -> dict:
@@ -118,9 +133,11 @@ class OASTManager:
         (internet-wide scanners hit public OAST servers constantly) and must
         NOT be used as evidence.
         """
-        self._interactions.append(interaction)
-        match = self._tokens.get(interaction.token)
-        self._save()
+        with engagement_lock(self.state_dir.parent):
+            self._reload()
+            self._interactions.append(interaction)
+            match = self._tokens.get(interaction.token)
+            self._save()
         return {"matched": match is not None, "token": match}
 
     def confirm(self, token: str, finding_id: str) -> bool:
@@ -187,16 +204,35 @@ def interactsh_start() -> str | None:
         )
     except FileNotFoundError:
         return None
-    # read the first lines until the domain appears
+    # Read the first lines until the domain appears, with a REAL deadline:
+    # readline() blocks indefinitely, so the loop must select() on the pipe
+    # instead of waiting for the next line.
+    import selectors as _selectors
+    sel = _selectors.DefaultSelector()
+    sel.register(proc.stdout, _selectors.EVENT_READ)
     deadline = time.time() + 15
-    while time.time() < deadline:
-        line = proc.stdout.readline()
-        if not line:
-            break
-        m = _INTERACTSH_DOMAIN_RE.search(line)
-        if m:
-            return m.group(1)
-    return None
+    try:
+        while time.time() < deadline:
+            if sel.select(timeout=max(0.1, deadline - time.time())):
+                line = proc.stdout.readline()
+                if not line:
+                    break
+                m = _INTERACTSH_DOMAIN_RE.search(line)
+                if m:
+                    return m.group(1)
+            if proc.poll() is not None:
+                break
+        return None
+    finally:
+        sel.close()
+        proc.stdout.close()
+        # Never leave an orphan interactsh-client behind on failure.
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
 
 
 def interactsh_poll(proc_stdout) -> list[dict]:
@@ -207,9 +243,15 @@ def interactsh_poll(proc_stdout) -> list[dict]:
             rec = json.loads(line)
         except (json.JSONDecodeError, TypeError):
             continue
-        full_id = rec.get("full-id") or rec.get("unique-id", "")
+        # interactsh's correlation-id is the per-interaction correlator; the
+        # first segment of full-id is the CLIENT's random suffix, so matching
+        # on it discarded legitimate callbacks as "background noise".
+        corr = rec.get("correlation-id") or ""
+        if not corr:
+            full_id = rec.get("full-id") or rec.get("unique-id", "")
+            corr = full_id.split(".")[0] if full_id else ""
         out.append({
-            "token": full_id.split(".")[0] if full_id else "",
+            "token": corr,
             "protocol": rec.get("protocol", ""),
             "remote_addr": rec.get("remote-address", ""),
             "raw_request": rec.get("raw-request", ""),
@@ -291,6 +333,11 @@ def cli_start(audit_dir: str) -> dict:
             pass
     if not domain:
         proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        logf.close()
         return {"ok": False, "error": "interactsh-client started but no callback "
                 "domain appeared in 20s — check network / public oast.* reachability"}
     session = {"pid": proc.pid, "domain": domain, "log": str(log),
@@ -347,16 +394,49 @@ def cli_evidence(audit_dir: str, token: str) -> dict:
     return {"ok": rec is not None, "evidence": rec}
 
 
+def _pid_cmdline(pid: int) -> str | None:
+    """Best-effort command line of a pid, lowercased.
+
+    Returns None when identity cannot be established on this platform (neither
+    /proc nor ps available), so the caller can distinguish "not interactsh"
+    from "can't tell". /proc exists on Linux; ps covers macOS/BSD.
+    """
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as cf:
+            return cf.read().decode("utf-8", "replace").lower()
+    except FileNotFoundError:
+        pass  # no /proc (macOS) — fall through to ps
+    except OSError:
+        return ""  # /proc exists but pid gone: positively not ours
+    try:
+        out = subprocess.run(["ps", "-o", "command=", "-p", str(pid)],
+                             capture_output=True, text=True, timeout=5)
+        if out.returncode != 0:
+            return ""  # ps found no such pid: positively gone
+        return out.stdout.strip().lower()
+    except (OSError, subprocess.SubprocessError):
+        return None  # can't tell
+
+
 def cli_stop(audit_dir: str) -> dict:
     session = _load_session(audit_dir)
     pid = session.get("pid")
     if not pid:
         return {"ok": True, "note": "no active session"}
-    try:
-        os.killpg(pid, signal.SIGTERM)
-        note = f"stopped pid {pid}"
-    except OSError:
-        note = "process already gone"
+    # The client was started with start_new_session=True, so pgid == pid; a
+    # recycled pid would kill an unrelated group, so verify identity first.
+    # When identity is unknown (unknown is None, not ""), the session file is
+    # our own record that this pid was interactsh, so we proceed.
+    cmdline = _pid_cmdline(pid)
+    if cmdline is not None and "interactsh" not in cmdline:
+        note = ("process already gone" if cmdline == ""
+                else "pid no longer interactsh-client (recycled?) — not killing")
+    else:
+        try:
+            os.killpg(pid, signal.SIGTERM)
+            note = f"stopped pid {pid}"
+        except OSError:
+            note = "process already gone"
     _save_session(audit_dir, {})
     return {"ok": True, "note": note}
 

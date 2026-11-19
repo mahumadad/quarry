@@ -100,7 +100,12 @@ class CustodyLog:
                                       "finding_count": finding_count})
 
     def verify(self) -> dict:
-        """Walk the chain and confirm integrity. Returns a verification report."""
+        """Walk the chain and confirm integrity. Returns a verification report.
+
+        A corrupt/partial line (torn write, manual tampering) is reported as a
+        broken chain at that line instead of raising: the verifier is exactly
+        the component that must survive a damaged log.
+        """
         prev = GENESIS
         count = 0
         broken_at = None
@@ -110,12 +115,18 @@ class CustodyLog:
                     line = line.strip()
                     if not line:
                         continue
-                    rec = json.loads(line)
-                    entry = CustodyEntry(
-                        event=rec["event"], detail=rec["detail"],
-                        actor=rec.get("actor", "agent"), at=rec["at"],
-                        prev_hash=rec.get("prev_hash", GENESIS),
-                    )
+                    try:
+                        rec = json.loads(line)
+                        if not isinstance(rec, dict):
+                            raise ValueError("entry is not a JSON object")
+                        entry = CustodyEntry(
+                            event=rec["event"], detail=rec["detail"],
+                            actor=rec.get("actor", "agent"), at=rec["at"],
+                            prev_hash=rec.get("prev_hash", GENESIS),
+                        )
+                    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+                        broken_at = i
+                        break
                     count += 1
                     if entry.prev_hash != prev or entry.compute_hash() != rec.get("entry_hash"):
                         broken_at = i

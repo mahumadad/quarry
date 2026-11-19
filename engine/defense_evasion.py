@@ -227,7 +227,14 @@ class WAFFingerprinter:
     @staticmethod
     def _search_space(response: dict[str, Any], where: str) -> str:
         if where == "server_header":
-            return response.get("headers", {}).get("Server", "")
+            headers = response.get("headers", {})
+            if "Server" in headers:
+                return headers.get("Server", "")
+            # HTTP headers are case-insensitive; many stacks return "server".
+            for k, v in headers.items():
+                if k.lower() == "server":
+                    return v
+            return ""
         if where == "header":
             return " ".join("{}: {}".format(k, v) for k, v in
                             response.get("headers", {}).items())

@@ -173,10 +173,7 @@ class LLMGateway:
         litellm_prefix = provider_info.get("litellm_prefix", "openai")
         base_url = cfg.base_url or provider_info.get("base_url", "")
 
-        if litellm_prefix in ("openai", "ollama"):
-            model_id = f"{litellm_prefix}/{resolved_model}"
-        else:
-            model_id = f"{litellm_prefix}/{resolved_model}"
+        model_id = f"{litellm_prefix}/{resolved_model}"
 
         messages = []
         if safe_system:

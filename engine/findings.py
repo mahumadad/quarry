@@ -113,7 +113,10 @@ class Finding:
             self.id = f"F-{uuid.uuid4().hex[:8].upper()}"
         if not self.created_at:
             self.created_at = datetime.now(timezone.utc).isoformat()
-        self.updated_at = self.created_at
+        # Only default when absent: an updated_at loaded from disk must
+        # survive, otherwise every reload rewinds it to created_at.
+        if not self.updated_at:
+            self.updated_at = self.created_at
 
 
 class FindingsStore:

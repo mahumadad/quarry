@@ -15,9 +15,9 @@ from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
 
 try:
-    from .storage import atomic_write_json, read_json
+    from .storage import atomic_write_json, engagement_lock, read_json
 except ImportError:
-    from storage import atomic_write_json, read_json
+    from storage import atomic_write_json, engagement_lock, read_json
 
 
 @dataclass
@@ -59,6 +59,11 @@ class Vault:
             handle.write(key + b"\n")
         return key
 
+    def _reload(self):
+        """Re-read the vault file, replacing in-memory state (for locked updates)."""
+        self._credentials = {}
+        self._load()
+
     def _load(self):
         if not self.vault_file.exists():
             return
@@ -92,8 +97,12 @@ class Vault:
               notes: str = "") -> Credential:
         credential = Credential(name=name, cred_type=cred_type, value=value,
             target=target, username=username, scope=scope, expires_at=expires_at, notes=notes)
-        self._credentials[name] = credential
-        self._save()
+        # Reload under lock: two concurrent Vault instances used to silently
+        # drop the other one's credentials (last-writer-wins).
+        with engagement_lock(self.state_dir.parent):
+            self._reload()
+            self._credentials[name] = credential
+            self._save()
         return credential
 
     def get(self, name: str) -> Credential | None:
@@ -106,11 +115,13 @@ class Vault:
         return [c for c in self._credentials.values() if c.cred_type == cred_type]
 
     def remove(self, name: str) -> bool:
-        if name not in self._credentials:
-            return False
-        del self._credentials[name]
-        self._save()
-        return True
+        with engagement_lock(self.state_dir.parent):
+            self._reload()
+            if name not in self._credentials:
+                return False
+            del self._credentials[name]
+            self._save()
+            return True
 
     def list_names(self) -> list[str]:
         return list(self._credentials.keys())

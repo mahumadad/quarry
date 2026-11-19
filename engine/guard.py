@@ -15,16 +15,47 @@ except ImportError:
 
 BLOCKED_ALWAYS = ("shutdown", "reboot", "halt", "poweroff")
 
+# Flags whose argument is inline code: `bash -c 'shutdown -h now'` must have
+# its quoted payload re-tokenized, otherwise shlex yields one opaque token
+# and the destructive marker hides inside it.
+_INLINE_CODE_FLAGS = {"-c", "-lc", "-ic", "-e", "--eval", "--command"}
+_WRAPPER_NAMES = {"bash", "sh", "zsh", "dash", "env", "sudo", "nohup", "timeout",
+                  "nice", "doas", "xargs"}
+
+
+def _expand_inline(command: str, _depth: int = 0) -> list[str]:
+    """Tokenize a command, recursively expanding quoted inline-code payloads."""
+    if _depth > 5:
+        return []
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        # Unbalanced quotes etc: fall back to whitespace split so the payload
+        # is still scanned instead of passing as one opaque token.
+        tokens = command.replace("'", " ").replace('"', " ").split()
+    expanded: list[str] = []
+    for j, token in enumerate(tokens):
+        name = Path(token).name
+        if name in _WRAPPER_NAMES:
+            expanded.append(token)
+            for k in range(j + 1, len(tokens)):
+                if tokens[k] in _INLINE_CODE_FLAGS:
+                    if k + 1 < len(tokens):
+                        expanded.extend(_expand_inline(tokens[k + 1], _depth + 1))
+                elif not tokens[k].startswith("-"):
+                    break
+        else:
+            expanded.append(token)
+    return expanded
+
 
 def _blocked_always(command: str) -> str | None:
     """Match a host-destructive command by executable token, not substring.
 
-    `grep -i halting app.log` must pass; `shutdown -h now` and `init 0` must not.
+    `grep -i halting app.log` must pass; `shutdown -h now`, `init 0` and
+    `bash -c 'shutdown -h now'` must not.
     """
-    try:
-        tokens = shlex.split(command)
-    except ValueError:
-        tokens = command.split()
+    tokens = _expand_inline(command)
     names = {Path(t).name for t in tokens}
     for marker in BLOCKED_ALWAYS:
         if marker in names:
@@ -119,16 +150,32 @@ def main():
     args = parser.parse_args()
 
     command = args.command
+    _stdin_was_malformed = False
     if command is None:
         try:
             stdin_data = json.loads(sys.stdin.read())
-            command = stdin_data.get("tool_input", {}).get("command", "")
+            if not isinstance(stdin_data, dict):
+                stdin_data = {}
+                _stdin_was_malformed = True
+            tool_input = stdin_data.get("tool_input")
+            if isinstance(tool_input, dict):
+                command = tool_input.get("command", "")
+            elif tool_input is not None:
+                # tool_input present but not an object (e.g. null): fail closed.
+                _stdin_was_malformed = True
             if not command:
                 command = stdin_data.get("command", "")
-        except (json.JSONDecodeError, AttributeError):
+        except (json.JSONDecodeError, AttributeError, UnicodeDecodeError):
             command = ""
+            _stdin_was_malformed = True
 
     if not command:
+        # Fail closed: an unreadable hook payload cannot be proven safe.
+        # An intentionally empty command is harmless, a MALFORMED one is not.
+        if _stdin_was_malformed:
+            print(json.dumps({"allowed": False, "warnings": [],
+                              "blocked_reason": "Malformed hook payload; fail-closed"}))
+            sys.exit(2)
         print(json.dumps({"allowed": True, "warnings": []}))
         sys.exit(0)
 

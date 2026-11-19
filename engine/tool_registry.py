@@ -189,45 +189,14 @@ class ToolRegistry:
             atomic_write_json(self.state_file, redact(result))
         return result
 
-    def fallback_for(self, failed_tool: str) -> dict:
-        """Given a tool that failed at runtime, return the next available alternative."""
-        from .loop_detector import TOOL_ALTERNATIVES
-
-        alternatives = TOOL_ALTERNATIVES.get(failed_tool, [])
-        for alt in alternatives:
-            probe = self.probe(alt)
-            if probe["available"]:
-                return {
-                    "failed": failed_tool,
-                    "fallback": alt,
-                    "probe": probe,
-                    "source": "tool_alternatives",
-                }
-
-        for cap, candidates in CAPABILITY_BACKENDS.items():
-            if failed_tool in candidates:
-                for candidate in candidates:
-                    if candidate == failed_tool:
-                        continue
-                    probe = self.probe(candidate)
-                    if probe["available"]:
-                        return {
-                            "failed": failed_tool,
-                            "fallback": candidate,
-                            "probe": probe,
-                            "source": f"capability:{cap}",
-                        }
-
-        return {
-            "failed": failed_tool,
-            "fallback": "",
-            "probe": {},
-            "source": "none",
-            "coverage_gap": f"No fallback available for {failed_tool}",
-        }
-
     def fallback_for(self, tool: str) -> dict | None:
-        """When a specific tool fails, return the first available fallback."""
+        """When a specific tool fails, return the first available fallback.
+
+        Merges both sources (this used to be defined twice and the second
+        definition silently replaced the richer first one): the curated
+        TOOL_FALLBACKS table first, then TOOL_ALTERNATIVES and
+        CAPABILITY_BACKENDS as wider nets.
+        """
         fallbacks = TOOL_FALLBACKS.get(tool, [])
         for fb in fallbacks:
             probe = self.probe(fb["tool"])
@@ -239,6 +208,22 @@ class ToolRegistry:
                     "notes": fb.get("notes", ""),
                     "probe": probe,
                 }
+        # Wider nets from the (previously shadowed) first definition.
+        from .loop_detector import TOOL_ALTERNATIVES
+        for alt in TOOL_ALTERNATIVES.get(tool, []):
+            probe = self.probe(alt)
+            if probe["available"]:
+                return {"failed": tool, "fallback": alt, "probe": probe,
+                        "source": "tool_alternatives"}
+        for cap, candidates in CAPABILITY_BACKENDS.items():
+            if tool in candidates:
+                for candidate in candidates:
+                    if candidate == tool:
+                        continue
+                    probe = self.probe(candidate)
+                    if probe["available"]:
+                        return {"failed": tool, "fallback": candidate,
+                                "probe": probe, "source": f"capability:{cap}"}
         return None
 
     def fallback_chain(self, tool: str) -> list[dict]:

@@ -182,6 +182,14 @@ class Orchestrator:
                     CustodyLog(self.audit_dir).append("phase_changed", {
                         "run_id": run_id, "phase": destination.value})
             if status in {"failed", "blocked"}:
+                # Recompute the run's aggregate status before returning: the
+                # record used to stay persisted as "running" forever after an
+                # executor failure, lying to resume_plan()/doctor().
+                with engagement_lock(self.audit_dir):
+                    data, record = self._mutable_run(run_id)
+                    record["status"] = "blocked" if any(
+                        t["status"] == "blocked" for t in record["tasks"]) else "failed"
+                    self._save_runs(data)
                 return self.get_run(run_id)
 
     def approve_gate(self, run_id: str, phase: str, gate: str, actor: str = "operator") -> None:

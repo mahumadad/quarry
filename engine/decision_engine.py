@@ -134,6 +134,14 @@ WAF_ADJUSTMENTS: dict[str, dict] = {
         "notes": "No WAF detected — full-speed testing allowed.",
         "param_hints": {"ffuf_rate": "50", "nuclei_rate": "50", "nuclei_bulk": "25"},
     },
+    # Fallback for an UNRECOGNIZED WAF: assume it exists and stay conservative.
+    # Falling back to "none" made unknown WAFs trigger full-speed bursts.
+    "generic": {
+        "rate_limit_ms": 500,
+        "encoding": "mixed",
+        "notes": "Unknown WAF detected — conservative rates, probe incrementally.",
+        "param_hints": {"ffuf_rate": "5", "nuclei_rate": "8", "nuclei_bulk": "4"},
+    },
 }
 
 UNIVERSAL_SKILLS = [
@@ -213,7 +221,8 @@ def recommend(app_profile: dict) -> RecommendationPlan:
     """
     tech_stack = [t.lower() for t in app_profile.get("tech_stack", [])]
     auth_raw = app_profile.get("auth_type", [])
-    auth_types = [auth_raw] if isinstance(auth_raw, str) else [a.lower() for a in auth_raw]
+    # Normalize case: "JWT" (uppercase) used to yield no auth skills at all.
+    auth_types = [auth_raw.lower()] if isinstance(auth_raw, str) else [a.lower() for a in auth_raw]
     api_style = app_profile.get("api_style", "rest").lower()
     waf = app_profile.get("waf", "none").lower()
 
@@ -246,7 +255,11 @@ def recommend(app_profile: dict) -> RecommendationPlan:
     for skill in UNIVERSAL_SKILLS:
         _add(skill, 3, "universal", _infer_phase(skill))
 
-    waf_info = WAF_ADJUSTMENTS.get(waf, WAF_ADJUSTMENTS.get("none", {}))
+    if waf == "none":
+        waf_info = WAF_ADJUSTMENTS["none"]
+    else:
+        # Unknown WAF: conservative generic profile, never full speed.
+        waf_info = WAF_ADJUSTMENTS.get(waf, WAF_ADJUSTMENTS.get("generic", {}))
     waf_hints = waf_info.get("param_hints", {})
     waf_notes = waf_info.get("notes", "")
 
@@ -282,7 +295,10 @@ def recommend(app_profile: dict) -> RecommendationPlan:
 def recommend_for_finding(finding: dict, app_profile: dict) -> list[SkillRecommendation]:
     """Given a finding, recommend follow-up skills for chain exploitation."""
     vc = finding.get("vuln_class", "").lower()
-    from .chain_engine import ENABLES_MAP
+    try:
+        from .chain_engine import ENABLES_MAP
+    except ImportError:  # top-level script mode
+        from chain_engine import ENABLES_MAP
     enabled = ENABLES_MAP.get(vc, [])
     plan = recommend(app_profile)
     return [s for s in plan.skills if any(e in s.name for e in enabled)]

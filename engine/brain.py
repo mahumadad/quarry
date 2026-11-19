@@ -275,7 +275,10 @@ class Brain:
         briefing = {
             "capabilities_gained": self.get_capabilities(),
             "capability_summary": [
-                CAPABILITY_TAXONOMY[c["capability"]]
+                # Legacy state files may carry capabilities no longer in the
+                # taxonomy; unknown ones degrade to their raw name instead of
+                # raising KeyError.
+                CAPABILITY_TAXONOMY.get(c["capability"], c["capability"])
                 for c in self._data["capabilities"]
             ],
         }

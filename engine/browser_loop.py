@@ -129,7 +129,11 @@ class BrowserSession:
             if step.action == "navigate":
                 nav = self.navigate(step.value)
                 result.update(nav)
-                result["success"] = True
+                # A 4xx/5xx page is NOT a successful navigation for exploit
+                # purposes: marking it success produced findings labeled as
+                # demonstrated on pages that never loaded.
+                status = nav.get("status")
+                result["success"] = bool(nav.get("status") is not None and status < 400)
 
             elif step.action == "click":
                 self._page.click(step.selector, timeout=step.timeout_ms)

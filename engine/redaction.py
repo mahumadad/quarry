@@ -7,6 +7,7 @@ Redacts secrets in two directions:
 """
 from __future__ import annotations
 
+import ipaddress
 import re
 from typing import Any
 
@@ -36,7 +37,14 @@ def redact_for_provider(text: str, anonymize_ips: bool = True) -> str:
 
         def _replace_ip(m: re.Match) -> str:
             ip = m.group(1)
-            if ip.startswith(("10.", "127.", "192.168.", "172.")) or ip == "0.0.0.0":
+            # Private/loopback ranges stay readable (RFC 1918 etc.). The check
+            # uses ipaddress so public 172.x (e.g. 172.217.x.x = Google) IS
+            # anonymized — the old '172.' prefix check let it leak to providers.
+            try:
+                addr = ipaddress.ip_address(ip)
+                if addr.is_private or addr.is_loopback or addr.is_link_local:
+                    return m.group(0)
+            except ValueError:
                 return m.group(0)
             if ip not in seen:
                 counter[0] += 1

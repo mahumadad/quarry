@@ -48,6 +48,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and finding-template updated; CVSS 3.1 kept as optional
 - **Custody chain description (I9):** updated from "attestable" to "locally tamper-evident"
 - **Benchmark claims (I10):** README clarifies results are from manual runs, not automated CI
+- **Guard/policy hardening (review):** `bash -c 'shutdown...'`-style inline code is now
+  re-tokenized before BLOCKED_ALWAYS matching; subshell `(` added to metachar normalization;
+  ping/dig/nslookup/host/whois/traceroute added to NETWORK_TOOLS; commands issued from
+  engagement subdirectories resolve the engagement root instead of failing with a bogus
+  "scope not configured"; single-use approvals are consumed atomically (no replay window);
+  purely local interpreter commands (python3 -m pip, node script.js) no longer false-positive
+  as network actions.
+- **Async tool runner hardening:** AsyncToolRunner now routes every submitted command through
+  command_policy inside an engagement, enforces the 1200s hard timeout, and kills the whole
+  process group on timeout.
+- **Provider redaction:** public 172.x.x.x IPs (e.g. 172.217.x.x) are now anonymized before
+  leaving to LLM providers (the old prefix check only exempted the real 172.16/12 private
+  range).
+- **Evidence integrity:** custody verify() survives corrupt/torn log lines and reports the
+  break instead of raising; Finding.updated_at survives reloads; browser navigate marks
+  success only for HTTP < 400; XSS dialog verification requires the canary in the message;
+  clickjacking frame detection no longer breaks on redirects.
+- **Chain engine correctness:** empty vuln_class no longer matches every known chain;
+  chains.json corruption no longer crashes the constructor; re-analysis no longer duplicates
+  chains.
+- **WAF profile fail-safe:** an unrecognized WAF now falls back to a conservative generic
+  profile instead of full-speed "none".
+- **OAST correlation:** interactsh callbacks correlate via correlation-id (full-id's first
+  segment is the client suffix, not the interaction correlator); token/interaction state
+  writes are atomic under the engagement lock; interactsh_start has a real readline deadline
+  and never leaves orphan processes.
+- **MCP client hardening:** stdio servers launch with a minimal environment (no operator
+  secrets inherited) and an executable allowlist; JSON-RPC responses are matched by request
+  id and JSON-RPC errors raise instead of returning as results.
+- **MCP supply chain coverage:** static check names map to catalog vectors
+  (description_injection → tool_description_injection) so coverage and exported OWASP/MITRE
+  mappings are correct; load_manifest tolerates null serverInfo.
+- **Docs sync:** README counts updated (135 skills / 70 engine modules / 15 workflows /
+  19 commands, Python 3.12), CLAUDE.md translated to English, 13 stale skill references in
+  commands/agents fixed.
 
 ### Changed
 - **Language unification (I3):** all commands, workflows, and phase descriptions translated

@@ -22,7 +22,9 @@ NETWORK_TOOLS = {"curl", "wget", "nmap", "nc", "ncat", "nikto", "nuclei", "ffuf"
                  "gobuster", "dirsearch", "sqlmap", "hydra", "msfconsole", "wfuzz",
                  "masscan", "httpx", "whatweb", "wappalyzer", "amass", "subfinder",
                  "ssh", "openssl", "socat", "telnet", "netcat", "rustscan",
-                 "feroxbuster", "ghauri", "katana", "gospider", "hakrawler"}
+                 "feroxbuster", "ghauri", "katana", "gospider", "hakrawler",
+                 "ping", "ping6", "dig", "nslookup", "host", "whois",
+                 "traceroute", "traceroute6", "tracepath", "arp-scan", "fping"}
 SHELL_WRAPPERS = {"bash", "sh", "zsh", "dash", "env", "sudo", "xargs", "nice",
                   "nohup", "timeout", "strace", "ltrace", "time", "doas"}
 SCRIPT_INTERPRETERS = {"python3", "python", "python2", "node", "ruby", "perl", "php"}
@@ -77,8 +79,8 @@ class PolicyEngine:
             if not approved_digest:
                 raise PolicyDenied("Dangerous action requires a scoped, unexpired operator approval")
             digest = approval_digest(action, "\n".join(sorted(targets)))
-            if digest != approved_digest or not self.valid_approval(approved_digest):
-                raise PolicyDenied("Approval does not match this exact action/target or has expired")
+            if digest != approved_digest or not self._consume_if_valid(approved_digest):
+                raise PolicyDenied("Approval does not match this exact action/target, already used or expired")
         return {"allowed": True, "targets": targets, "dangerous": dangerous}
 
     def grant(self, action: str, targets: list[str], expires_at: str, actor: str = "operator") -> str:
@@ -115,10 +117,33 @@ class PolicyEngine:
                     item["used_at"] = datetime.now(timezone.utc).isoformat()
             atomic_write_json(self.approvals_file, data)
 
+    def _consume_if_valid(self, digest: str) -> bool:
+        """Atomically validate and consume a single-use approval.
+
+        Validation and consumption happen under the same lock so a concurrent
+        caller with the same digest cannot replay the approval (authorize and
+        consume were previously separate operations, leaving a replay window).
+        """
+        with engagement_lock(self.audit_dir):
+            data = read_json(self.approvals_file, {"approvals": []})
+            now = datetime.now(timezone.utc)
+            for item in data.get("approvals", []):
+                if item.get("digest") != digest or item.get("used_at"):
+                    continue
+                expiry = datetime.fromisoformat(item["expires_at"].replace("Z", "+00:00"))
+                if expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=timezone.utc)
+                if expiry > now:
+                    item["used_at"] = now.isoformat()
+                    atomic_write_json(self.approvals_file, data)
+                    return True
+            return False
+
 
 # Shell metacharacters that separate or embed commands. Normalizing them to
-# spaces defeats adjacency bypasses like 'true;curl', '$(curl ...)' and backticks.
-_METACHAR_RE = re.compile(r"\$\(|\)|`|<\(|>\(|[;|&<>]")
+# spaces defeats adjacency bypasses like 'true;curl', '$(curl ...)', backticks
+# and subshell wrappers like '(curl ...)'.
+_METACHAR_RE = re.compile(r"\$\(|\(|\)|`|<\(|>\(|[;|&<>]")
 # Flags whose argument is inline code to be scanned recursively.
 _INLINE_CODE_FLAGS = {"-c", "-lc", "-ic", "-e", "--eval", "--command"}
 
@@ -181,18 +206,30 @@ def command_policy(command: str, audit_dir: str | Path, approved_digest: str = "
     """
     if _find_engagement_dir(audit_dir) is None:
         return {"allowed": True, "targets": [], "dangerous": False}
+    # PolicyEngine expects the engagement ROOT (where .pentest-state/ lives).
+    # Resolving it here means invocations from any subdirectory of the
+    # engagement share the same scope.json instead of failing with a bogus
+    # "scope not configured" pointing at a nonexistent nested state dir.
+    engagement_root = _find_engagement_dir(audit_dir)
     executables = _extract_executables(command)
     network_hits = executables & NETWORK_TOOLS
     interpreter_hits = executables & SCRIPT_INTERPRETERS
     network_channel = "/dev/tcp/" in command or "/dev/udp/" in command
-    network = bool(network_hits) or bool(interpreter_hits) or network_channel
+    # Interpreters only count as a network action when the command actually
+    # opens a channel, invokes a network tool inline, or carries a URL/host
+    # inside inline code (python3 -c "...urlopen('https://...')"). Purely
+    # local uses (`python3 -m pip`, `node script.js`, `php -l`) stay usable.
+    inline_targets = bool(Scope._extract_targets(command)) if interpreter_hits else False
+    interpreter_network = bool(interpreter_hits) and (
+        network_channel or bool(network_hits) or inline_targets)
+    network = bool(network_hits) or interpreter_network or network_channel
     if not network:
         # A purely local command (even a destructive one like `rm -rf`) is not a
         # scope matter; host safety is handled outside this scope tripwire.
         return {"allowed": True, "targets": [], "dangerous": False}
     dangerous = any(marker in command.lower() for marker in DANGEROUS_MARKERS)
     targets = Scope._extract_targets(command)
-    return PolicyEngine(audit_dir).authorize(command, targets, dangerous, approved_digest)
+    return PolicyEngine(engagement_root).authorize(command, targets, dangerous, approved_digest)
 
 
 def url_policy(url: str, audit_dir: str | Path) -> dict:

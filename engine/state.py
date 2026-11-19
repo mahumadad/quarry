@@ -12,6 +12,11 @@ from enum import Enum
 from pathlib import Path
 
 try:
+    from .storage import atomic_write_json, engagement_lock, read_json
+except ImportError:  # top-level script mode
+    from storage import atomic_write_json, engagement_lock, read_json
+
+try:
     from .storage import atomic_write_json, read_json
 except ImportError:
     from storage import atomic_write_json, read_json
@@ -87,17 +92,21 @@ class EngagementState:
         self._save()
 
     def transition(self, to_phase: Phase) -> bool:
-        current = self.phase
-        if to_phase not in TRANSITIONS.get(current, []):
-            return False
-        self._data["phase_history"].append({
-            "from": current.value,
-            "to": to_phase.value,
-            "at": datetime.now(timezone.utc).isoformat(),
-        })
-        self._data["phase"] = to_phase.value
-        self._save()
-        return True
+        # Reload under lock: two concurrent EngagementState instances used to
+        # clobber each other's phase_history (last-writer-wins).
+        with engagement_lock(self.audit_dir):
+            self._data = self._load()
+            current = self.phase
+            if to_phase not in TRANSITIONS.get(current, []):
+                return False
+            self._data["phase_history"].append({
+                "from": current.value,
+                "to": to_phase.value,
+                "at": datetime.now(timezone.utc).isoformat(),
+            })
+            self._data["phase"] = to_phase.value
+            self._save()
+            return True
 
     def can_transition(self, to_phase: Phase) -> bool:
         return to_phase in TRANSITIONS.get(self.phase, [])

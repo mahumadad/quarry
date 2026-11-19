@@ -85,9 +85,15 @@ def _new_context(pw, out_dir: Path):
 def _observe_page(page, result: ProbeResult, marker: str):
     """Wire the observable-effect listeners onto a page."""
     def on_dialog(dialog):
-        # An alert/confirm/prompt fired by our canary is definitive execution.
-        result.demonstrated = True
-        result.effect = f"dialog:{dialog.type}:{dialog.message[:200]}"
+        # Only an alert/confirm/prompt carrying OUR canary is definitive
+        # execution; the app's own dialogs must not count as a demonstrated XSS.
+        message = dialog.message or ""
+        if CANARY_PREFIX in message:
+            result.demonstrated = True
+            result.effect = f"dialog:{dialog.type}:{message[:200]}"
+        else:
+            # Record it as context, not proof (native dialog without canary).
+            result.effect = result.effect or f"dialog-no-canary:{dialog.type}:{message[:120]}"
         dialog.dismiss()
     page.on("dialog", on_dialog)
     page.on("console", lambda m: result.console.append(f"{m.type}: {m.text[:200]}"))
@@ -250,9 +256,17 @@ def clickjacking(url: str, out_dir: str = ".",
             page.goto(wrapper, timeout=timeout_ms)
             page.wait_for_timeout(4000)
             framed = page.frames
+            # Compare the FRAME's own URL (it is the target when framed), not
+            # the wrapper's: any redirect inside the frame must not silently
+            # break detection.
+            try:
+                from urllib.parse import urlsplit
+                target_host = (urlsplit(url).hostname or "").lower()
+            except ValueError:
+                target_host = ""
             loaded_in_frame = any(
-                f.url.rstrip("/").startswith(url.split("/")[2].split(":")[0])
-                or f.url.rstrip("/") == url.rstrip("/")
+                (f.url.rstrip("/") == url.rstrip("/"))
+                or (target_host and (urlsplit(f.url).hostname or "").lower() == target_host)
                 for f in framed[1:]  # frame 0 is the wrapper
             )
             protected = bool(framing_headers.get("x-frame-options")) or \

@@ -30,10 +30,10 @@ Most AI pentest tools optimize for **autonomy** — more tools, more actions, le
 
 ## What's inside
 
-- **124 skills** across 10 domains (recon, hunt, chain, report, SAST, AI security, platform, mapping, validation, core)
+- **135 skills** across 10 domains (recon, hunt, chain, report, SAST, AI security, platform, mapping, validation, core)
 - **18 specialized agents** — each with defined roles, inputs/outputs, and delegation rules
-- **14 declarative workflows** — full pentest, web app, API, cloud, AD, mobile, AI agent, purple team, retest, CVE response, PR scan, surface watch, closeout, recon-only
-- **55 engine modules** — deterministic Python harness: custody, policy, OAST, chaining, nuclei runner, browser verification, budget tracking
+- **15 declarative workflows** — full pentest, web app, API, cloud, AD, mobile, AI agent, AI red team, purple team, retest, CVE response, PR scan, surface watch, closeout, recon-only
+- **70 engine modules** — deterministic Python harness: custody, policy, OAST, chaining, nuclei runner, browser verification, budget tracking
 - **40 reviewed Nuclei templates** — integrity-hashed, mapped to PCI DSS 4.0, SOC 2, HIPAA, CIS v8, MITRE ATT&CK, NIST CSF, OWASP Top 10
 - **Evidence discipline** — append-only custody chain, Demonstrated/Inferred/Unproven evidence tags, anti-fabrication rules, seven-question gate, blind adversarial rebuttal
 
@@ -81,7 +81,7 @@ git clone https://github.com/mahumadad/quarry.git
 
 ### Prerequisites
 
-**Required:** Python 3.11+ and `pip install -r requirements.txt`
+**Required:** Python 3.12+ and `pip install -r requirements.txt`
 
 **External tools** (availability reported by `/quarry:doctor`):
 [nmap](https://nmap.org/) ·
@@ -143,6 +143,7 @@ engagement-planner ──► recon-agent ──► exploit-researcher
 | `/quarry:resume` | Resume paused engagement |
 | `/quarry:retest` | Re-test remediated vulns |
 | `/quarry:run` | Execute a workflow |
+| `/quarry:vectors` | Query alternative providers for unexplored attack vectors |
 | `/quarry:notify` | Escalate critical finding |
 
 ---
@@ -152,11 +153,11 @@ engagement-planner ──► recon-agent ──► exploit-researcher
 ```
 .claude-plugin/       Plugin manifest and marketplace config
 agents/               18 agent definitions with roles and delegation
-commands/             18 slash commands (/quarry:*)
-engine/               55 Python modules — deterministic harness
+commands/             19 slash commands (/quarry:*)
+engine/               70 Python modules — deterministic harness
 hooks/                PreToolUse guard + SessionStart rules
-skills/               124 skills across 10 domains
-workflows/            14 declarative YAML workflows
+skills/               135 skills across 10 domains
+workflows/            15 declarative YAML workflows
 benchmarks/           Ground-truth scoring (DVWA, crAPI, Juice Shop)
 references/           CVSS 4.0, EPSS, ATT&CK references
 lab/                  Multistack Docker lab for template validation
