@@ -6,11 +6,17 @@ before launching each task.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable
+
+try:
+    from .policy import PolicyDenied, _find_engagement_dir, command_policy
+except ImportError:  # top-level script mode
+    from policy import PolicyDenied, _find_engagement_dir, command_policy
 
 
 @dataclass
@@ -70,9 +76,19 @@ def _default_line_parser(output: str) -> list[str]:
 
 
 class FanOutEngine:
-    def __init__(self, max_workers: int = 5, budget_manager: Any = None):
+    def __init__(self, max_workers: int = 5, budget_manager: Any = None,
+                 audit_dir: str | None = None):
         self.max_workers = max_workers
         self._budget = budget_manager
+        # Engagement root for the scope tripwire. Inside an engagement every
+        # recon command is validated against scope before it runs — fan-out
+        # must not be a side door around the same check the sync runner and
+        # async runner enforce.
+        self._audit_dir = str(audit_dir) if audit_dir else os.getcwd()
+
+    def _finish(self, result: TaskResult) -> TaskResult:
+        result.end_time = datetime.now(timezone.utc).isoformat()
+        return result
 
     def _run_task(self, task: ReconTask) -> TaskResult:
         result = TaskResult(name=task.name, command=task.command)
@@ -81,8 +97,21 @@ class FanOutEngine:
             budget_check = self._budget.record_call(task.phase, task.command)
             if not budget_check.get("allowed"):
                 result.error = "Budget exhausted"
-                result.end_time = datetime.now(timezone.utc).isoformat()
-                return result
+                return self._finish(result)
+
+        # Scope gate BEFORE spawning the process. No-op outside an engagement
+        # (same as the PreToolUse hook); inside one, an out-of-scope recon
+        # target is blocked, and an engine failure fails closed.
+        if _find_engagement_dir(self._audit_dir) is not None:
+            try:
+                command_policy(task.command, self._audit_dir)
+            except PolicyDenied as exc:
+                result.error = "policy: {}".format(exc)
+                return self._finish(result)
+            except Exception as exc:  # fail closed
+                result.error = "policy engine failure; fail-closed: {}: {}".format(
+                    type(exc).__name__, exc)
+                return self._finish(result)
 
         try:
             proc = subprocess.run(
@@ -173,3 +202,29 @@ class FanOutEngine:
             for r in results
         ]
         return merged
+
+
+def main() -> int:
+    import argparse
+    import json
+
+    ap = argparse.ArgumentParser(
+        prog="engine.fanout",
+        description="Parallel recon fan-out (scope-gated inside an engagement).")
+    ap.add_argument("--audit-dir", default=".")
+    ap.add_argument("--target", required=True)
+    ap.add_argument("--techniques", default="",
+                    help="comma-separated preset names; default = all. "
+                         "Available: {}".format(", ".join(RECON_PRESETS)))
+    ap.add_argument("--max-workers", type=int, default=5)
+    args = ap.parse_args()
+
+    techniques = [t.strip() for t in args.techniques.split(",") if t.strip()] or None
+    engine = FanOutEngine(max_workers=args.max_workers, audit_dir=args.audit_dir)
+    merged = engine.recon_blast(args.target, techniques)
+    print(json.dumps(merged, indent=2, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
