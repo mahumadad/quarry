@@ -49,3 +49,25 @@ def test_llm_judge_present_in_bridge():
     art = _src("ai_red_team.py")
     assert "def judge_response(" in art
     assert "def classify_response_dual(" in art
+
+
+def test_focused_workflows_have_no_orphan_hunt_classes():
+    # Every vuln class a focused workflow lists must resolve to a real skill
+    # directory. A class with no skill is an orphan: the phase would silently
+    # fall back to the bare name (the three_gate anti-pattern, for skills).
+    import yaml
+
+    skills_root = ROOT / "skills"
+    for wf in ("web-app-pentest.yaml", "api-pentest.yaml", "full-pentest.yaml"):
+        data = yaml.safe_load((ROOT / "workflows" / wf).read_text(encoding="utf-8"))
+        for phase in data.get("phases", []):
+            if phase.get("name") != "hunting":
+                continue
+            classes: list[str] = []
+            for key in ("priority_classes", "secondary_classes", "hunt_classes"):
+                classes.extend(phase.get(key) or [])
+            for cls in classes:
+                if cls == "*":
+                    continue
+                assert list(skills_root.glob(f"*/{cls}/SKILL.md")), \
+                    f"{wf}: hunting class {cls!r} has no skill directory"
