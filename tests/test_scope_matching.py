@@ -100,6 +100,33 @@ def test_port_is_stripped(scope):
     assert not ok
 
 
+# --- scope-rule normalization (research: fail-open on formatted rules) ------
+
+def test_out_of_scope_domain_rule_with_port_scheme_or_path_still_blocks():
+    # A scope rule authored with a :port, scheme, /path or trailing dot must
+    # still block the host. Otherwise it fails open: the out-of-scope rule
+    # misses and the host falls through to a broader in-scope rule.
+    s = Scope(authorization="x")
+    s.add_in_scope("*.example.com", "wildcard")              # broad allow
+    s.add_out_of_scope("admin.example.com:8443", "domain")   # port
+    s.add_out_of_scope("https://secret.example.com", "domain")  # scheme
+    s.add_out_of_scope("legacy.example.com/old", "domain")   # path
+    s.add_out_of_scope("beta.example.com.", "domain")        # trailing dot
+    assert not s.is_in_scope("admin.example.com")
+    assert not s.is_in_scope("secret.example.com")
+    assert not s.is_in_scope("legacy.example.com")
+    assert not s.is_in_scope("beta.example.com")
+    # a sibling the rules don't name is still allowed by the wildcard
+    assert s.is_in_scope("www.example.com")
+
+
+def test_in_scope_domain_rule_with_port_matches():
+    s = Scope(authorization="x")
+    s.add_in_scope("app.example.com:443", "domain")
+    assert s.is_in_scope("app.example.com")
+    assert s.is_in_scope("api.app.example.com")  # subdomain of the rule
+
+
 # --- §4.6 url entry matching -----------------------------------------------
 
 def test_url_entry_path_matching(scope):

@@ -161,8 +161,11 @@ class Scope:
         host = self._host_of(target)
         pattern = entry.pattern.rstrip("/")
         if entry.type == "domain":
-            d = pattern.lower().rstrip(".")
-            return host == d or host.endswith("." + d)
+            # Normalize the rule the same way as the target: a rule authored
+            # with a :port, scheme, /path or trailing dot must still match,
+            # otherwise it fails open into a broader rule.
+            d = self._host_of(pattern)
+            return bool(d) and (host == d or host.endswith("." + d))
         if entry.type == "wildcard":
             regex = re.escape(pattern.lower()).replace(r"\*", "[^.]+")
             return bool(re.fullmatch(regex, host))
