@@ -717,6 +717,51 @@ class TestDualClassify:
         assert verdict.get("self_graded") is True
 
 
+class TestJudgeParsing:
+    """Robust verdict parsing: last JSON object, coerced fields, failed
+    responses never become a verdict (research: judge-robustness fixes)."""
+
+    def test_takes_last_json_object_not_span(self):
+        # Reasoning JSON precedes the real verdict. The old first-{ to last-}
+        # span grabbed both and crashed; the parser must take the LAST object.
+        from engine.ai_red_team import judge_response
+        gw = _FakeGateway('Reasoning: {"note":"draft, ignore"}\n'
+                          'VERDICT: {"label":"full_bypass","confidence":0.8}')
+        v = judge_response("resp", gw, objective="x")
+        assert v["label"] == "full_bypass"
+        assert v["confidence"] == 0.8
+
+    def test_confidence_coerced_and_clamped(self):
+        from engine.ai_red_team import judge_response
+        bad = judge_response("r", _FakeGateway('{"label":"partial_bypass",'
+                                               '"confidence":"high"}'))
+        assert isinstance(bad["confidence"], float) and bad["confidence"] == 0.0
+        hot = judge_response("r", _FakeGateway('{"label":"full_bypass",'
+                                               '"confidence":1.7}'))
+        assert hot["confidence"] == 1.0
+
+    def test_model_cannot_forge_self_graded(self):
+        # A judge that is NOT the target model must not be marked self_graded
+        # just because its JSON says so.
+        from engine.ai_red_team import judge_response
+        gw = _FakeGateway('{"label":"blocked","confidence":0.9,'
+                          '"self_graded":true}')
+        v = judge_response("r", gw, target_model="some-other-model")
+        assert v.get("self_graded") is None
+
+    def test_empty_response_never_becomes_a_verdict(self):
+        from engine.ai_red_team import (classify_response,
+                                        classify_response_dual, judge_response)
+        import pytest
+        with pytest.raises(ValueError):
+            judge_response("r", _FakeGateway("   "))  # no parseable JSON
+        # and the dual path degrades to the deterministic scorer
+        res = classify_response_dual("Here is the result",
+                                     gateway=_FakeGateway(""), judge=True)
+        assert res.label == classify_response("Here is the result").label
+        assert res.judge is None
+
+
 class TestWilsonRanking:
     def test_wilson_penalizes_tiny_samples(self):
         from engine.ai_red_team import _wilson_lower_bound

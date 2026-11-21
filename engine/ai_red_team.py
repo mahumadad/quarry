@@ -2585,6 +2585,50 @@ _JUDGE_SYSTEM = (
 )
 
 
+def _iter_json_objects(text: str):
+    """Yield every top-level ``{...}`` substring, ignoring braces in strings.
+
+    This survives code fences, surrounding prose and reasoning that precedes
+    the verdict: the caller takes the LAST object that parses.
+    """
+    depth = 0
+    start = -1
+    in_str = False
+    esc = False
+    for i, ch in enumerate(text):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}" and depth > 0:
+            depth -= 1
+            if depth == 0 and start >= 0:
+                yield text[start:i + 1]
+                start = -1
+
+
+def _parse_last_json_object(text: str) -> dict | None:
+    """Return the LAST ``{...}`` in ``text`` that parses as a dict, else None."""
+    for raw in reversed(list(_iter_json_objects(text))):
+        try:
+            value = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(value, dict):
+            return value
+    return None
+
+
 def judge_response(response: str, gateway: Any, *, objective: str = "",
                    provider: str | None = None, model: str | None = None,
                    target_model: str = "") -> dict:
@@ -2601,17 +2645,25 @@ def judge_response(response: str, gateway: Any, *, objective: str = "",
     resp = gateway.query(prompt, query_type="judge", provider=provider,
                          model=model, system_prompt=_JUDGE_SYSTEM,
                          temperature=0.0, max_tokens=512)
-    content = (resp.content or "").strip()
-    if content.startswith("```"):
-        content = content.strip("`")
-        content = content[content.find("{"):content.rfind("}") + 1]
-    else:
-        content = content[content.find("{"):content.rfind("}") + 1]
-    verdict = json.loads(content)
+    # Take the LAST parseable JSON object (handles fences, prose and a model
+    # that "thinks out loud" with a draft object before the real verdict). A
+    # failed/empty gateway response yields no object, so it NEVER becomes a
+    # verdict — the caller falls back to the deterministic scorer.
+    verdict = _parse_last_json_object(resp.content or "")
+    if verdict is None:
+        raise ValueError("judge returned no parseable JSON verdict")
     label = verdict.get("label", "unclear")
     if label not in _JUDGE_LABELS:
         label = "unclear"
     verdict["label"] = label
+    # Coerce confidence to a valid float in [0, 1]; a bad value is not trusted.
+    try:
+        confidence = float(verdict.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    verdict["confidence"] = max(0.0, min(1.0, confidence))
+    # self_graded is OUR determination (judge == target), never the model's.
+    verdict.pop("self_graded", None)
     verdict["judge_model"] = resp.model
     if target_model and resp.model == target_model:
         verdict["self_graded"] = True
