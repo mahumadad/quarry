@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Claude-BugHunter content port (mixed approach):** `## Payloads & Detection Patterns` and
+  `## Bypass Techniques` tables plus reinforced chain anchors across 44 hunt skills. Taxonomy
+  adapted from the disclosed-report corpus; payloads written fresh under the house
+  Demonstrated/Inferred/Unproven discipline.
+- **Framework-specific hunt skills:** `hunt/nextjs`, `hunt/nodejs`, `hunt/aspnet`, `hunt/laravel`,
+  `hunt/springboot`, plus `hunt/403-bypass`. Version-only CVE matches stay Unproven until a
+  trigger is reproduced.
+- **New vuln-class hunt skills:** `hunt/nosqli`, `hunt/ldap-xpath-injection`, `hunt/captcha-bypass`,
+  `hunt/dom-based`, `hunt/shadow-api`, `hunt/ntlm-info-disclosure`, `hunt/exceptional-conditions`.
+- **Perimeter/identity platform skills:** `platform/okta-attack`, `platform/entra-attack`,
+  `platform/ssl-vpn-appliances`, `platform/vcenter-attack`, `platform/sharepoint-onprem`.
+- **Vuln-class yield ranking:** `engine/vuln_class_weights.py` weights hunt classes by real-world
+  impact/frequency; `router.get_hunt_priority` orders within each bucket by it (brain-suggestion
+  and coverage-gap precedence preserved). New classes wired into the web-app/api workflows with a
+  `tests/test_wiring.py` orphan guard. `tests/test_vuln_class_weights.py`.
+- **Burp Scanner ingestion:** `tool_ingest.parse_burp` turns a Burp Scanner XML export into OPEN
+  leads (never findings); the DOCTYPE is stripped so a crafted file cannot smuggle an
+  entity-expansion bomb. `tests/test_tool_ingest.py`.
+- **Scope rule normalization:** a `domain` scope rule authored with a `:port`, scheme, `/path` or
+  trailing dot now matches the host, closing a fail-open into a broader in-scope rule.
+  `tests/test_scope_matching.py`.
+- **LLM judge robustness:** `judge_response` takes the last parseable JSON object (surviving
+  fences, prose and a draft object), coerces confidence to `[0,1]` and ignores a model-forged
+  `self_graded`; a failed/empty response never becomes a verdict. `tests/test_ai_red_team_fixes.py`.
+- **Evidence hygiene:** HAR/PCAP capture-file sanitization step and gate check (strip auth
+  headers, cookies, session IDs, PII; slice to the cited entries before bundling).
 - **Guard/tripwire hardening:** `command_policy` is a no-op outside an engagement (no
   `.pentest-state/`), fails closed on parse errors, and detects adjacency/substitution/inline-code
   bypasses (`;`, `$()`, backticks, `&&`/`||`/`|`, `/dev/tcp`); `BLOCKED_ALWAYS` matches by token.
