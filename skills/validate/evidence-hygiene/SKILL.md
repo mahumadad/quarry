@@ -77,7 +77,21 @@ feeds_into: [dedup]
    memory reuse (project CLAUDE.md "memory-first"), confirm target identifiers can be swapped
    for `{target_ip}`/`{target_domain}` placeholders without losing the technical structure.
 
-8. **Route the outcome.**
+8. **Sanitize capture files before they enter a deliverable.** Raw session captures carry
+   secrets the write-up never needs. For a **HAR** export, strip `Authorization`/`Cookie`/
+   `Set-Cookie` header values and any token query params, and keep only the entries the finding
+   cites. For a **PCAP**, slice to the relevant stream(s) and scrub credentials/session IDs/PII
+   from the payload — never ship a full capture of unrelated traffic. Keep an unredacted copy
+   only inside the custody-logged evidence store, never in the client bundle (`engine/deliver.py`
+   already excludes `.pentest-state/`).
+   ```bash
+   # HAR: drop sensitive headers, keep only the cited entries
+   jq '.log.entries |= map(.request.headers |= map(select(.name|ascii_downcase|test("authorization|cookie")|not)))' in.har > evidence/clean.har
+   # PCAP: slice to one host:port stream before attaching
+   tcpdump -r full.pcap -w evidence/slice.pcap 'host TARGET and port 443'
+   ```
+
+9. **Route the outcome.**
    - Evidence complete, timestamped, meets the class minimum, tag matches → passes to `dedup`.
    - Evidence missing or insufficient → finding stays at its current status with an explicit
      note of exactly what's missing (not a vague "needs more evidence") and is sent back to the
@@ -93,6 +107,8 @@ feeds_into: [dedup]
       independently re-derived, not copied from the original write-up.
 - [ ] Any transient-state dependency (session, seeded test data) is stated explicitly, not
       implied as universally reproducible.
+- [ ] Any attached capture file (HAR/PCAP) is sanitized of secrets (auth headers, cookies,
+      session IDs, PII) and sliced to the entries the finding cites before it enters a bundle.
 
 ## Gotchas
 
