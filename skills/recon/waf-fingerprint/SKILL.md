@@ -86,10 +86,26 @@ feeds_into: []
    is a different situation than one that's actively blocked — note explicitly which was
    observed, don't assume block mode just because a vendor was identified.
 
+8. **Hunt the origin IP behind the WAF/CDN — the most complete bypass.** If the origin answers
+   directly, the WAF is out of the path entirely. Look for it, then validate (in-scope only;
+   hitting the origin is the same scope decision as any other asset):
+   ```bash
+   # historical DNS / cert-transparency → IP correlation
+   curl -s "https://crt.sh/?q=%25.target.com&output=json" | jq -r '.[].common_name' | sort -u
+   # SecurityTrails / ViewDNS / dnsdumpster history; Censys/Shodan/FOFA by favicon hash or unique header
+   # common direct-origin subdomains: origin, direct, cpanel, mail, ftp, dev, staging, backend
+   # dedicated tools: CloudFail, CloudFlair (cert-based), HatCloud
+   # validate a candidate origin answers the real app (not a shared-host default):
+   curl -k --resolve target.com:443:ORIGIN_IP https://target.com/ -I
+   ```
+   Modern setups often restrict origin to CDN IP ranges + mTLS / authenticated origin pulls —
+   confirm the origin still answers publicly before claiming a bypass.
+
 ## Tooling
 
 `wafw00f -a`, `curl -I`/`curl -i` for header and block-page comparison, `nmap --script
-ssl-cert,http-waf-detect,http-waf-fingerprint`.
+ssl-cert,http-waf-detect,http-waf-fingerprint`. Origin discovery: `crt.sh`/`censys`/`shodan`,
+`CloudFail`, `CloudFlair`, `curl --resolve` for origin validation.
 
 ## Validation gate
 

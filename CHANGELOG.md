@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Modern WAF-evasion techniques (2026 research):** `defense_evasion.py` gains
+  the body-size inspection-window bypass (`oversized_body_pad` / `WAFBypassEngine.
+  generate_oversized_body`, the nowafpls technique both field guides rank #1),
+  Cyrillic/Latin `homoglyph` and multi-character-entity (`&nvlt;`/`&nvgt;`)
+  transforms, and the full trusted-client-IP header set (adds `True-Client-IP`,
+  `CF-Connecting-IP`, `X-Originating-IP`, `Forwarded`). Skills document RFC 2231
+  `filename*` (CVE-2026-104269) in `file-upload`, HTTP/2 Stream Parser Confusion
+  (SPCA, WWW 2026) in `http-smuggling`, the body-size/method-flip bypass in
+  `parser-desync`, and origin-IP-behind-WAF discovery in `waf-fingerprint`.
+  `tests/test_defense_evasion.py`.
 - **Noise governor (`engine/pacing.py`):** an operator-chosen pacing dial
   (`off`/`quiet`/`balanced`/`aggressive`) that injects each tool's rate ceiling
   (`nmap --max-rate`, `ffuf -rate -p`, `nuclei -rl/-c`, `httpx/katana -rate-limit`,

@@ -23,6 +23,9 @@ from engine.defense_evasion import (
     comment_split,
     encoding_chain,
     header_spoof,
+    homoglyph,
+    multichar_html_entities,
+    oversized_body_pad,
     whitespace_padding,
 )
 from engine.policy import PolicyDenied, PolicyEngine
@@ -339,3 +342,61 @@ class TestDefenseEvaderFacade:
         plan = dv.next_plan("payload")
         assert plan["vendor"] == "generic"
         assert plan["strategy"] in WAF_VENDORS["generic"]["bypass_order"]
+
+
+# -- Modern WAF-evasion techniques (2026 research) -----------------------------
+
+class TestModernWafBypass:
+    """Techniques both current field guides rank highest: body-size inspection
+    window (nowafpls), parser-safe obfuscation, and the full trusted-IP set."""
+
+    def test_oversized_body_pushes_payload_past_window_form(self):
+        # A WAF that only inspects the first N KB never sees a payload placed
+        # after the junk. The real payload must sit past the window.
+        out = oversized_body_pad("' OR 1=1--", pad_to=8192)
+        assert len(out) >= 8192
+        assert out.rstrip().endswith("' OR 1=1--")
+        assert "' OR 1=1--" not in out[:8000]   # outside the inspection window
+        assert "&" in out                        # form-shaped padding
+
+    def test_oversized_body_json_stays_parseable(self):
+        import json as _json
+        out = oversized_body_pad('admin', pad_to=2048, content_type="json")
+        assert len(out) >= 2048
+        doc = _json.loads(out)                    # still valid JSON
+        assert doc["q"] == "admin"
+        assert out.index('"q"') > 1500            # payload key past the window
+
+    def test_oversized_body_padding_is_benign(self):
+        # Filler must not itself carry signature characters that trip a rule.
+        out = oversized_body_pad("x", pad_to=4096)
+        window = out[:4000]
+        assert not any(c in window for c in "<>'\";()")
+
+    def test_homoglyph_swaps_ascii_for_lookalikes(self):
+        out = homoglyph("alert")
+        assert out != "alert"
+        assert any(ord(c) > 127 for c in out)     # non-ASCII look-alikes
+
+    def test_multichar_entities_rebuild_tags(self):
+        out = multichar_html_entities("<script>")
+        assert "&nvlt;" in out and "&nvgt;" in out
+        assert "<" not in out and ">" not in out
+
+    def test_new_transforms_registered_in_variants(self):
+        be = WAFBypassEngine(None)
+        names = {v["technique"] for v in be.generate_bypass_variants("<a>b</a>")}
+        assert {"homoglyph", "multichar_html_entities"} <= names
+
+    def test_trusted_ip_header_set_is_complete(self):
+        be = WAFBypassEngine(None)
+        keys = {k for d in be.generate_header_bypasses() for k in d}
+        for h in ("X-Forwarded-For", "X-Real-IP", "X-Client-IP",
+                  "True-Client-IP", "CF-Connecting-IP", "X-Originating-IP",
+                  "Forwarded"):
+            assert h in keys, h
+
+    def test_oversized_body_method_on_engine(self):
+        be = WAFBypassEngine(None)
+        out = be.generate_oversized_body("payload", pad_to=16384)
+        assert len(out) >= 16384 and out.rstrip().endswith("payload")

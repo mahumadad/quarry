@@ -107,6 +107,8 @@ chains_with: [cache-poisoning, session-management, host-header]
 
 7. **Escalate only within scope/gate:** capturing another real user's request (classic smuggling impact: session hijacking) requires sending many requests in a race window against shared infrastructure — this is destructive/impactful to other users. Treat as a human-gated action; demonstrate with your own second test connection/account first (self-poisoning PoC) before any multi-victim attempt.
 
+8. **HTTP/2 Stream Parser Confusion (SPCA, WWW 2026) — WAF evasion, not queue poisoning.** Distinct from H2.CL/H2.TE: the request stays RFC-compliant, but the HTTP/2 **stream priority / dependency tree** is shaped so the edge WAF and the origin reassemble the logical request differently, and the malicious body reaches the origin without inspection. A single skewed/k-ary/unbalanced dependency topology lands ~45-50%; sending three topologies concurrently reported **>89%** against Cloudflare / AWS WAF / Fortinet. Needs an HTTP/2 client with explicit stream-priority control (Burp's HTTP/2 with hand-set weights, or a custom `h2` client — `curl --http2` alone does not expose priority trees). Treat as research-grade: confirm the payload reached the origin (reflected/behavioral diff), and keep it a blocked-then-passes A/B against a benign canary first.
+
 ## Tooling
 
 - Burp Suite extension **HTTP Request Smuggler** (automated CL.TE/TE.CL/TE.TE detection + exploit generation).

