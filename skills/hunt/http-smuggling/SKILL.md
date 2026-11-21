@@ -114,6 +114,54 @@ chains_with: [cache-poisoning, session-management, host-header]
 - `h2csmuggler` for HTTP/2 downgrade testing.
 - Raw `openssl s_client` / `nc` for scripted socket-level control when Burp isn't available.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por discrepancia de parseo front-end vs back-end. `curl` normaliza los
+headers conflictivos y no sirve: usar raw socket (Burp raw / `openssl s_client` / `nc`). Timing solo
+es Inferred; Demonstrated exige la captura del request de smuggling + un probe de seguimiento cuyo
+response quede contaminado/misrouteado.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| CL.TE | `Content-Length` corto + `Transfer-Encoding: chunked` con `0\r\n\r\n` + bytes extra | Front usa CL, back usa TE → smuggle el sobrante |
+| TE.CL | chunked cuyo CL cubre solo parte del body | Front usa TE, back usa CL → leftover como request |
+| TE.TE obfuscation | `Transfer-Encoding: xchunked`, `TE : chunked` (espacio), `TE:[tab]chunked`, header duplicado | Un hop ignora el TE → degrada a CL.TE/TE.CL |
+| H2.CL / H2.TE | CL/TE inyectado sobre HTTP/2 que desync al downgrade a HTTP/1.1 | H2 no tiene TE; el framing h2 choca con CL |
+| Response queue poison | smuggle + probe normal (`/robots.txt`) en la misma conexión | El probe recibe contenido del request smuggleado |
+
+Surface signals que delatan la clase antes de craftear:
+- `Via`, `X-Cache`, `Server` que delatan reverse proxy/CDN (nginx, HAProxy, Varnish, Cloudflare, ALB) frente a un origin distinto.
+- HTTP/1.1 y HTTP/2 ambos soportados (`Alt-Svc`, ALPN h2) → candidato a downgrade smuggling.
+- Arquitectura load-balanced con keep-alive proxy↔origin (default en la mayoría).
+- Comportamiento inconsistente en requests malformados entre el primer response y los siguientes de la misma conexión.
+
+```bash
+# CL.TE raw (bytes exactos; curl NO sirve, normaliza los headers)
+printf 'POST / HTTP/1.1\r\nHost: target.com\r\nContent-Length: 13\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nSMUGGLED' \
+  | openssl s_client -connect target.com:443 -quiet -ign_eof
+```
+
+```bash
+# triage automatizado (Inferred) antes de craftear a mano
+# Burp "HTTP Request Smuggler": suite estándar CL.TE/TE.CL/TE.TE con medición de timing
+h2csmuggler.py -x https://target.com --test        # downgrade H2→H1
+```
+
+## Bypass Techniques
+
+Agrupadas por la normalización que evaden; probar la familia completa antes de declarar sin desync.
+El salto a captura de datos de otros usuarios es destructivo (race sobre infra compartida) y requiere
+gate del operador: demostrar primero con una segunda conexión/cuenta propia (self-poison).
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Precedencia TE sobre CL (RFC 7230) | Enviar ambos headers; probar cuál hop honra cuál | Base de CL.TE/TE.CL |
+| Dedup/strip de TE en el edge | Ofuscar: `xchunked`, espacio/tab antes del colon, header duplicado, `chunked, identity` | Un hop deja de reconocer el TE |
+| Normalización HTTP/1 en el edge | Downgrade desde HTTP/2 (H2.CL/H2.TE) | El edge valida h1 pero el framing h2 lo elude |
+| Front-end auth/WAF | Smuggle un segundo request que el back procesa sin pasar por el edge | Alcanza endpoints bloqueados en el borde |
+| `curl` "arregla" el request | Raw socket (`openssl s_client`/`nc`/Burp raw, "Update CL" off) | Un test con curl que "no muestra nada" es inconcluso, no negativo |
+| CDN parcheado para TE/CL duplicado | Probar H2 downgrade o alcanzar el origin directo (en scope) | Negativo en el edge ≠ origin seguro |
+
 ## Root Causes
 
 - Front-end and back-end servers (or library versions) disagree on how to parse a request carrying both `Content-Length` and `Transfer-Encoding`, violating RFC 7230's precedence rule (Transfer-Encoding should always win, but many implementations get this wrong or allow header obfuscation to flip it).

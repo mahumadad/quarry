@@ -93,6 +93,46 @@ chains_with: [host-header, http-smuggling, clickjacking]
 - `curl -i` with `Age`/`X-Cache` grepping for fast iteration.
 - `httpx -ehl` (extract headers) at scale across many paths to find caching CDNs quickly.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por primitiva de envenenamiento. La reflexión en la respuesta de
+envenenamiento NO es poisoning; `Demonstrated` exige una segunda request independiente que
+recupere el payload desde cache (`X-Cache: HIT` / `Age` creciente). Shared prod cache → gate del
+operador antes de dejar la entrada viva.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Unkeyed header | `X-Forwarded-Host: evil.com`, `X-Forwarded-Scheme`, `X-Original-URL`, `X-Rewrite-URL` reflejado | Header fuera de la cache key envenena a todos |
+| Fat GET / param cloaking | GET con body o param duplicado que el origin procesa pero la key ignora | Discrepancia key(URL) vs processing(body/param) |
+| Key normalization mismatch | `//page`, `/page%20`, `/page?utm_x=1` | CDN y origin discrepan sobre el path |
+| Cache deception | `/account/profile.css`, `/account/profile/x.js` autenticado | Guardar la respuesta privada bajo URL "estática" |
+| CPDoS (HHO) | Header oversize (`A*9000`) que el CDN pasa y el origin rechaza | Error cacheado como respuesta "buena" |
+| CPDoS (HMC/HMO) | Meta char en header (`\r\n`), método override | Origin 400/500 cacheado y servido a todos |
+
+Surface signals que delatan la clase antes de atacar:
+- `X-Cache`, `CF-Cache-Status`, `Age`, `Via`, `X-Served-By`, banners CDN (Cloudflare/Fastly/Akamai/Varnish).
+- `Cache-Control: public, max-age=...` en páginas de aspecto dinámico.
+- Contenido de headers (`X-Forwarded-Host`, `User-Agent`) reflejado en el HTML.
+- Extensiones estáticas en rutas dinámicas (`/account/settings.json`, `/profile.css`).
+
+```bash
+# unkeyed header: envenenar con cache-buster propio, luego leer SIN el header
+curl -s -i "https://target.com/?cb=poison1" -H "X-Forwarded-Host: evil.com" | grep -i evil.com
+curl -s -i "https://target.com/?cb=poison1" | grep -i evil.com   # HIT con el payload = Demonstrated
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar no-vulnerable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Cache key incluye `Host` | Probar por apex y por cada subdominio/prefijo de ruta | Comportamiento difiere per-route |
+| `no-store` ausente en errores | Variantes CPDoS (HHO/HMC/HMO) | Error cacheado como 200 servido a todos |
+| Param keyed | Pivotar a header unkeyed (Param Miner "Guess headers") | El header no entra en la key aunque el param sí |
+| Normalización de path | Doble slash, `%2f`, `%2e%2e`, espacio encoded | El CDN normaliza distinto que el app |
+| CDN overridea headers del origin | Verificar enforcement real, no solo leer `Cache-Control` | `private/no-store` puede no aplicarse end-to-end |
+
 ## Root Causes
 
 - CDN/cache-key configuration omits headers that the origin application uses to render dynamic content (classic "unkeyed input").

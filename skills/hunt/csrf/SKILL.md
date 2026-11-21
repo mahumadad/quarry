@@ -121,6 +121,53 @@ chains_with: [xss, cors, open-redirect]
   SameSite enforcement; curl cannot substitute for this step.
 - `curl` — for the token-binding and strip tests prior to building the browser PoC.
 
+## Payloads & Detection Patterns
+
+La familia son **shapes de request y contextos de cookie**, no payloads clásicos. Un `curl` que
+pasa con solo la cookie de sesión es señal, no prueba: curl no enforce SameSite/Origin. La prueba
+a `Demonstrated` es un PoC HTML cross-origin ejecutado en un browser real con sesión víctima, más
+la verificación server-side de que el estado cambió.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Token strip | Mismo request state-changing sin el campo `csrf_token` | ¿Validación de token ausente? (confirmar con PoC) |
+| Cross-origin auto-POST | `<form action=target method=POST onload=submit()>` en otro origen | Prueba real bajo SameSite/Origin del browser |
+| GET state change | `<img src="https://target/account/delete?confirm=1">` | Peor caso: sin JS, pasa bajo SameSite=Lax (top-level GET) |
+| Content-type dodge | `<form enctype="text/plain">` con JSON embebido en name/value | Enviar "JSON" cross-origin sin preflight CORS |
+| Token no atado a sesión | Token de sesión A reusado en request de sesión B | Validación solo de formato, no de binding |
+| Method override | `X-HTTP-Method-Override: POST` sobre GET | Dodge de middleware CSRF scopeado a POST |
+| SameSite context | `Set-Cookie` sin `SameSite` / `=None` sin token compensatorio | Contexto que habilita el envío cross-site |
+
+Surface signals que delatan la clase antes de probar:
+- Acciones state-changing (POST/PUT/PATCH/DELETE) sin campo anti-CSRF, o token presente nunca validado.
+- `Set-Cookie` de sesión sin `SameSite=Strict/Lax`, o `=None` sin token compensatorio.
+- Validación que solo chequea presencia del token, no que matchee la sesión.
+- Acciones state-changing reachable vía `GET` (forjeables con `<img src>`).
+- `Referer`/`Origin` como única defensa CSRF.
+- APIs JSON-only asumidas "safe" sin rechazar realmente otros content-types.
+
+```bash
+# strip del token: ¿cambia el estado sin él? (curl manda la cookie siempre → señal, no prueba)
+curl -s -o /dev/null -w "%{http_code}\n" -b "session=$S" -X POST https://target/api/account/email \
+  -d "new_email=me@test.local"
+# SameSite de la cookie de sesión
+curl -sI https://target/login | grep -i set-cookie | grep -i samesite   # ausente/None = explotable
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa CSRF evadida; la prueba final siempre es el PoC cross-origin en browser.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Token anti-CSRF presente | Strip del token / omitirlo | Si valida solo presencia o no valida, pasa |
+| Token no bound a sesión | Cosechar token propio válido y reusarlo | Chequea formato, no ownership |
+| `SameSite=Lax` | State change vía GET (top-level navigation) | Lax permite GET de navegación; forzar la acción por GET |
+| Middleware scopeado a POST | `X-HTTP-Method-Override`, verb tunneling | El middleware no cubre el verbo real |
+| "JSON-only = safe" | `enctype="text/plain"` con JSON en el payload | Form HTML envía sin preflight si el server acepta text/plain |
+| Referer/Origin como defensa | Omitir Referer (meta referrer), o match parcial/wildcard | Header no siempre enviado o mal comparado |
+| Double-submit cookie | Requiere XSS/cookie-injection de subdominio | No standalone; reportar como chain |
+
 ## Root Causes
 
 - No anti-CSRF token implemented on state-changing endpoints.

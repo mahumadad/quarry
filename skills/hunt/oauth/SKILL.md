@@ -109,6 +109,57 @@ chains_with: [host-header, session-management, crlf-injection, jwt, saml]
 - `curl` + `jq` for discovery doc and token endpoint scripting.
 - Burp extension **Autorize** / **Auth Analyzer** for automated scope/role diffing across accounts.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por fallo de implementación. La prueba exige un code/token real
+entregado a un endpoint que controlas (webhook/token OOB), no "la regex se ve laxa".
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| redirect_uri bypass | `...@evil.com/cb`, `app.target.com.evil.com`, `//evil.com`, `/cb/../../logout`, `?next=https://evil` | Robar code/token a dominio atacante |
+| state CSRF | Flujo sin `state`, o `state` no ligado a sesión / no single-use | Account-linking / login CSRF |
+| Scope escalation | `scope=openid profile email admin offline_access` | Obtener scopes sin re-consent |
+| Code replay | Reenviar el mismo `code` al `/token` dos veces | Code no single-use |
+| Client mix-up | Code de Client A → `/token` de Client B | IdP no liga el code a client_id+redirect_uri |
+| Implicit leakage | `response_type=token`/`id_token` | Token en el fragment, leakeado por Referer/scripts |
+| PKCE downgrade | Omitir `code_challenge` en client público | Interceptación de code en el dispositivo |
+| id_token confusion | Presentar `id_token` donde se espera `access_token`; tamper `aud`/`iss`/`nonce` | id_token front-channel → acceso API |
+| prompt=none | `prompt=none` + `redirect_uri` laxo | Aserción silenciosa de sesión IdP a callback atacante |
+
+Surface signals que delatan la clase antes de probar:
+- Botón "Continue with Google/Microsoft/GitHub"; requests a `/authorize`, `/oauth2/token`, `.well-known/openid-configuration`.
+- Params `redirect_uri`, `return_to`, `continue`, `state`, `client_id`, `scope`, `response_type`.
+- Múltiples apps first-party sobre un mismo Authorization Server (client confusion).
+- `response_type=token`/`id_token` → token en el fragment.
+- `/register` abierto (dynamic client registration).
+
+```bash
+# map del flujo: endpoints y flows soportados
+curl -s https://idp.target.com/.well-known/openid-configuration \
+  | jq '{authorization_endpoint, token_endpoint, response_types_supported, scopes_supported}'
+# redirect_uri strictness con host atacante marcado (confirmar entrega en el callback propio)
+curl -s -i "https://idp.target.com/authorize?client_id=X&response_type=code&scope=openid&state=zz99&redirect_uri=https://app.target.com.evil-oast.site/cb" \
+  | grep -i '^location:'
+```
+
+Vector ciego: un code/token filtrado aterriza en un endpoint atacante; confírmalo como recibido en
+un callback que controlas (webhook/OAST con token), no por inferencia de una validación laxa.
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; muchos IdP grandes ya fuerzan exact-match, así que esto pesa
+más en Authorization Servers custom/self-hosted.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Exact-match redirect_uri | Path traversal `/cb/../../x`, trailing slash, case, doble param `redirect_uri=` | Parser confusion (ver parameter-pollution) |
+| Allowlist de host | `@`-trick `app@evil`, `#`-trick `evil#@app`, subdominio `app.target.com.evil`, backslash | Discrepancia validador vs navegador |
+| redirect_uri estricto | Open redirect en el `/cb?next=` propio (segundo hop) | Code/token leak por Referer; muere con `Referrer-Policy: no-referrer` |
+| state/CSRF presente | Verificar binding a sesión y single-use, no solo presencia | `state`-less puede ser seguro si hay otra anti-CSRF cookie |
+| Consent de scope | Pedir scopes extra y diff de claims `scope`/`aud`/`roles` en el JWT | IdP que no re-valida server-side |
+| Validación de id_token | Tamper `aud`/`azp`/`iss`/`nonce` (firma vía skill jwt) | Client que ignora `aud` acepta token de otro client del mismo IdP |
+| PKCE | Omitir `code_challenge` en client público | Si el IdP emite code igual, interceptación viable |
+
 ## Root Causes
 
 - `redirect_uri` validated by substring/prefix match instead of exact string match against a registered allow-list.

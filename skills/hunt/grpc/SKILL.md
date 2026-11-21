@@ -87,6 +87,59 @@ chains_with: [idor, auth-bypass, info-disclosure, rce]
 - `protoc --descriptor_set_out` — build protosets from recovered .proto files.
 - `nuclei -tags grpc` — quick exposure/misconfig triage.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por capa de la pila gRPC (transporte, metadata/authN, mensaje/authZ,
+campos escalares). authN vive en metadata; authZ de objeto vive en el handler y suele faltar.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Reflection enum | `grpcurl -plaintext t:50051 list` / `describe` | Disclosure del esquema completo |
+| No-auth probe | call sin metadata `authorization` | Servicios internal-trust que responden sin auth |
+| Token confusion | token expirado / de otro service / otra audience | Confused-deputy entre microservicios |
+| Message-level IDOR | swap `{"id":"OTHER_TENANT"}` con token propio | authZ ausente a nivel objeto |
+| Transport downgrade | `-plaintext` en puerto TLS-expecting, h2c | CWE-319: token/datos en claro |
+| Scalar injection | SQLi/SSTI/cmd en campos `string`/`bytes` del `-d` | Mismas clases que REST sobre protobuf |
+| Decompression bomb | `grpc-encoding: gzip` con mensaje enorme | DoS por descompresión |
+| grpc-web divergence | mismo método vía grpc-web vs nativo | Un path salta auth/rate-limit |
+
+Surface signals que delatan la clase antes de probar:
+- `content-type: application/grpc` sobre HTTP/2, o h2c (cleartext) en 8080/50051.
+- Endpoints `application/grpc-web` en la web app (auth distinta a la nativa).
+- Reflection habilitada (`list` devuelve servicios) → mapa completo + finding info/low por sí solo.
+- App móvil/SPA con clientes `.proto` → esquema reconstruible aunque no haya reflection.
+
+```bash
+grpcurl -plaintext target:50051 list                          # reflection → disclosure de esquema
+grpcurl -plaintext target:50051 describe package.Svc.Method   # firma del mensaje
+# IDOR de objeto: identidad propia, objeto ajeno (diff session-context user_a/user_b)
+grpcurl -H "authorization: Bearer USER_B" target:443 \
+  billing.Billing/GetInvoice -d '{"invoice_id":"USER_A_INV"}'
+```
+
+```bash
+# no-auth y downgrade de transporte
+grpcurl -plaintext target:50051 package.Svc/Method -d '{"id":"1"}'   # sin metadata = ¿responde?
+grpcurl -plaintext target:443   package.Svc/Method -d '{"id":"1"}'   # plaintext en puerto TLS = CWE-319
+```
+
+Vector ciego (inyección en campo `string`/`bytes` que gatilla fetch o exec server-side): incrusta
+el `payload_url` de un token OAST (`engine.oast`) en el `-d` y correlaciona el callback para llegar
+a `Demonstrated`; sin hit, queda **Inferred**.
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar no-vulnerable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Auth "ya validada" en gateway | Golpear el servicio gRPC directo (ingress mal config) | El handler confía en el gateway y no revalida objeto |
+| Reflection deshabilitada | Reconstruir protoset (mobile decompile, grpc-web JS, GitHub) | `protoc --descriptor_set_out` → protoset |
+| TLS esperado | `-plaintext` / upgrade h2c | Algún LB acepta cleartext en el tramo interno |
+| Validación en el proxy grpc-web | Usar el canal gRPC nativo (o viceversa) | Normalización divergente salta checks |
+| Rate-limit por método | Variar método/streaming, distribuir carga | Los límites suelen ser por-endpoint |
+| Tipado protobuf "seguro" | Inyectar en campos `string`/`bytes` | El tipo no sanea el contenido del campo |
+
 ## Validation Gate (minimum proof)
 
 - **Schema disclosure:** `list`/`describe` output captured from the live
@@ -122,3 +175,8 @@ chains_with: [idor, auth-bypass, info-disclosure, rce]
    movement between microservices (chain-multi-app).
 3. Injection in a string field → hand to sqli/rce with the working
    gRPC transport as the delivery mechanism (payload via `-d`).
+4. Cleartext/h2c transport carrying tokens → capture a live token off the wire
+   and test replay against other services (feeds auth-bypass/chain-analysis).
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.

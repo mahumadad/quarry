@@ -92,6 +92,49 @@ chains_with: [idor, broken-access-control, api-abuse, mass-assignment]
   interpretation table; use it to keep the matrix auditable.
 - A small diff harness (python `difflib` / JSON structural diff) for normalized body comparison.
 
+## Payloads & Detection Patterns
+
+Guía de caza: aquí el "payload" es la primitiva de replay/diff, no una cadena de inyección. La
+matriz localiza celdas; la prueba enfocada va a `idor`/`broken-access-control`. Una celda
+`200 + size-diff` es candidata (`Inferred`); solo es `Demonstrated` cuando el contenido es dato
+real de otro owner.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Identity swap | Reemitir R cambiando solo cookie/bearer (`A→B→highpriv→anon`) | Detectar celdas endpoint×identidad que filtran |
+| Anonymous row | La misma R sin credencial | Peor caso: dato del owner sin auth |
+| Method-family sweep | Barrer `GET/HEAD/OPTIONS` libre; `PUT/POST/PATCH/DELETE` solo con gate | Cobertura read-only libre; mutaciones gated |
+| Normalization templating | Plantillar CSRF/timestamp/request-id/nonce/ETag/email propio | Evitar falsos diffs; registrar las reglas usadas |
+| Cross-owner ID probe | Usar un ID real de otro owner (no aleatorio) | Delata leak enmascarado como 404 |
+| Owner-baseline diff | Comparar shape/size vs respuesta legítima del owner | Candidato → escalar a `idor` para prueba |
+
+Surface signals que delatan que la clase aplica:
+- Corpus de requests (HAR/proxy/crawl/OpenAPI/GraphQL) + ≥2 identidades provisionadas.
+- App multi-tenant/multi-rol donde la pregunta es *qué* celdas filtran, no si una ID filtra.
+- Familias de endpoints (detail/list/export/bulk/GraphQL field) sin guard común.
+- 404 para objetos no autorizados → posible masking de 403.
+
+```bash
+# celda del matrix: la misma R bajo cada identidad, solo cambia la auth
+for id in A B highpriv anon; do
+  code=$(curl -s -o "resp_$id.json" -w "%{http_code}" \
+    ${COOKIE[$id]:+-b "${COOKIE[$id]}"} "https://target/api/orders/1042")
+  echo "$id -> $code"
+done
+```
+
+## Bypass Techniques
+
+Agrupadas por el control que evaden; cada celda confirmada se promueve a su skill dedicada.
+
+| Control evadido | Técnica | Notas |
+|---|---|---|
+| Guard per-route (no per-objeto) | Swap de identidad mismo método/path | Celda 200 con dato del owner bajo otra identidad |
+| Ownership check | ID real cross-owner, no aleatorio | El 404-as-403 solo cae con ID válido ajeno |
+| Hardening parcial de familia | Barrer siblings (list/export/bulk/GraphQL) del endpoint endurecido | Uno endurecido, el hermano no |
+| "Is authenticated" ≈ "is authorized" | Fila `anon` sobre todo el corpus, primero | Dato del owner sin credencial = crítico |
+| Normalización agresiva oculta el leak | Registrar reglas; no plantillar el campo que filtra | Falso negativo por over-normalization |
+
 ## Root Causes
 
 - Authorization enforced per-UI or per-route but not per-object/per-tenant at the data layer.

@@ -157,6 +157,57 @@ chains_with: [idor, jwt, csrf, race-condition]
   creds on fingerprinted products.
 - Burp Suite — session token analysis (Sequencer) for entropy/predictability testing.
 
+## Payloads & Detection Patterns
+
+Una familia por vector de bypass del flujo de auth. Para brute/default-creds el gate de scope del
+proyecto aplica (puede disparar lockouts a usuarios reales); un barrido OTP solo es `Demonstrated`
+mostrando sistemáticamente la ausencia de rate-limit/lockout, no un acierto por azar.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Forced browsing | `/admin`, `/wp-admin`, `/api/admin/users` sin sesión; variantes `/admin/`, `//admin`, `/admin%20`, `/admin/..` | Alcanzar recurso protegido / dodge de guard |
+| Default creds | `admin:admin`, `admin:changeme`, defaults documentados del producto fingerprinteado | Acceso con credencial no rotada |
+| Reset-link poison | Header `Host: evil.test`, `X-Forwarded-Host`, `X-Original-Host` en `/password/reset` | Link de reset apuntando a dominio atacante |
+| Reset-token abuse | Reusar token consumido; comparar tokens de resets consecutivos | Token predecible / no invalidado |
+| MFA step-skip | Endpoint post-auth con solo el artefacto de step-1 (password) | Saltar el paso MFA que asume secuencia |
+| OTP/MFA brute | Barrido `seq 0 9999` contra `/mfa/verify` sin rate limit | Espacio OTP corto sin lockout |
+| Session fixation | Reusar el session ID pre-login tras autenticar | ID no regenerado en cambio de privilegio |
+| Lockout bypass | Rotar `X-Forwarded-For: 10.0.0.$i` por intento | Lockout atado a IP spoofeable |
+
+Surface signals que delatan la clase antes de probar:
+- Paneles admin en rutas predecibles sin redirect a login.
+- Reset con token en URL, corto, predecible, o no invalidado tras uso/expiry.
+- Flujos multi-paso donde step 2/3 es alcanzable sin completar el previo.
+- Route guards solo client-side (SPA redirige a `/login`, la API responde sin sesión).
+- "Remember me"/API keys/session IDs de baja entropía o estructura predecible.
+
+```bash
+# auth vs no-auth sobre la misma ruta protegida (sin diff y con data real = bypass)
+curl -s https://target/api/admin/users -b "session=$SESSION" -o auth.json
+curl -s https://target/api/admin/users -H "Cookie:" -o noauth.json
+diff auth.json noauth.json
+
+# dodge de guard por variación de ruta
+for p in "/admin" "/admin/" "/Admin" "/admin%20" "/admin/.." "//admin"; do
+  curl -s -o /dev/null -w "$p -> %{http_code}\n" "https://target$p"
+done
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa de auth evadida; probar la familia completa antes de declarar el flujo
+seguro.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Guard por ruta exacta | Variantes de casing/encoding/trailing (`/Admin`, `/admin/`, `//admin`, `/admin%20`) | Router normaliza distinto al guard |
+| Guard por verbo | POST/PUT/HEAD/OPTIONS/TRACE sobre ruta que 403 en GET | Middleware scopeado a GET |
+| Host locked en reset | `X-Forwarded-Host`/`X-Original-Host` cuando `Host` está fijo | Frameworks confían el proxy header |
+| Secuencia MFA server-side | Hit directo al endpoint post-auth con cookie de step-1 | Falta un flag "MFA pending" que bloquee |
+| Rate limit / lockout por IP | Rotar `X-Forwarded-For`, espaciar, distribuir origen | Lockout atado a IP, no a cuenta |
+| Route guard client-side | Llamar la API directo, sin pasar por la UI | Guard en JS no re-verifica server-side |
+| Token de reset "en URL" | Confirmar single-use/expiry/entropía antes de reportar | Token largo random single-use es patrón válido, no finding |
+
 ## Root Causes
 
 - Access-control decisions made only in client-side routing/UI, not re-verified server-side per

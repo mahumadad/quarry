@@ -85,6 +85,45 @@ chains_with: [subdomain-takeover, session-management, oauth]
 - Burp Suite's built-in **Clickjacking PoC generator** (right-click a response > "Engagement tools" > "Generate CSRF PoC" has a clickjacking variant, or use the manual template above).
 - Browser DevTools for coordinate alignment and verifying the click actually reaches the framed element (not blocked by `pointer-events` or frame breakout).
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por primitiva de framing/UI-redress (no inyección). Una página
+enmarcable sin acción state-changing de un clic es nota de hardening, no finding; `Demonstrated`
+exige que el clic aterrice y dispare la acción sensible en cuenta de prueba.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Missing frame protection | Sin `X-Frame-Options` ni CSP `frame-ancestors` | Página enmarcable directamente |
+| Deprecated directive | `X-Frame-Options: ALLOW-FROM ...` | Ignorado por navegadores modernos → sin protección real |
+| JS framebusting only | `if(top!==self) top.location=self.location` como única defensa | Bypasseable (sandbox, double-frame) |
+| Invisible overlay | iframe `opacity:0.0001` sobre botón bait alineado al target | UI redressing de acción sensible |
+| Double-framing | Target anidado en dos iframes | Rompe busting que asume un solo nivel |
+| Sandbox neutralization | `<iframe sandbox="allow-forms allow-scripts" ...>` | Desactiva la top-nav del busting JS |
+| Drag-and-drop / multi-click jacking | Varios iframes invisibles en distinto z-index/posición | Cruza targets ocultos en secuencia |
+
+Surface signals que delatan la clase antes de atacar:
+- Sin `X-Frame-Options` y sin CSP `frame-ancestors` en páginas sensibles.
+- `X-Frame-Options: ALLOW-FROM ...` presente (deprecado, sin efecto en navegadores modernos).
+- Framebusting JS como única defensa.
+- Acciones de un clic: "Delete account", "Confirm payment", "Enable 2FA", "Change email", OAuth "Allow".
+
+```bash
+# triage rápido de headers de framing
+curl -s -I https://target.com/account/settings | grep -i -E 'x-frame-options|content-security-policy'
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar no-vulnerable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Framebusting JS (`top.location=`) | Atributo `sandbox` sin `allow-top-navigation`, double-framing | Neutraliza el script manteniendo render/click |
+| Busting por `onbeforeunload`/`window.open` | Flags de sandbox que bloquean popups | — |
+| `X-Frame-Options: ALLOW-FROM` | Enmarcar igual: los navegadores modernos lo ignoran | Página efectivamente desprotegida |
+| CSRF token en la acción | Framing solo si la cookie de sesión viaja; token server-side sigue frenando | Revisar ambos controles juntos |
+| Enforcement varía por engine | Probar desktop vs móvil | Diferencias en frame/sandbox por navegador |
+
 ## Root Causes
 
 - `X-Frame-Options` header absent entirely (modern browsers no longer universally require it if CSP is present, but many apps have neither).

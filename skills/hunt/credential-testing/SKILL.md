@@ -125,6 +125,53 @@ For each credential issue found:
 - **Spray success:** evidence = successful auth request/response (redacted
   password after confirmation), account type, data accessible
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por primitiva de prueba de credencial. Disciplina obligatoria —
+listas ACOTADAS, nunca fuerza bruta masiva; documentar la política de lockout ANTES de cualquier
+spray; human gate por ronda; máx 3 reintentos por comando (project CLAUDE.md). Calidad sobre
+volumen: una lista de OSINT bien construida vale más que un diccionario gigante que bloquea cuentas.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Default creds | Pares por tecnología (`admin:admin`, `tomcat:tomcat`, `guest:guest`) | Acceso directo si quedó el default (máx 5/cuenta, parar en lockout) |
+| Password spray | UNA password común por ronda sobre todos los usuarios (`Summer2026!`, `Welcome1!`) | Evadir lockout por-cuenta; 1/cuenta/ventana |
+| Credential stuffing | Lista ACOTADA de pares de breach conocido contra el login | Reuso cross-service; nunca dumps masivos |
+| Hash crack feasibility | `hashid`/`hashcat --identify` + modo; wordlist acotada | Factibilidad, no cracking exhaustivo |
+| Policy probe (NIST 800-63B) | Registrar con password corta/larga/breached (`Password1`) | Medir controles vs 800-63B |
+| Lockout recon | 3 passwords malas → mensaje/`Retry-After`/CAPTCHA | Documentar umbral/ventana ANTES de spray |
+
+Surface signals que delatan la clase antes de atacar:
+- Hashes obtenidos de dump/config/info-disclosure → identificar algoritmo y work factor.
+- Tecnologías detectadas con defaults conocidos (WordPress, Tomcat, Grafana, Jenkins, Redis).
+- Login sin rate limit visible, sin CAPTCHA, ni política de lockout documentada.
+- Usernames cosechados en recon (email-harvesting/OSINT) → lista de spray.
+
+```bash
+# lockout-first: SIEMPRE documentar la política antes de cualquier spray
+# 3 passwords malas y observar el oráculo de bloqueo
+for p in Wrong1! Wrong2! Wrong3!; do
+  curl -s -o /dev/null -w "%{http_code} " -X POST https://target/login \
+    -d "username=testuser&password=$p"
+done; echo
+curl -s -i -X POST https://target/login -d "username=testuser&password=x" \
+  | grep -i -E 'retry-after|x-ratelimit|locked|captcha'
+```
+
+## Bypass Techniques
+
+Agrupadas por el límite/defensa que se maneja. Aquí "bypass" es evasión DISCIPLINADA y autorizada,
+no fuerza bruta: respetar lockout, rate limit y el gate humano por ronda.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Lockout por-cuenta | Spray: 1 password/cuenta/ventana, esperar la ventana completa | Nunca N passwords a una cuenta; human gate por ronda |
+| Rate limit | Respetar `Retry-After`/`X-RateLimit-*`; `hydra -t 1 -W 30` | Dentro de budget; máx 3 reintentos (CLAUDE.md) |
+| CAPTCHA | DETENER — no bypassear | El bypass de CAPTCHA está prohibido; reportar como control presente |
+| Lista grande (ruidosa/ineficiente) | Acotar con OSINT: `{Company}{Year}!`, `{Season}{Year}!`, breach del cliente | Evita bloqueo y ruido; calidad sobre volumen |
+| Hashing débil detectado | Priorizar cracking solo si algoritmo/work-factor lo hace factible | MD5/SHA sin salt, bcrypt<10, PBKDF2<600k = finding |
+| MFA tras credencial válida | No forzar; derivar a 2fa-bypass | Credencial válida no es ATO si hay 2FA activo |
+
 ## Chain Anchors
 
 After credential access obtained:

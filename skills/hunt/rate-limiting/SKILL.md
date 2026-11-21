@@ -111,6 +111,54 @@ chains_with: [password-reset, 2fa-bypass, business-logic]
 - `curl` for scripted sequential/header-rotation tests.
 - `ffuf -t` with a high thread count as a rougher parallelism test when Turbo Intruder isn't available.
 
+## Payloads & Detection Patterns
+
+Clase de abuso, no de inyección: cada familia ataca *cómo* el limiter keyea o cuenta. La prueba es
+el contraste entre una corrida que dispara el bloqueo y otra que no, con la misma cantidad de intentos.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| IP rotation headers | Rotar `X-Forwarded-For`, `X-Real-IP`, `True-Client-IP`, `CF-Connecting-IP`, `X-Originating-IP` por request | Resetear la clave si el limiter confía un header spoofeable |
+| Identifier variation | `TestUser`/`testuser`/`testuser%20`/`test.user+1@` | Limiter keyea el string exacto; el backend normaliza a la misma cuenta |
+| Endpoint variation | `/api/v1/login` vs `/api/v2/login` vs `/mobile-api/auth` | Limiter aplicado inconsistente entre paths equivalentes |
+| Session/cookie reset | Jar nuevo (`-c`/`-b`) por intento | Limiter keyea cookie en vez de cuenta/IP → descartar sesión resetea |
+| Race window | Burst single-packet / fan-out paralelo | Colar más intentos que el límite por gap check-then-increment |
+| Reset-on-partial / window probe | Medir la ventana del mensaje "try again in 60s"; `Retry-After` | Temporizar el refill exacto del contador |
+
+Surface signals que delatan la clase antes de probar:
+- Sin lockout/CAPTCHA visible tras muchos intentos en login/OTP/reset/coupon.
+- `429` que resetea muy rápido, o que aplica per-session/per-cookie en vez de per-account.
+- Headers forwarded (`X-Forwarded-For` y variantes) aceptados y aparentemente confiados.
+- Mensaje con ventana explícita ("try again in N seconds") → da el parámetro a atacar.
+
+```bash
+# Baseline: ¿a qué conteo dispara el bloqueo?
+for i in $(seq 1 20); do
+  curl -s -o /dev/null -w "%{http_code} " -X POST https://target.com/login \
+    -d "username=testuser&password=wrong$i"
+done; echo
+
+# Contraste con rotación de header: mismo conteo sin 429 = bypass demostrado
+for i in $(seq 1 30); do
+  curl -s -o /dev/null -w "%{http_code} " -X POST https://target.com/login \
+    -H "X-Forwarded-For: 10.0.$((RANDOM%255)).$((RANDOM%255))" \
+    -d "username=testuser&password=wrong$i"
+done; echo
+```
+
+## Bypass Techniques
+
+Agrupadas por *dónde* keyea el limiter (la defensa evadida); la nota es la condición que la delata.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Limiter keyed on forwarded header | Rotar `X-Forwarded-For`/`X-Real-IP`/`True-Client-IP` por request | Solo funciona si confía el header spoofeable, no la TCP source real |
+| Limiter keyed on session | Descartar y re-fetchear una sesión fresca cada intento | Keyea cookie, no cuenta → contador reseteable |
+| Limiter keyed on identifier string | Case/whitespace/alias (`+tag`, puntos) que normaliza a la misma cuenta | Distinto key en el limiter, misma cuenta en el backend |
+| Cobertura de un solo endpoint | Endpoint legacy/versionado/mobile equivalente | Mismo login, limiter no aplicado ahí |
+| Increment no atómico | Race single-packet (Turbo Intruder, `concurrentConnections` alto) | Explota el gap check-then-increment del propio limiter |
+| CAPTCHA tras N | Token reusado / check client-side bypasseable | Es finding separado, no prueba que el RL esté ausente |
+
 ## Root Causes
 
 - Rate limiter keyed on a client-supplied/spoofable header (`X-Forwarded-For`) instead of the actual TCP source or an authenticated account identifier.

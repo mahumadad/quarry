@@ -150,6 +150,51 @@ chains_with: [idor, auth-bypass]
 - `race-the-web` — purpose-built CLI for this exact pattern (many parallel identical requests,
   compare outcomes).
 
+## Payloads & Detection Patterns
+
+Para races no hay "payloads" clásicos: la familia es de **primitivas de concurrencia**. La prueba
+a `Demonstrated` nunca es un response body aislado sino un **estado final medible e incorrecto**
+tras el burst (balance negativo, single-use aplicado >1 vez, inventory <0, más signups que el cap).
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Single-packet (HTTP/2) | ~20–30 requests como frames en un TCP packet, gate release | Spread sub-ms; derrota el jitter de red |
+| Last-byte sync (HTTP/1.1) | N conexiones keep-alive precargadas menos el byte final, release conjunto | Sincronizar llegada cuando no hay HTTP/2 |
+| Parallel burst | N copias idénticas del request check-then-act concurrentes | Abrir la ventana TOCTOU del read-modify-write |
+| Multi-endpoint race | Dos endpoints distintos que mutan el mismo recurso, disparados a la vez | Race que no está en el mismo endpoint repetido |
+| Counter/limit race | N guesses/redeems concurrentes contra el mismo contador | Evaluar >N intentos antes de que el lock cierre (OTP, cupón) |
+| Value-at-cap | Mismo amount/código igual al cap exacto, en paralelo | Forzar y medir el estado incorrecto (doble redimido, saldo negativo) |
+
+Surface signals que delatan la clase antes de disparar:
+- Lógica check-then-act: balance→debit, cupón `unused→used`, inventory count→order placement.
+- Workflows multi-paso con estado entre requests (apply coupon / checkout como calls separadas).
+- Límite explícito: "una vez", "hasta tu balance", "N invites máx", "submit this form once".
+- Read-modify-write sin transacción/lock aparente; latencia alta o comportamiento inconsistente
+  bajo carga concurrente leve es un hint.
+
+```bash
+# burst paralelo + verificación del estado final (la prueba es el estado, no el 200)
+for i in $(seq 1 20); do
+  curl -s -X POST https://target/api/coupon/redeem -H "Cookie: session=$SESSION" \
+    -d '{"code":"TESTCODE1"}' &
+done; wait
+curl -s https://target/api/coupon/TESTCODE1/status -H "Cookie: session=$SESSION"  # ¿usado >1 vez?
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa anti-race evadida; probar la familia completa antes de concluir que el
+lock funciona (un único éxito anómalo entre muchos trials suele ser ruido del entorno — rerun).
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Idempotency key ausente/no enforced | Reusar o variar la key en todo el burst | Sin unicidad validada, cada request pasa |
+| Rate limit / botón deshabilitado (UI) | Disparar el burst directo al endpoint, sin la UI | Control client-side irrelevante para races |
+| Lock por request (no por recurso) | Burst sobre el mismo recurso desde conexiones distintas | Mutex mal scopeado no serializa |
+| Lock no distribuido (multi-instancia) | Forzar requests a instancias distintas tras el LB | Lock local por nodo no cubre el cluster |
+| Jitter de red enmascara la ventana | Single-packet (HTTP/2) o last-byte sync (HTTP/1.1) | Pasar de "cerca" a "mismo instante" |
+| Serialización por keep-alive/CDN | Abrir N conexiones TCP separadas, verificar overlap por timestamps server-side | CDN/WAF puede reusar conexión y serializar sin avisar |
+
 ## Root Causes
 
 - Business logic reads state (balance, coupon status, inventory count), performs validation in

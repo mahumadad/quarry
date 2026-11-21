@@ -105,6 +105,51 @@ chains_with: [oauth, 2fa-bypass, password-reset, clickjacking]
 - `jwt_tool` for JWT structural/algorithm attacks (`alg:none`, key confusion, weak-secret brute force via `-C` with a wordlist).
 - `curl -c`/`-b` for scripted cookie-jar lifecycle testing across login/logout/password-change.
 
+## Payloads & Detection Patterns
+
+Guía de caza del ciclo de vida de sesión: fijación, predictibilidad, rotación e invalidación. La
+prueba del eje temporal es siempre un par antes/después del evento (login, logout, password-change).
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Fixation | Plantar cookie pre-auth → login → comparar el valor | El SID no rota en login (sesión compartida tras auth) |
+| Token entropy | Colectar 20–50 SIDs frescos → Burp Sequencer | PRNG débil o derivación predecible del token |
+| JWT algorithm | `alg:none` (`jwt_tool -X a`), RS256→HS256 confusion (`-X k -pk pub.pem`), weak secret (`-C`) | Forjar la sesión manipulando la firma |
+| Logout invalidation | Replay del token tras logout UI | Store server-side no consultado (JWT stateless sin revocación) |
+| Password-change invalidation | Token previo al cambio sigue válido | Sin revocación en evento de seguridad |
+| Absolute/idle timeout | Idle + probe, o decode `exp - iat` | Sin timeout absoluto enforced |
+| Concurrent sessions | Dos contextos simultáneos; `revoke-others` | Sin cap/invalidación real server-side |
+
+Surface signals que delatan la clase antes de probar:
+- `Set-Cookie: session=...` visible *pre-auth* → candidato a fixation si se reusa post-login.
+- Token JWT (tres segmentos base64 separados por `.`) → probar algoritmo y revocación.
+- Feature "cerrar todas las sesiones" / listado de sesiones activas (o su ausencia conspicua).
+- Sin timeout absoluto comunicado (solo inactividad, o ninguno).
+
+```bash
+# Fixation: el valor pre-login debe NO sobrevivir la autenticación
+curl -s -i -c jar.txt https://target.com/ | grep -i set-cookie                        # SID pre-auth
+curl -s -i -b jar.txt -X POST https://target.com/login \
+  -d "username=testuser&password=CorrectPass1!" | grep -i set-cookie                  # ¿mismo valor?
+
+# JWT: algoritmo y vida útil sin esperar
+echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq '{alg:"check header", life:(.exp-.iat)}'
+jwt_tool "$TOKEN" -X a                                                                 # alg=none
+```
+
+## Bypass Techniques
+
+Agrupadas por el control de sesión evadido; la nota es la condición que la delata.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Rotación del SID en login | Reusar el SID pre-auth plantado | Fixation si el valor sobrevive la autenticación |
+| Firma del JWT | `alg:none`, RS256→HS256 con la pubkey como secreto HMAC, `kid` path-traversal/sqli | `jwt_tool`; confirmar que el server acepta el token tamper |
+| Invalidación en logout | Replay del token post-logout | JWT stateless sin revocation list → sigue válido |
+| Invalidación en password-change | Token viejo tras el cambio de contraseña | El finding es la falta de revocación por evento, no la vida larga sola |
+| `HttpOnly`/`Secure`/`SameSite` | Robo vía XSS/MITM si faltan | Eleva el impacto de fixation/robo (chain), no es el flaw central |
+| Timeout absoluto | `exp` largo (24h) sin revocación | Solo finding combinado con falta de revocación en eventos |
+
 ## Root Causes
 
 - Session ID assigned at first page load (pre-auth) and never regenerated on successful login (classic fixation root cause).

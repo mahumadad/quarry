@@ -118,6 +118,49 @@ chains_with: [csrf, broken-access-control, auth-bypass]
 - Browser devtools Network panel (WS filter) for quick baseline capture without any extra
   tooling.
 
+## Payloads & Detection Patterns
+
+Guía de caza sobre el handshake y el protocolo de mensajes. La prueba nunca es "la conexión abrió"
+(el navegador no bloquea WS cross-origin): es una acción/dato no autorizado efectivo sobre el socket.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| CSWSH (Origin ausente) | Handshake con `Origin: https://attacker` + cookie de la víctima | Confirmar upgrade cross-origin con credencial ambiente |
+| Under/unauth upgrade | Handshake sin cookie, o con una expirada/invalidada | SP cae a estado anónimo o stale-but-trusted |
+| Message-level IDOR | `{"type":"join_room","roomId":"<room_cuenta_B>"}` | Acceder a recurso de otra cuenta por el mensaje |
+| Message tampering | `{"type":"transfer","amount":-500,"to":"<otro>"}`, tipos inesperados, oversized | La lógica confía campos del mensaje sin re-validar |
+| Payload → sink | Campo del mensaje que llega a SQL/template/HTML sin validación | Inyección vía socket (chain a la clase: `sqli`/`xss`/`ssti`) |
+| Subprotocol/auth smuggling | Token en `Sec-WebSocket-Protocol` o primer mensaje | Auth por subprotocolo/primer-mensaje mal validada |
+
+Surface signals que delatan la clase antes de probar:
+- `ws://`/`wss://` iniciado por la app; `101 Switching Protocols` en el proxy/devtools (filtro "WS").
+- Auth del upgrade por cookie ambiente, sin token app-level como primer mensaje.
+- Sin validación de `Origin` server-side en el upgrade.
+- Campos `userId`/`role`/`roomId` dentro del mensaje confiados sin re-check contra la sesión del socket.
+
+```bash
+# CSWSH: upgrade con Origin atacante + cookie víctima; confirmar que fluye dato autenticado
+websocat -H "Origin: https://attacker-controlled-origin.example" \
+         -H "Cookie: session=$VICTIM_SESSION_COOKIE" \
+         wss://target/ws/endpoint
+
+# Message-level authz: conectado como A, referenciar recurso de B
+websocat wss://target/ws/endpoint <<< '{"type":"join_room","roomId":"<room_privado_B>"}'
+```
+
+## Bypass Techniques
+
+Agrupadas por el control del socket evadido; la nota es la condición que la delata.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Allow-list de Origin | `Origin` ausente/`null`, subdominio takeover-able, suffix/substring match (`target.evil.com`) | Validación laxa de `Origin` del lado servidor |
+| Auth solo en connect | Escalar vía mensajes post-handshake desde una conexión low-priv | Authz no enforced per-mensaje |
+| Port de authz del REST | Enviar por el socket una acción que el handler REST sí bloquea | El handler WS nunca portó el check de ownership/rol |
+| Enforcement de TLS | Fallback a `ws://` por proxy mal configurado / mixed-content | Habilita tampering/eavesdrop a nivel red |
+| Middleware de socket.io | Probar realmente, no asumir por el nombre de la librería | Misconfig común aun con libs seguras por default |
+| Re-auth en reconnect/resume | Reconectar/resumir con credencial distinta o nula | Lógica de resume que re-autentica distinto (o no) |
+
 ## Root Causes
 
 - Authentication tied only to an ambient browser credential (cookie) at connection time,

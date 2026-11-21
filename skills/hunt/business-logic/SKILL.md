@@ -131,6 +131,59 @@ Time"): login → extract `bid` → add item → mutate quantity to -100 → che
 - `curl` with backgrounded (`&`) parallel requests for simpler race tests when Turbo Intruder isn't available.
 - A maintained list of common/guessable promo code patterns for the brute-force step.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por primitiva de abuso de la lógica (no inyección, sino uso no previsto
+de la regla de negocio). `Demonstrated` solo cuando el estado manipulado persiste (lectura
+independiente: order history/receipt), no solo aceptado en la respuesta mutante.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Step-skip | POST `/api/checkout/confirm` sin pasar por payment | Endpoint tardío sin enforcement de orden |
+| One-time replay | Reenviar `apply-coupon`/`redeem-points` | ¿El descuento stackea / se aplica dos veces? |
+| Price/total tamper | `{"total":0.01}`, `{"unit_price":0.01}` | Server confía el valor del cliente |
+| Negative/fractional/overflow qty | `quantity:-5`, `0.5`, `99999999999` | Sin bounds; negativo puede voltear el total a crédito |
+| Coupon brute/logic | Lista de códigos predecibles; stacking; expirados | Single-use no invalidado server-side |
+| Race TOCTOU | N `apply-coupon` concurrentes | Doble redención de acción single-use |
+| Self-referral | Cuenta nueva refiere a la original / cadena circular | Bonus no previsto para self-referral |
+| Inventory hold | Mantener stock en carrito en muchas sesiones | DoS de inventario por lógica, no por exhaustión técnica |
+
+Surface signals que delatan la clase antes de atacar:
+- Flujo multi-paso (cart → shipping → payment → confirm) con pasos como endpoints independientes.
+- Cálculo de precio/total visible en JS y server confiando el total enviado.
+- Campos cantidad/monto sin bounds en la UI (¿acepta negativo/fraccional?).
+- Features coupon/promo/referral/loyalty points.
+- Status field tipo máquina de estados (`pending→approved→shipped`) expuesto o inferible vía API.
+
+```bash
+# price tamper: ¿recalcula server-side o confía el valor del cliente?
+curl -s -i -X POST https://target.com/api/checkout/confirm -b "session=$SESSION" \
+  -d '{"cart_id":"abc123","total":0.01}'
+```
+
+```bash
+# race single-use: contar M éxitos para una acción que debe tener 1
+for i in $(seq 1 20); do
+  curl -s -o /tmp/race_$i.json -X POST https://target.com/api/cart/apply-coupon \
+    -b "session=$SESSION" -d '{"code":"ONETIME50"}' &
+done; wait
+grep -l '"success":true' /tmp/race_*.json | wc -l   # debe ser 1, no >1
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar no-vulnerable.
+Nunca usar un instrumento de pago real más allá de lo autorizado — sandbox/test only.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Recálculo server-side del total | Si confía el cliente: tamper directo; si no, probar override per-line-item | Verifica el order persistido, no la respuesta |
+| Single-use del coupon | Replay secuencial + race TOCTOU | Sin unique constraint/atomic CAS → doble redención |
+| Enforcement de orden de pasos | Llamar el endpoint tardío directo; reusar response de otro cart | Pasos stateless confían que el cliente llegó bien |
+| Bounds numéricos de la UI | Negativo/fraccional/overflow vía API (la UI solo limita el widget) | Negativo × precio → crédito |
+| Idempotencia ausente | Fan-out concurrente (Turbo Intruder single-packet) | Minimiza jitter entre requests paralelos |
+| Validación anti self-referral | Cadena circular / cuenta nueva refiere a la original | Lógica de referral sin detectar bucles |
+
 ## Root Causes
 
 - Server trusts client-submitted price/total/quantity instead of recalculating from source-of-truth catalog data at the final step.

@@ -79,6 +79,61 @@ chains_with: [rce, deserialization, sqli, ssrf, dos]
 - OAST listener (engine/oast.py) — blind crash→callback escalation for
   server-side fetchers triggered by malformed documents.
 
+## Payloads & Detection Patterns
+
+Fuzzing es una técnica, no una clase: aquí las "familias" son estrategias de generación y los
+"detection patterns" son oráculos de respuesta por diffing contra un baseline válido congelado.
+Guarda siempre el failing example antes de seguir.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Schema-driven | schemathesis `--checks all`, RESTler sequences | Generar válidos+inválidos por esquema (breadth) |
+| Mutation corpus | radamsa sobre request válido, dumb/smart mutators | Romper el parser sin spec |
+| Boundary/type | int min/max, `-1`, `0`, overflow, swap str↔int↔array↔null | Type-confusion y límites |
+| Encoding/charset | UTF-8 overlong, null byte `%00`, mixed/double encoding | Confundir normalizadores en capas |
+| Structural | nesting profundo, campos faltantes/extra, arrays gigantes | Crashes de deserializador/parser |
+| File-format | mutación de PNG/PDF/SVG/DOCX/zip válidos | Parser-RCE y memory-safety leads |
+| Coverage-guided | AFL++/libFuzzer sobre harness (source disponible) | Profundidad real en el parser exacto |
+
+Oráculos de respuesta (diffing) que delatan un lead antes de clasificarlo:
+- **Status diffing**: 500 vs 400 vs 200 contra el baseline → code path distinto.
+- **Length diffing**: tamaño de body que se desvía → branch alterno o leak parcial.
+- **Timing diffing**: spike de latencia consistente → regex backtracking, query pesada, sleep.
+- **Reflection diffing**: input que vuelve transformado/sin escapar → sink de inyección.
+- **Error-text diffing**: mensaje/stack nuevo → fingerprint de motor (ruta a la class skill).
+
+```bash
+# baseline congelado + diff de oráculo por mutación (status/length/time)
+B=$(curl -s -o /dev/null -w '%{http_code} %{size_download} %{time_total}' -d @valid.json https://target/api/x)
+for m in mutated-corpus/*.json; do
+  R=$(curl -s -o /dev/null -w '%{http_code} %{size_download} %{time_total}' -d @"$m" https://target/api/x)
+  [ "$R" != "$B" ] && echo "LEAD $m: $R (base $B)"
+done
+```
+
+```bash
+# schema fuzzing + OAST embebido para fetch ciego de documentos
+schemathesis run --base-url https://target/api openapi.json --checks all --hypothesis-deadline 5000
+# en formatos que fetchan (SVG/DOCX/PDF) incrusta el payload_url del token y hace poll del gate OOB
+```
+
+Un crash/anomalía en un parser que gatilla fetch server-side solo llega a `Demonstrated` con
+callback correlacionado por token en el gate OOB (`engine.oast`); un 5xx aislado es lead, no finding.
+
+## Bypass Techniques
+
+Durante el fuzzing el "filtro" a evadir es lo que recorta cobertura (rate-limit, WAF, lockout),
+no una defensa de la vuln. Evadir aquí evita falsos negativos por bloqueo, nunca por fix.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Rate-limit por IP | Bajar concurrencia, jitter entre requests, rotar source IP/proxy | Falsos negativos por bloqueo, no por parcheo |
+| WAF normaliza payload | Mutar encoding (double-url, charset), mover a body/JSON | El WAF deja huecos → logéalos como coverage gaps |
+| Lockout de auth | NO fuzzear login agresivo sin gate del operador | Riesgo de DoS a usuarios reales (scope) |
+| Dedup del CDN | Variar marcador único por caso | El CDN colapsa requests "idénticos" |
+| Deadline del fuzzer | Guardar el failing example antes de seguir | schemathesis/hypothesis encoge lento |
+| Destrucción de estado | Fuzzear read endpoints o staging | POST/PUT/DELETE contaminan datos (gate) |
+
 ## Validation Gate (minimum proof)
 
 - Crash class identified with a minimized, reproducible input (3 consecutive
@@ -110,3 +165,9 @@ chains_with: [rce, deserialization, sqli, ssrf, dos]
    reach a sink (query, template, command)? Hand to that class skill.
 3. Malformed document triggers server-side fetch → blind SSRF via document
    parsers (combine with oob-interactions).
+4. Response-oracle diff (status/length/timing/reflection) on a minimized input →
+   hand the exact reproducer to the matching class skill (query error → sqli,
+   evaluated expression → ssti, OAST callback → the blind vector that owns it).
+
+A finding without chain anchor results is INCOMPLETE. Record each anchor as
+tested/not-applicable/blocked with the reason.

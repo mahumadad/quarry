@@ -125,6 +125,59 @@ chains_with: [csrf, info-disclosure, xss]
 - A minimal local HTML file opened in a real browser — required for the actual impact PoC,
   since curl doesn't enforce/exhibit the same-origin policy a victim's browser would.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por lógica de trust de origin. La inspección de headers por `curl` es
+Inferred; el salto a Demonstrated exige un `fetch` cross-origin con `credentials:'include'` en un
+browser real leyendo datos autenticados.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Origin reflection | `Origin: https://evil.test` → ACAO refleja el mismo string | Reflejo incondicional = forma más fuerte del bug |
+| Null origin | `Origin: null` → `ACAO: null` | Browser lo manda desde iframe sandbox/`file://`/redirects |
+| Suffix match roto | `Origin: https://target.com.evil.test` | Regex sin anclar (`/target\.com$/` ausente) |
+| Prefix/substring match roto | `Origin: https://eviltarget.com`, `https://xtarget.com` | `.includes("target.com")` ingenuo |
+| Subdomain trust | `Origin: https://sub.target.com` (dev/staging tomable) | Confía `*.target.com` + XSS/takeover en subdominio |
+| Credentialed combo | cualquiera de los anteriores + `ACAC: true` | Lo que hace explotable el robo de datos de sesión |
+
+Surface signals que delatan la clase antes de montar el PoC:
+- Respuestas con `Access-Control-Allow-Origin` que espeja el `Origin` enviado en vez de un valor fijo.
+- `Access-Control-Allow-Credentials: true` junto a cualquier trust reflejado/amplio → combinación explotable.
+- Endpoints que devuelven JSON autenticado/sensible (perfil, cuenta, tokens, config interna).
+- Subdominios dev/staging o páginas viejas con contenido atacante-alcanzable bajo wildcard trust.
+
+```bash
+# barrido de origins (un string atacante inequívoco para descartar allowlist legítimo)
+for o in https://attacker-poc.test null https://target.com.evil.test https://eviltarget.com; do
+  echo "== $o =="
+  curl -s -I https://target/api/profile -H "Origin: $o" \
+    | grep -iE 'access-control-allow-(origin|credentials)'
+done
+```
+
+```bash
+# preflight: ¿permite métodos de escritura desde origin arbitrario? (cruza a CSRF)
+curl -s -X OPTIONS https://target/api/admin/users -i \
+  -H "Origin: https://evil.test" \
+  -H "Access-Control-Request-Method: DELETE" \
+  -H "Access-Control-Request-Headers: Authorization" \
+  | grep -iE 'access-control-allow-(methods|headers|origin|credentials)'
+```
+
+## Bypass Techniques
+
+Agrupadas por la validación de origin que evaden; probar la familia completa antes de cerrar.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Allowlist por sufijo | `https://target.com.evil.test` | Regex `target\.com` sin `$`/anclaje |
+| Allowlist por prefijo | `https://target.com.attacker/` con host propio | Match al inicio sin verificar el resto |
+| Allowlist por substring | `https://eviltarget.com`, `https://target.com.evil` | `includes()`/`indexOf()` sin boundaries |
+| Rechazo de evil.test | `Origin: null` vía iframe sandbox/`file://`/redirect 307 | `null` suele estar allowlisted para casos legítimos |
+| Trust de subdominio | XSS o subdomain takeover en `*.target.com` confiado | Encadena desde un subdominio controlado |
+| Fix solo en HTTP | Endpoint WebSocket que omite la verificación CORS | WS no está sujeto a same-origin del mismo modo |
+| CORS solo en 2xx | Forzar 4xx/5xx que igual lleve datos sensibles en el body | Headers CORS a veces faltan solo en el path de error |
+
 ## Root Causes
 
 - CORS middleware configured to reflect the request's `Origin` header verbatim instead of

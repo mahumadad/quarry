@@ -135,9 +135,62 @@ chains_with: [sqli, auth-bypass, ssrf, deserialization]
 - `waybackurls`/`gau` — historical URL discovery from web archives.
 - `nuclei -tags exposure` — breadth template sweep.
 
-## Root Causes
+## Payloads & Detection Patterns
 
-- Debug/development configuration flags left enabled in the production deployment.
+Aquí no se inyecta: se observa. Las "familias" son fuentes de leak y los "detection patterns" son
+las firmas que confirman cada fuente. La prueba es el contenido expuesto verbatim con la request
+exacta que lo produjo.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Verbose error | `?id=abc`, `%00`, JSON malformado | Stack trace → framework/ORM/paths internos |
+| VCS exposure | `.git/HEAD`, `.git/config`, `.svn/entries` | Dump del repo → fuente + secretos en history |
+| Env/config/backup | `.env`, `web.config`, `.htaccess`, `*.bak`, `*.old`, `*.sql`, `*~` | Credenciales y config en claro |
+| Verbose headers | `Server`, `X-Powered-By`, `X-AspNet-Version` | Versión exacta → recon de CVE (Inferred máx) |
+| API schema | `swagger.json`, `openapi.json`, `/v2/api-docs`, introspection | Endpoints no linkeados |
+| Source maps | `*.js.map` | Reconstruir fuente + endpoints/keys embebidos |
+| Dev comments | `TODO`/`FIXME`, hosts internos, creds comentadas en HTML/JS | Pistas de lógica/infra |
+| Directory listing | `Index of /`, `/uploads/`, `/static/` | Enumerar archivos no linkeados |
+| Archived endpoints | `waybackurls`, `gau` | Rutas viejas/olvidadas más verbosas |
+
+Surface signals que delatan la fuente antes de dumpear:
+- 500/trace con `Traceback`, `werkzeug`, `at com.`, `.rb:NN:in`, `django.core`, `SQLSTATE`.
+- `.git/HEAD` → `ref: refs/heads/...` con 200 = repo dumpeable con `git-dumper`.
+- Headers con versión precisa → cruzar con CVE, nunca finding standalone (anti-fabricación).
+- `*.js.map` servido en prod → `"sources":[...]` revela el árbol de fuente original.
+
+```bash
+# sweep de archivos sensibles con status por path
+for p in ".git/HEAD" ".git/config" ".env" ".DS_Store" "web.config" "backup.zip" \
+         "db.sql" "config.php.bak" ".svn/entries" "swagger.json" "openapi.json"; do
+  printf '%s -> %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code}' "https://target/$p")"
+done
+```
+
+```bash
+# fingerprint de stack trace sobre input malformado + banners verbosos
+curl -s "https://target/api/users/abc" | grep -Eio \
+  "traceback|werkzeug|at [A-Za-z0-9_.]+\(|django\.core|\.rb:[0-9]+:in|SQLSTATE"
+curl -sI https://target/ | grep -Ei "^(server|x-powered-by|x-aspnet-version|x-generator):"
+```
+
+Secretos hallados en un dump son **Inferred** hasta confirmarlos vivos, y validarlos contra
+cualquier sistema exige un gate aparte (nunca probar creds contra prod sin autorización explícita).
+
+## Bypass Techniques
+
+Cuando la ruta obvia al leak está bloqueada, estas técnicas la reabren; una por defensa evadida.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| 404 custom oculta el archivo | Pedir objetos sueltos `.git/objects/..`, case variants | `git-dumper` reconstruye sin listing |
+| WAF bloquea `.env` directo | Encoding `%2e`, path confusion `//.env`, trailing dot `.env.` | Normalización divergente edge/origin |
+| Error page genérica | Forzar excepción distinta (type confusion, `%00`, Accept/Content-Type raro) | Un code path filtra donde otro no |
+| CDN cachea versión limpia | Cache-buster `?x=1`, método raro, golpear origin directo | El origin (si en scope) puede ser más verboso |
+| Introspection deshabilitada | Reconstruir esquema de `*.js.map`/wayback | Fuentes alternas de endpoints |
+| Secret scanning ruidoso | `gitleaks`/`trufflehog` sobre el dump offline | No tocar prod con las creds halladas (gate) |
+
+ in the production deployment.
 - Build/deploy pipelines that don't exclude VCS directories, environment files, and backup
   artifacts from the web root.
 - Static file servers with directory listing enabled by default and never explicitly disabled.

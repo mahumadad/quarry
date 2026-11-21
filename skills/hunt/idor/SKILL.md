@@ -117,6 +117,56 @@ chains_with: [auth-bypass, info-disclosure, csrf]
 - `ffuf` — ID-space enumeration once a bypass is confirmed, to measure scope.
 - Postman/HAR diffing for API-heavy targets with many object types.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por forma de manipulación de referencia. La prueba de IDOR es siempre
+"pide como A, autentícate como B, compara contra el baseline real de B".
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| ID swap horizontal | `/api/orders/{B_id}` con la sesión de A | Acceder al dato de otro usuario (BOLA) |
+| Vertical / forced browse | `/admin/users`, `/api/v1/admin/export` con rol bajo | Alcanzar función de mayor privilegio |
+| Method switch | `GET`→`POST`/`PUT`/`DELETE` sobre el mismo recurso | Code path menos protegido por verbo |
+| Mass-assignment ID | body `{"user_id":999,"email":"..."}` en acción "self" | Cambiar dueño/target vía campo oculto |
+| ID encoding/format | int, UUID, base64 `MTA0Mg==`, hashid, array `id[]=` | Formatos alternos que el authz no cubre |
+| Wrapper/predictable token | reset token, presigned URL no ligada al usuario | Token válido para cualquier objeto |
+| Enumeration sweep | `seq` sobre rango de IDs en endpoint confirmado vulnerable | Medir blast radius (throttled) |
+
+Surface signals que delatan la clase antes de probar:
+- Params de referencia a objeto: `id`, `user_id`, `order_id`, `account_number`, `invoice_id`, `{uuid}`, `file`.
+- IDs secuenciales / baja entropía / incrementales (trivialmente enumerables).
+- Tenant/org ID en path o body no cruzado contra el tenant autenticado.
+- APIs mobile/GraphQL/REST que saltan los guards del UI web.
+- Respuesta `200` con datos reales (no `{}`/placeholder) bajo una sesión ajena.
+
+```bash
+# horizontal: sesión de A contra el objeto de B, diff contra el baseline real de B
+curl -s -b cookieB.txt https://target/api/orders/1098 -o b_base.json    # control: B ve lo suyo
+curl -s -b cookieA.txt https://target/api/orders/1098 -o a_cross.json   # probe: A ve lo de B
+diff b_base.json a_cross.json && echo "mismo cuerpo => IDOR confirmado"
+```
+
+```bash
+# enumeración acotada para medir alcance (filtra denegados)
+for id in $(seq 1000 1100); do
+  printf '%s %s\n' "$id" "$(curl -s -o /dev/null -w '%{http_code}' -b cookieA.txt "https://target/api/orders/$id")"
+done | grep -vE ': (403|404)$'
+```
+
+## Bypass Techniques
+
+Agrupadas por el control de autorización que evaden; probar la familia completa por endpoint.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Authz a nivel UI | Pegar directo el endpoint de API/GraphQL | El botón oculto no es un control |
+| Chequeo por método | Cambiar verbo (`GET`→`PUT`/`PATCH`/`DELETE`) | Un path con guard parcial por verbo |
+| Normalización de path | `/Admin/`, `//admin`, `/api/v1/admin`, trailing slash, `%2e%2e` | Router case/encoding-sensitive |
+| Identidad server-side | Inyectar `user_id`/`owner_id` en body/JSON/header | App confía en el ID del cliente para "mi recurso" |
+| Formato de ID | Probar UUID→int, base64, `id[]=` array, wrapped `{"id":{"$ne":null}}` | Parser expande o castea distinto |
+| Per-resolver authz (GraphQL) | Probar cada field/mutation/batch por separado | REST protegido no implica field GraphQL protegido |
+| ID no adivinable | Cosechar IDs de exports, mensajes de error, links compartidos | "Missing authz, mitigado por ID no adivinable" si no hay leak |
+
 ## Root Causes
 
 - Authorization check missing entirely at the data-access layer: the query fetches `WHERE id = ?`

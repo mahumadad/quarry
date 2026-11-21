@@ -81,6 +81,48 @@ chains_with: [auth-bypass, xxe, open-redirect, jwt]
 - `xmlsec1` / python `signxml` / `lxml` — manual canonicalization and signature inspection.
 - Burp Decoder / a small script — base64+inflate round-trip of `SAMLResponse`.
 
+## Payloads & Detection Patterns
+
+Guía de caza sobre el mensaje SAML. Una familia por defecto de verificación/consumo; la prueba es
+siempre que el SP *consume* la identidad forjada (sesión como el `NameID` víctima), no que el XML parseó.
+
+| Categoría | Shape | Propósito |
+|---|---|---|
+| Signature stripping/exclusion | Remover `<ds:Signature>` entero o enviar assertion sin firma | SP que acepta identidad no firmada confía datos del atacante |
+| XML Signature Wrapping (XSW1–8) | Mantener el elemento firmado + clonar assertion forjada antes/después, mismatch de `Id`/reference | Firma verifica sobre el original, la app lee el `NameID` forjado |
+| Comment/CDATA injection en NameID | `admin@victim.com<!---->.evil`, split por CDATA o nested-element | Verifier ve una string, el consumer lee la truncada |
+| Assertion replay / condition bypass | Reusar assertion tras `NotOnOrAfter`, distinto `AudienceRestriction`, sin `InResponseTo` | `single-use`/audience/timing/request-binding no enforced |
+| RelayState open redirect | `RelayState=https://evil` llevado por el round-trip | Redirect post-login (phishing / fuga de token) |
+| Manipulated ACS/metadata | Forjar `AssertionConsumerServiceURL` o inyectar IdP metadata | Desviar la assertion a un ACS atacante (**human-gate**) |
+| Certificate swap | Re-firmar con cert propio + swap del `X509Certificate` en `KeyInfo` | Funciona si el SP no fija el cert del IdP esperado |
+
+Surface signals que delatan la clase antes de probar:
+- `SAMLResponse`/`SAMLRequest` base64 (a menudo deflate) y endpoints ACS (`/acs`, `/saml/consume`).
+- `RelayState` arrastrado por el round-trip SSO.
+- Firma a nivel Response vs Assertion — define dónde aplican las permutaciones XSW.
+- Si el parser de la assertion también resuelve entidades externas → exfil OOB vía `xxe` (gate OOB por token ahí).
+
+```bash
+# Round-trip del SAMLResponse para inspección (decode base64 + inflate)
+echo "$SAMLRESPONSE" | python3 -c 'import sys,base64,zlib,urllib.parse; \
+d=base64.b64decode(urllib.parse.unquote(sys.stdin.read().strip())); \
+print(zlib.decompress(d,-15).decode(errors="replace") if d[:1]!=b"<" else d.decode(errors="replace"))'
+# luego en SAML Raider: Remove Signatures / XSW1-8 / editar NameID -> victim -> re-encode -> replay a ACS
+```
+
+## Bypass Techniques
+
+Agrupadas por el control de confianza del SP que evaden; la nota es la condición que la delata.
+
+| Filtro evadido | Técnica | Notas |
+|---|---|---|
+| Firma requerida | Strip total / assertion unsigned | SP que no exige firma consume la identidad editada |
+| Verificación de firma (wrapping) | XSW manteniendo el elemento firmado intacto | Verifier valida el original, la app lee el forjado (mismatch `Id`/XPath) |
+| Un solo parser XML | Comment/CDATA/nested split en `NameID` | La verify-lib y la read-lib canonicalizan distinto |
+| Replay cache / timing | Reusar tras expiry, distinto `AudienceRestriction`, sin `InResponseTo` | IdP-initiated omite `InResponseTo` por diseño — no inflar como finding |
+| Allow-list de RelayState | URL externa en `RelayState` | Redirect post-auth sin allow-listing |
+| Pinning del cert del IdP | Swap del `X509Certificate` en `KeyInfo` + re-firma | Solo si el SP confía el cert embebido en vez del esperado |
+
 ## Root Causes
 
 - The SP validates the signature over one element but trusts data from a different (unsigned or
