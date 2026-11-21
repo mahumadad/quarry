@@ -199,11 +199,17 @@ class TestPromptTemplate:
 
 class TestBuiltinTemplates:
     def test_count(self):
-        assert len(BUILTIN_TEMPLATES) == 27
+        # 27 original + 5 extended-2026 templates (encoded_bypass_test,
+        # agentic_memory_test, tool_schema_test, system_prompt_leak_test,
+        # multi_agent_channel_test).
+        assert len(BUILTIN_TEMPLATES) == 32
 
     def test_new_coverage_templates_present(self):
         for name in ("rag_poisoning", "multi_turn_escalation",
-                     "output_handling_test"):
+                     "output_handling_test",
+                     "encoded_bypass_test", "agentic_memory_test",
+                     "tool_schema_test", "system_prompt_leak_test",
+                     "multi_agent_channel_test"):
             assert name in BUILTIN_TEMPLATES
 
     def test_all_valid_categories(self):

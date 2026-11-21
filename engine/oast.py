@@ -318,9 +318,13 @@ def cli_start(audit_dir: str) -> dict:
             pass  # stale pid — relaunch
     log = Path(audit_dir) / ".pentest-state" / "oast-client.jsonl"
     log.parent.mkdir(parents=True, exist_ok=True)
-    logf = open(log, "a")
-    proc = subprocess.Popen([binary, "-json"], stdout=logf, stderr=subprocess.STDOUT,
-                            text=True, start_new_session=True)
+    # The child inherits the fd, so close our copy right after spawn: the
+    # earlier code kept it open for the whole session (fd leak, ruff SIM115)
+    # while reading the log back through read_text() anyway.
+    with open(log, "a") as logf:
+        proc = subprocess.Popen([binary, "-json"], stdout=logf,
+                                stderr=subprocess.STDOUT,
+                                text=True, start_new_session=True)
     domain = None
     deadline = time.time() + 20
     while time.time() < deadline and not domain:
@@ -337,7 +341,6 @@ def cli_start(audit_dir: str) -> dict:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
-        logf.close()
         return {"ok": False, "error": "interactsh-client started but no callback "
                 "domain appeared in 20s — check network / public oast.* reachability"}
     session = {"pid": proc.pid, "domain": domain, "log": str(log),

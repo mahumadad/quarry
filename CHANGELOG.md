@@ -8,6 +8,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Extended chain-engine oracle set (13 new oracles):** `chain_exploit.py`
+  now composes chains for `jwt-forgery`, `oauth-misconfig`, `saml-forgery`,
+  `nosqli`, `graphql-introspection`, `mass-assignment`,
+  `subdomain-takeover`, `host-header-injection`, `cache-poisoning`,
+  `http-smuggling`, `prototype-pollution`, `ldap-injection` and
+  `password-reset-poisoning`, each with produces/consumes capabilities,
+  an oracle check and evidence keys. Hunt-skill slugs (`jwt`, `oauth`,
+  `saml`, `2fa-bypass`, `403-bypass`, ...) alias to their oracle class so
+  findings from those skills enter chain composition. New chains that now
+  close: jwt→mass-assignment (admin_session), oauth→mass-assignment,
+  password-reset→credential-reuse, saml→privesc, nosqli→idor,
+  http-smuggling→ssrf→cloud-metadata (critical),
+  ldap-injection→credential-reuse (critical).
+  `tests/test_chain_oracles_ext.py`.
+- **AI red-team extended payload families and templates:** six new
+  INJECTION_PAYLOADS families (`encoded_bypass`, `agentic_memory`,
+  `tool_schema_abuse`, `system_prompt_leak`, `rag_corruption`,
+  `multi_agent_channel`) and five new builtin templates
+  (`encoded_bypass_test`, `agentic_memory_test`, `tool_schema_test`,
+  `system_prompt_leak_test`, `multi_agent_channel_test`), all canary-gated
+  and framework-mapped. `tests/test_ai_red_team_ext_payloads.py`.
+- **AD/cloud hunt technique updates:** `ad-pentest.yaml` hunting phase now
+  enumerates ADCS ESC1-ESC8, RBCD, NTLM relay/coercion, Shadow
+  Credentials, ACL abuse paths, gMSA/LAPS reads and DPAPI backup keys;
+  `cloud-pentest.yaml` adds identity-plane techniques (Entra/Okta token
+  theft, consent grants), IMDSv2 downgrade, GCP/Azure metadata variants,
+  container/CI escape paths, and the `entra-attack`/`okta-attack` skills,
+  plus `jwt`, `nosqli`, `host-header` priority classes.
+- **Missing vuln-class priors:** `403-bypass` (0.73) and `csrf` (0.58)
+  now have explicit weights in `vuln_class_weights.py` — they previously
+  fell to the 0.5 default even though both are chain pivots.
+
+### Fixed
+- `skills/recon/surface-probes/SKILL.md`: frontmatter `feeds_into: [*]`
+  was an invalid YAML alias (the file failed to parse as YAML; the plugin
+  loader skipped it silently). Now `feeds_into: [hunt/*]`.
+- `engine/oast.py`: interactsh session leaked the log file descriptor for
+  the whole engagement; the fd is now closed right after spawn (the child
+  keeps its own copy).
+- `engine/ai_red_team.py`: `find_escalation_paths` queried trust
+  boundaries it never used; removed the dead query.
+- `engine/ai_red_team_ext.py`: `_whitespace_inject` embedded a literal
+  zero-width space in source; it is now an explicit `"\u200b"` escape
+  (invisible-character-in-source bug class, ruff PLE2515).
+- `engine/chain_engine.py` / `engine/mcp_supply_chain.py`: unused locals
+  removed (ruff F841).
+- `engine/ai_red_team.py` / `engine/mcp_client.py`: mutable class-default
+  constants annotated as `ClassVar` (ruff RUF012).
+
+### Added
 - **Modern WAF-evasion techniques (2026 research):** `defense_evasion.py` gains
   the body-size inspection-window bypass (`oversized_body_pad` / `WAFBypassEngine.
   generate_oversized_body`, the nowafpls technique both field guides rank #1),

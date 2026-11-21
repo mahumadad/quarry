@@ -309,7 +309,6 @@ class MCPSupplyChainAnalyzer:
         server_name = server.get("name", "unknown-server")
         tools = server.get("tools") or []
         for tool in tools:
-            tool_name = tool.get("name", "")
             findings.extend(self._check_description_injection(
                 server_name, tool))
             findings.extend(self._check_schema_poisoning(

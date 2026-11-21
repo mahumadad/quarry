@@ -41,6 +41,8 @@ _HIGH = {
     "http-smuggling": 0.78,
     "host-header": 0.74,
     "prototype-pollution": 0.74,
+    "403-bypass": 0.73,  # was DEFAULT 0.5 — a 403 bypass routinely unlocks
+    # admin surfaces (pivot primitive for auth-bypass/idor chains)
     # framework-specific hunts usually chain to RCE/leak
     "nextjs": 0.72,
     "nodejs": 0.72,
@@ -66,6 +68,10 @@ _MED_HIGH = {
     "credential-testing": 0.62,
     "parameter-pollution": 0.60,
     "xss": 0.60,
+    # csrf was missing entirely (DEFAULT 0.5): alone it is a state-change
+    # primitive, but it chains into account takeover via csrf -> idor /
+    # privilege-escalation, so it deserves a middle-high prior.
+    "csrf": 0.58,
 }
 
 # Medium: real but usually lower impact or needs a chain to matter.

@@ -92,7 +92,10 @@ def _homoglyph_replace(text: str, density: float = 0.3) -> str:
 
 
 def _whitespace_inject(text: str) -> str:
-    return text.replace(" ", " ​")
+    # Insert a zero-width space after every space (invisible to tokenizers,
+    # visible to string matching). Written as an escape so the invisible
+    # character cannot be lost by editors/diffs (ruff PLE2515).
+    return text.replace(" ", " \u200b")
 
 
 def _url_encode(text: str) -> str:

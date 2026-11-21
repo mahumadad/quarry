@@ -264,7 +264,6 @@ class ChainEngine:
 
         paths = []
         queue = [(start, [start], [])]
-        visited_per_path: set[str] = set()
 
         while queue:
             node, path_nodes, path_edges = queue.pop(0)

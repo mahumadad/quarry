@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import re
 from urllib.parse import urlsplit
@@ -90,8 +90,9 @@ class MCPClient:
     # Executables allowed to be spawned as stdio MCP servers. A server config
     # is operator-controlled but may come from a shareable catalog, so the
     # surface is limited to the standard runtimes.
-    ALLOWED_STDBIN = {"npx", "node", "python3", "python", "uvx", "docker",
-                      "ruby", "go", "bunx"}
+    ALLOWED_STDBIN: ClassVar[set[str]] = {"npx", "node", "python3", "python",
+                                          "uvx", "docker", "ruby", "go",
+                                          "bunx"}
 
     def _connect_stdio(self) -> dict:
         if not self.config.command:
