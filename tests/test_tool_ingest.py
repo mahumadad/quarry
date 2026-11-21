@@ -7,7 +7,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from engine.leads import LeadStatus, LeadsStore  # noqa: E402
-from engine.tool_ingest import ingest, parse_nuclei_jsonl, parse_sqlmap  # noqa: E402
+from engine.tool_ingest import (ingest, parse_burp, parse_nuclei_jsonl,  # noqa: E402
+                                parse_sqlmap)
 
 
 NUCLEI = "\n".join([
@@ -28,6 +29,31 @@ Parameter: id (GET)
     Title: MySQL >= 5.0.12 AND time-based blind
 ---
 GET parameter 'id' is vulnerable. target URL: http://t.example.com/item?id=1
+"""
+
+# A real Burp Scanner export carries a DOCTYPE with an internal entity subset;
+# the parser must strip it (no entity-expansion bomb) and still read the issues.
+BURP = """\
+<?xml version="1.0"?>
+<!DOCTYPE issues [ <!ENTITY nbsp "&#160;"> ]>
+<issues burpVersion="2023.1">
+  <issue>
+    <name>SQL injection</name>
+    <host ip="1.2.3.4">http://t.example.com</host>
+    <path><![CDATA[/item]]></path>
+    <location><![CDATA[/item [id parameter]]]></location>
+    <severity>High</severity>
+    <confidence>Certain</confidence>
+    <issueBackground><![CDATA[background]]></issueBackground>
+  </issue>
+  <issue>
+    <name>Strict transport security not enforced</name>
+    <host ip="1.2.3.4">http://t.example.com</host>
+    <location><![CDATA[/]]></location>
+    <severity>Information</severity>
+    <confidence>Certain</confidence>
+  </issue>
+</issues>
 """
 
 
@@ -60,7 +86,30 @@ def test_ingested_leads_are_open_not_findings(tmp_path):
     assert len(stored) == 2
 
 
+def test_burp_scanner_issues_to_leads():
+    leads = parse_burp(BURP)
+    assert len(leads) == 2  # DOCTYPE stripped, both issues parsed
+    sqli = next(l for l in leads if l.vuln_class_hint == "sql-injection")
+    assert sqli.source == "burp"
+    assert sqli.priority == "high"
+    assert sqli.target_asset.startswith("http://t.example.com")
+    assert "id parameter" in sqli.target_asset  # host + location joined
+    hsts = next(l for l in leads if "transport security" in l.title.lower())
+    assert hsts.priority == "low"  # Information -> low
+
+
+def test_burp_malformed_returns_empty():
+    assert parse_burp("not xml at all <<<") == []
+
+
+def test_burp_ingested_leads_are_open(tmp_path):
+    leads = ingest("burp", BURP, audit_dir=str(tmp_path), store=True)
+    assert leads and all(l.status == LeadStatus.OPEN.value for l in leads)
+    assert len(LeadsStore(str(tmp_path)).list_open()) == 2
+
+
 def test_unknown_tool_raises():
+    # "burp" is a registered tool now; use a genuinely unknown one.
     import pytest
     with pytest.raises(ValueError):
-        ingest("burp", "whatever")
+        ingest("nessus", "whatever")

@@ -6,8 +6,8 @@ to pass a real oracle (3-gate / the matching hunt skill) before it becomes a
 finding. This keeps the anti-fabrication rule intact while getting tool output
 into the graph as structured state instead of free text the agent re-types.
 
-Supported tools: ``nuclei`` (JSONL), ``sqlmap`` (console/log text). Add a
-parser to INGESTORS to support another.
+Supported tools: ``nuclei`` (JSONL), ``sqlmap`` (console/log text), ``burp``
+(Scanner issue XML export). Add a parser to INGESTORS to support another.
 """
 from __future__ import annotations
 
@@ -83,9 +83,57 @@ def parse_sqlmap(text: str) -> list[Lead]:
     return leads
 
 
+_BURP_SEVERITY = {
+    "high": "high", "medium": "medium", "low": "low",
+    "information": "low", "info": "low",
+}
+
+
+def _slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def parse_burp(text: str) -> list[Lead]:
+    """One lead per Burp *Scanner* issue (XML export).
+
+    Burp proxy history is raw traffic, not a hypothesis, so it is not ingested;
+    only Scanner issues become leads (like a nuclei match). Each issue stays an
+    OPEN lead until a real oracle promotes it.
+    """
+    import xml.etree.ElementTree as ET
+
+    # Burp's export carries a DOCTYPE declaring HTML entities. Strip it so a
+    # crafted file cannot smuggle an entity-expansion bomb; issue text is CDATA,
+    # so the entity definitions are not needed to read the data.
+    cleaned = re.sub(r"<!DOCTYPE[^\[>]*(\[.*?\])?\s*>", "", text, flags=re.S)
+    try:
+        root = ET.fromstring(cleaned)
+    except ET.ParseError:
+        return []
+    leads: list[Lead] = []
+    for issue in root.iter("issue"):
+        name = (issue.findtext("name") or "").strip() or "Burp issue"
+        host = (issue.findtext("host") or "").strip()
+        location = (issue.findtext("location")
+                    or issue.findtext("path") or "").strip()
+        severity = (issue.findtext("severity") or "").strip().lower()
+        confidence = (issue.findtext("confidence") or "").strip()
+        leads.append(Lead(
+            title=name,
+            source="burp",
+            vuln_class_hint=_slug(name),
+            target_asset=(host + location) if host else location,
+            priority=_BURP_SEVERITY.get(severity, "low"),
+            notes="burp scanner issue (severity {}, confidence {})".format(
+                severity or "n/a", confidence or "n/a"),
+        ))
+    return leads
+
+
 INGESTORS: dict[str, Callable[[str], list[Lead]]] = {
     "nuclei": parse_nuclei_jsonl,
     "sqlmap": parse_sqlmap,
+    "burp": parse_burp,
 }
 
 
