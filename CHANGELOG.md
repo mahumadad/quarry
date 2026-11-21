@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Noise governor (`engine/pacing.py`):** an operator-chosen pacing dial
+  (`off`/`quiet`/`balanced`/`aggressive`) that injects each tool's rate ceiling
+  (`nmap --max-rate`, `ffuf -rate -p`, `nuclei -rl/-c`, `httpx/katana -rate-limit`,
+  `masscan/sqlmap/dalfox/...`) proactively — complementing the reactive
+  `AdaptiveThrottle`. Wired into `engine/fanout.py` and `engine/nuclei_runner.py`
+  via `--pacing`; `off` is a true no-op that never fights a limit a command
+  already sets. Documented in the `opsec-discipline` skill. `tests/test_pacing.py`.
+- **Recon tool ingestion:** `tool_ingest` now parses `nmap` (`-oX` XML, open ports
+  only), `httpx` (`-json` JSONL), `ffuf` (`-o json`) and `bbot` (NDJSON, filtered
+  by scope distance) into OPEN leads (never findings); nmap/burp DOCTYPE stripped
+  against entity-expansion. `tests/test_tool_ingest.py`.
 - **Claude-BugHunter content port (mixed approach):** `## Payloads & Detection Patterns` and
   `## Bypass Techniques` tables plus reinforced chain anchors across 44 hunt skills. Taxonomy
   adapted from the disclosed-report corpus; payloads written fresh under the house

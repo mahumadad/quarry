@@ -67,3 +67,17 @@ def test_no_engagement_is_noop(tmp_path, no_real_subprocess):
     res = engine._run_task(ReconTask(name="x", command="nmap evil.attacker.com"))
     assert not res.error.startswith("policy"), res.error
     assert no_real_subprocess == ["nmap evil.attacker.com"]
+
+
+def test_pacing_throttles_recon_commands(tmp_path, no_real_subprocess):
+    # A pacing profile rewrites the preset commands to carry a rate ceiling;
+    # the default (off) leaves them exactly as the presets define them.
+    paced = FanOutEngine(audit_dir=str(tmp_path), pacing="quiet")
+    paced.recon_blast("target.example.com", ["port-scan"])
+    assert any("--max-rate 5" in c for c in no_real_subprocess)
+
+    no_real_subprocess.clear()
+    default = FanOutEngine(audit_dir=str(tmp_path))  # pacing defaults to off
+    default.recon_blast("target.example.com", ["port-scan"])
+    assert no_real_subprocess and not any(
+        "--max-rate" in c for c in no_real_subprocess)

@@ -14,8 +14,10 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 try:
+    from .pacing import apply_to_command
     from .policy import PolicyDenied, _find_engagement_dir, command_policy
 except ImportError:  # top-level script mode
+    from pacing import apply_to_command
     from policy import PolicyDenied, _find_engagement_dir, command_policy
 
 
@@ -77,9 +79,12 @@ def _default_line_parser(output: str) -> list[str]:
 
 class FanOutEngine:
     def __init__(self, max_workers: int = 5, budget_manager: Any = None,
-                 audit_dir: str | None = None):
+                 audit_dir: str | None = None, pacing: str = "off"):
         self.max_workers = max_workers
         self._budget = budget_manager
+        # Operator-chosen aggression profile. "off" (default) injects nothing,
+        # so recon fires at the presets' own speed, exactly as before.
+        self.pacing = pacing
         # Engagement root for the scope tripwire. Inside an engagement every
         # recon command is validated against scope before it runs — fan-out
         # must not be a side door around the same check the sync runner and
@@ -185,9 +190,11 @@ class FanOutEngine:
         for tech in techniques:
             presets = RECON_PRESETS.get(tech, [])
             for p in presets:
+                command = p["command"].replace("{target}", target)
+                command = apply_to_command(command, self.pacing)
                 tasks.append(ReconTask(
                     name=p["name"],
-                    command=p["command"].replace("{target}", target),
+                    command=command,
                     timeout=p.get("timeout", 120),
                 ))
 
@@ -217,10 +224,15 @@ def main() -> int:
                     help="comma-separated preset names; default = all. "
                          "Available: {}".format(", ".join(RECON_PRESETS)))
     ap.add_argument("--max-workers", type=int, default=5)
+    ap.add_argument("--pacing", default="off",
+                    help="noise governor: off (default), quiet, balanced, "
+                         "aggressive — per-host rate ceiling injected into "
+                         "each recon command")
     args = ap.parse_args()
 
     techniques = [t.strip() for t in args.techniques.split(",") if t.strip()] or None
-    engine = FanOutEngine(max_workers=args.max_workers, audit_dir=args.audit_dir)
+    engine = FanOutEngine(max_workers=args.max_workers, audit_dir=args.audit_dir,
+                          pacing=args.pacing)
     merged = engine.recon_blast(args.target, techniques)
     print(json.dumps(merged, indent=2, default=str))
     return 0

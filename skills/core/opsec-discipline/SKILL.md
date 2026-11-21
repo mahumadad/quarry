@@ -50,6 +50,32 @@ feeds_into: [active-recon, port-scan, service-enumeration, web-crawling]
    curl -s -o /dev/null -w "%{http_code}\n" https://target/
    ```
 
+### Noise governor (engine automation)
+The manual rate flags above are easy to forget on one tool and leave the whole
+engagement loud. `engine/pacing.py` is the operator-chosen dial that injects the
+right ceiling into *every* tool it drives, so you set the posture once instead of
+per command. It is proactive — it caps the first request — and complements the
+reactive `AdaptiveThrottle` (which only slows down after a 429/503/403).
+
+Four profiles: `off` (no injection — tool defaults, the default), `quiet`
+(1 worker, ~5 req/s, 1s spacing), `balanced` (~20 req/s, a few workers),
+`aggressive` (fast but still bounded; authorized, time-boxed windows only).
+
+1. Pick the profile from the RoE's target class and pass it to the runners:
+   ```bash
+   # recon fan-out: rewrites each preset command (nmap --max-rate, ffuf -rate -p,
+   # httpx -rate-limit, ...) to carry the profile's ceiling
+   python3 -m engine.fanout --audit-dir . --target target.example.com --pacing quiet
+
+   # reviewed nuclei: overrides -rl/-c from the profile (bounded to safe limits)
+   python3 -m engine.nuclei_runner --audit-dir . --target https://target.example.com \
+     --run-id R1 --pacing quiet
+   ```
+2. The governor never fights a limit the command already sets (e.g. an explicit
+   `-T4` stays); it only adds the flags that are missing. `off` is a true no-op.
+3. For a tool the governor does not drive, fall back to the manual flags above —
+   the profile value (`quiet`→~5 req/s, `balanced`→~20) is the number to mirror.
+
 ### Identity / user-agent hygiene
 4. Set an identifiable, non-default user agent when the RoE calls for traceable testing
    (so the client's logs can distinguish engagement traffic from real attacks):
@@ -119,10 +145,13 @@ feeds_into: [active-recon, port-scan, service-enumeration, web-crawling]
 
 `nmap` (`-T0`..`-T5`, `--max-rate`, `--scan-delay`), `masscan --rate`, `ffuf -rate -p`,
 `gobuster --delay`, `curl -A`, `proxychains4`, `tor`, `at`/`cron` for scheduling.
+`engine/pacing.py` (noise-governor profiles, wired into `engine/fanout.py` and
+`engine/nuclei_runner.py` via `--pacing`).
 
 ## Validation gate
 
-- [ ] Rate/concurrency settings match what the RoE allows for this target class.
+- [ ] Rate/concurrency settings match what the RoE allows for this target class
+      (a noise-governor profile set via `--pacing`, or the matching manual flags).
 - [ ] User-agent/traffic attribution matches the RoE's stated detection posture
       (attributable vs. evasion-testing).
 - [ ] Testing window matches the RoE schedule.

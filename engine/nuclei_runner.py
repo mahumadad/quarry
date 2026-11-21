@@ -12,6 +12,7 @@ try:
     from .app_profile import AppProfile, AppProfileStore
     from .artifacts import ArtifactStore
     from .nuclei_templates import NucleiTemplateCatalog, RISK_PROFILES, TemplatePolicyError
+    from .pacing import nuclei_knobs
     from .policy import PolicyEngine, canonical_url_target
     from .redaction import redact
     from .storage import atomic_write_json, engagement_lock, read_json
@@ -21,6 +22,7 @@ except ImportError:
     from app_profile import AppProfile, AppProfileStore
     from artifacts import ArtifactStore
     from nuclei_templates import NucleiTemplateCatalog, RISK_PROFILES, TemplatePolicyError
+    from pacing import nuclei_knobs
     from policy import PolicyEngine, canonical_url_target
     from redaction import redact
     from storage import atomic_write_json, engagement_lock, read_json
@@ -106,9 +108,13 @@ class NucleiRunner:
     def run(self, target: str, profile: AppProfile | dict[str, Any], run_id: str,
             task_id: str = "nuclei", risk: str = "safe", approved_digest: str = "",
             rate_limit: int = 5, concurrency: int = 2, bulk_size: int = 1,
-            timeout: int = 300) -> dict[str, Any]:
+            timeout: int = 300, pacing: str = "") -> dict[str, Any]:
         if self.runner.backend != "local":
             raise TemplatePolicyError("Reviewed local template paths require the local backend")
+        # A noise-governor profile overrides rate/concurrency; "" and "off"
+        # keep the caller's explicit values (unchanged default behavior).
+        if pacing and pacing != "off":
+            rate_limit, concurrency = nuclei_knobs(pacing)
         if not 1 <= rate_limit <= 100 or not 1 <= concurrency <= 25 or not 1 <= bulk_size <= 25:
             raise ValueError("Rate/concurrency/bulk limits outside safe bounds")
         plan = self.plan(target, profile, risk)
@@ -171,6 +177,9 @@ def main() -> int:
     parser.add_argument("--approved-digest", default="")
     parser.add_argument("--rate-limit", type=int, default=5)
     parser.add_argument("--concurrency", type=int, default=2)
+    parser.add_argument("--pacing", default="",
+                        help="noise governor profile (quiet/balanced/aggressive) "
+                             "— overrides --rate-limit/--concurrency when set")
     parser.add_argument("--plan-only", action="store_true")
     args = parser.parse_args()
     profile = AppProfileStore(args.audit_dir).get()
@@ -179,7 +188,8 @@ def main() -> int:
     runner = NucleiRunner(args.audit_dir)
     result = (runner.plan(args.target, profile, args.risk) if args.plan_only else
               runner.run(args.target, profile, args.run_id, args.task_id, args.risk,
-                         args.approved_digest, args.rate_limit, args.concurrency))
+                         args.approved_digest, args.rate_limit, args.concurrency,
+                         pacing=args.pacing))
     print(json.dumps(redact(result), indent=2, ensure_ascii=False))
     return 0 if result.get("status", "planned") in {"planned", "completed", "no_applicable_templates"} else 1
 
