@@ -7,8 +7,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from engine.leads import LeadStatus, LeadsStore  # noqa: E402
-from engine.tool_ingest import (ingest, parse_burp, parse_nuclei_jsonl,  # noqa: E402
-                                parse_sqlmap)
+from engine.tool_ingest import (ingest, parse_bbot, parse_burp,  # noqa: E402
+                                parse_ffuf, parse_httpx, parse_nmap,
+                                parse_nuclei_jsonl, parse_sqlmap)
 
 
 NUCLEI = "\n".join([
@@ -104,6 +105,122 @@ def test_burp_malformed_returns_empty():
 
 def test_burp_ingested_leads_are_open(tmp_path):
     leads = ingest("burp", BURP, audit_dir=str(tmp_path), store=True)
+    assert leads and all(l.status == LeadStatus.OPEN.value for l in leads)
+    assert len(LeadsStore(str(tmp_path)).list_open()) == 2
+
+
+# --- recon tool ingestion (nmap / httpx / ffuf / bbot) -------------------
+#
+# Recon output is surface, not a verdict: an open port, a live URL, a found
+# path or a bbot event enters as an OPEN lead to investigate, never a finding.
+
+NMAP = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sV -oX -">
+  <host>
+    <address addr="1.2.3.4" addrtype="ipv4"/>
+    <hostnames><hostname name="t.example.com" type="PTR"/></hostnames>
+    <ports>
+      <port protocol="tcp" portid="22"><state state="open"/>
+        <service name="ssh" product="OpenSSH" version="8.9p1"/></port>
+      <port protocol="tcp" portid="8080"><state state="open"/>
+        <service name="http-proxy" product="Jetty" version="9.4.43"/></port>
+      <port protocol="tcp" portid="443"><state state="closed"/>
+        <service name="https"/></port>
+    </ports>
+  </host>
+</nmaprun>
+"""
+
+HTTPX = "\n".join([
+    json.dumps({"url": "https://t.example.com", "status_code": 200,
+                "title": "Admin Portal", "webserver": "Jetty",
+                "tech": ["Jetty", "React"], "host": "1.2.3.4"}),
+    "not json",
+    json.dumps({"url": "https://t.example.com/api", "status_code": 401,
+                "tech": ["nginx"]}),
+])
+
+FFUF = json.dumps({"results": [
+    {"input": {"FUZZ": "admin"}, "url": "https://t.example.com/admin",
+     "status": 200, "length": 1234, "words": 100, "lines": 50},
+    {"input": {"FUZZ": "backup"}, "url": "https://t.example.com/backup",
+     "status": 403, "length": 12, "words": 2, "lines": 1},
+]})
+
+BBOT = "\n".join([
+    json.dumps({"type": "URL", "data": "https://t.example.com/login",
+                "scope_distance": 0, "tags": ["in-scope"]}),
+    json.dumps({"type": "VULNERABILITY", "scope_distance": 0,
+                "data": {"host": "t.example.com", "severity": "HIGH",
+                         "description": "SQLi in id param",
+                         "url": "https://t.example.com/x"}}),
+    json.dumps({"type": "FINDING", "scope_distance": 0,
+                "data": {"host": "t.example.com",
+                         "description": "Verbose error leak"}}),
+    json.dumps({"type": "OPEN_TCP_PORT", "data": "t.example.com:8080",
+                "scope_distance": 0}),
+    "not json at all",
+    json.dumps({"type": "DNS_NAME", "data": "vendor.example.net",
+                "scope_distance": 2}),
+])
+
+
+def test_nmap_open_ports_to_leads():
+    leads = parse_nmap(NMAP)
+    assert len(leads) == 2  # only open ports; the closed 443 is dropped
+    assert all(l.source == "nmap" for l in leads)
+    assert not any("443" in l.target_asset for l in leads)
+    http = next(l for l in leads if "8080" in l.target_asset)
+    assert "Jetty" in http.notes
+    assert http.target_asset.startswith("t.example.com")  # hostname over IP
+
+
+def test_nmap_malformed_returns_empty():
+    assert parse_nmap("not xml <<<") == []
+
+
+def test_httpx_jsonl_to_leads_skips_malformed():
+    leads = parse_httpx(HTTPX)
+    assert len(leads) == 2  # the junk line is skipped
+    assert all(l.source == "httpx" for l in leads)
+    api = next(l for l in leads if l.target_asset.endswith("/api"))
+    assert "401" in api.title or "401" in api.notes
+    root = next(l for l in leads if l.target_asset == "https://t.example.com")
+    assert "Jetty" in root.notes
+
+
+def test_ffuf_results_to_leads():
+    leads = parse_ffuf(FFUF)
+    assert len(leads) == 2
+    assert all(l.source == "ffuf" for l in leads)
+    admin = next(l for l in leads if "/admin" in l.target_asset)
+    assert admin.priority == "medium"  # 2xx hit is worth a look
+    assert "200" in admin.title or "200" in admin.notes
+    backup = next(l for l in leads if "/backup" in l.target_asset)
+    assert backup.priority == "low"  # 403 is lower-signal
+
+
+def test_ffuf_malformed_returns_empty():
+    assert parse_ffuf("not json") == []
+
+
+def test_bbot_filters_by_scope_distance():
+    leads = parse_bbot(BBOT)  # default keeps only in-scope (distance 0)
+    assert len(leads) == 4  # URL, VULNERABILITY, FINDING, OPEN_TCP_PORT
+    assert all(l.source == "bbot" for l in leads)
+    assert not any("vendor.example.net" in l.target_asset for l in leads)
+    vuln = next(l for l in leads if l.vuln_class_hint)
+    assert vuln.priority == "high"  # VULNERABILITY severity HIGH -> high
+    # Widening the scope distance pulls in the distant DNS_NAME event.
+    wider = parse_bbot(BBOT, max_scope_distance=2)
+    assert len(wider) == 5
+    assert any("vendor.example.net" in l.target_asset for l in wider)
+
+
+def test_recon_ingested_leads_are_open(tmp_path):
+    leads = ingest("nmap", NMAP, audit_dir=str(tmp_path), store=True)
     assert leads and all(l.status == LeadStatus.OPEN.value for l in leads)
     assert len(LeadsStore(str(tmp_path)).list_open()) == 2
 
