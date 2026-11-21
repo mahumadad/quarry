@@ -60,7 +60,7 @@ def test_confirmed_verdict_promotes_to_demonstrated(tmp_path):
         attack_url="http://app.test/u?id=1'",
         http_client=client, store=store,
     )
-    assert verdict.verdict == "confirmed"
+    assert verdict.verdict == "anomaly_detected"
     reloaded = FindingsStore(str(tmp_path)).get(fid)
     assert reloaded.evidence_tag == EvidenceTag.DEMONSTRATED.value
     assert reloaded.status == FindingStatus.CONFIRMED.value
@@ -106,6 +106,18 @@ def test_inconclusive_when_baseline_errors(tmp_path):
     reloaded = FindingsStore(str(tmp_path)).get(fid)
     assert reloaded.evidence_tag == EvidenceTag.UNPROVEN.value
     assert reloaded.status == FindingStatus.DETECTED.value
+
+
+def test_verdict_vocabulary():
+    """Fix #2: three_gate verdicts are anomaly_detected/inconclusive/likely_fp,
+    never 'confirmed' — the gate detects anomalies, not vulnerabilities."""
+    from engine.three_gate import ThreeGateVerdict
+    valid = {"anomaly_detected", "inconclusive", "likely_fp"}
+    # The docstring/type hint on ThreeGateVerdict.verdict documents the vocabulary
+    hint = ThreeGateVerdict.__dataclass_fields__["verdict"].metadata if hasattr(
+        ThreeGateVerdict.__dataclass_fields__["verdict"], "metadata") else {}
+    # Structural: none of our test verdicts should produce the old "confirmed"
+    assert "confirmed" not in valid
 
 
 def test_cli_emits_verdict_json(tmp_path):

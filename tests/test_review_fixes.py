@@ -215,6 +215,10 @@ def test_finding_updated_at_survives_reload(tmp_path):
                 evidence_tag="demonstrated")
     store.add(f)
     store.update_status(f.id, FindingStatus.CONFIRMED)
+    f = store.get(f.id)
+    f.rebuttal_result = "ACCEPTED"
+    store._findings[f.id] = f
+    store._save()
     store.update_status(f.id, FindingStatus.VALIDATED)
     first = FindingsStore(str(tmp_path)).get(f.id).updated_at
     time.sleep(0.05)

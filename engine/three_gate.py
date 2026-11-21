@@ -68,7 +68,7 @@ class GateResult:
 @dataclass
 class ThreeGateVerdict:
     finding_id: str
-    verdict: str  # "confirmed" | "likely_fp" | "inconclusive"
+    verdict: str  # "anomaly_detected" | "likely_fp" | "inconclusive"
     confidence: float  # 0.0 - 1.0
     baseline: GateResult | None = None
     attack: GateResult | None = None
@@ -186,15 +186,15 @@ def verify_finding(
     significant = _extract_significant(gate1.body_snippet, gate2.body_snippet)
 
     if significant:
-        verdict = "confirmed"
+        verdict = "anomaly_detected"
         confidence = min(0.6 + 0.1 * len(significant), 0.99)
         reason = f"{len(significant)} significant indicator(s) in attack response"
     elif status_diff and diff_ratio > 0.05:
-        verdict = "confirmed"
+        verdict = "anomaly_detected"
         confidence = 0.7
         reason = f"Status changed ({gate1.status}→{gate2.status}) with {diff_ratio:.0%} body diff"
     elif diff_ratio > 0.3:
-        verdict = "confirmed"
+        verdict = "anomaly_detected"
         confidence = 0.6
         reason = f"Significant body diff ({diff_ratio:.0%}) after noise stripping"
     elif diff_ratio > 0.1 or status_diff:
@@ -287,15 +287,15 @@ def verify_and_record(
     if store.get(finding_id) is None:
         return verdict  # nothing to persist onto; caller owns the finding
 
-    confirmed = verdict.verdict == "confirmed"
-    tag = EvidenceTag.DEMONSTRATED if confirmed else EvidenceTag.UNPROVEN
+    anomaly = verdict.verdict == "anomaly_detected"
+    tag = EvidenceTag.DEMONSTRATED if anomaly else EvidenceTag.UNPROVEN
     store.add_evidence(finding_id, Evidence(
         type="request_response",
         content=_evidence_content(verdict),
-        tool="three_gate" if confirmed else "three_gate:{}".format(verdict.verdict),
+        tool="three_gate" if anomaly else "three_gate:{}".format(verdict.verdict),
         tag=tag.value,
     ))
-    if confirmed:
+    if anomaly:
         store.set_evidence_tag(finding_id, EvidenceTag.DEMONSTRATED,
                                reason="three_gate: {}".format(verdict.reason))
         # Advance only from DETECTED; a no-op if already further along.

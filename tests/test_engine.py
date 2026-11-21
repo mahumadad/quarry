@@ -125,6 +125,10 @@ def test_exporters():
     store.add_evidence(f.id, Evidence(type="request_response", content="GET /api/invoices/42 -> 200",
                                       tag=EvidenceTag.DEMONSTRATED.value))
     store.update_status(f.id, FindingStatus.CONFIRMED)
+    f = store.get(f.id)
+    f.rebuttal_result = "ACCEPTED"
+    store._findings[f.id] = f
+    store._save()
     store.update_status(f.id, FindingStatus.VALIDATED)
     sarif = to_sarif(store)
     assert sarif["version"] == "2.1.0"
@@ -135,6 +139,36 @@ def test_exporters():
     # detected (not validated) findings stay out of exports
     store.add(Finding(title="lead", vuln_class="xss", status=FindingStatus.DETECTED.value))
     assert to_json(store)["count"] == 1
+
+
+def test_validated_requires_rebuttal_accepted():
+    """Fix #1: the engine must refuse VALIDATED without rebuttal_result == ACCEPTED."""
+    from engine.findings import FindingsStore, Finding, FindingStatus, Evidence, EvidenceTag
+    import pytest
+    d = tempfile.mkdtemp()
+    store = FindingsStore(d)
+    f = Finding(title="SQLi", vuln_class="sqli", severity="high",
+                evidence_tag=EvidenceTag.DEMONSTRATED.value,
+                steps_to_reproduce=["step 1"])
+    store.add(f)
+    store.add_evidence(f.id, Evidence(type="tool_output", content="boom",
+                                      tag=EvidenceTag.DEMONSTRATED.value))
+    store.update_status(f.id, FindingStatus.CONFIRMED)
+    # Without rebuttal: must be rejected
+    with pytest.raises(ValueError, match="rebuttal_result"):
+        store.update_status(f.id, FindingStatus.VALIDATED)
+    # With wrong rebuttal: also rejected
+    f = store.get(f.id)
+    f.rebuttal_result = "STALL"
+    store._findings[f.id] = f
+    store._save()
+    with pytest.raises(ValueError, match="rebuttal_result"):
+        store.update_status(f.id, FindingStatus.VALIDATED)
+    # With ACCEPTED: passes
+    f.rebuttal_result = "ACCEPTED"
+    store._findings[f.id] = f
+    store._save()
+    assert store.update_status(f.id, FindingStatus.VALIDATED)
 
 
 def test_timeguard():

@@ -184,6 +184,10 @@ class FindingsStore:
                     raise ValueError(f"Cannot validate {finding_id}: evidence_tag is still 'unproven'")
                 if len(f.steps_to_reproduce) < 1:
                     raise ValueError(f"Cannot validate {finding_id}: no steps_to_reproduce")
+                if f.rebuttal_result != "ACCEPTED":
+                    raise ValueError(
+                        f"Cannot validate {finding_id}: rebuttal_result is "
+                        f"'{f.rebuttal_result}', must be 'ACCEPTED'")
             previous = f.status
             f.status_history.append({"from": previous, "to": new_status.value,
                 "reason": reason, "at": datetime.now(timezone.utc).isoformat()})

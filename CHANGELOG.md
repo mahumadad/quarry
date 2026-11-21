@@ -40,6 +40,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now have explicit weights in `vuln_class_weights.py` — they previously
   fell to the 0.5 default even though both are chain pivots.
 
+### Changed
+- **Validation gate now requires rebuttal (fix #1):** `FindingsStore.update_status`
+  refuses the transition to VALIDATED unless `rebuttal_result == "ACCEPTED"`.
+  Previously the FSM only checked evidence, evidence_tag and steps_to_reproduce,
+  allowing a finding to reach VALIDATED without adversarial rebuttal.
+- **three_gate verdict renamed (fix #2):** `verify_finding` now returns
+  `anomaly_detected` instead of `confirmed` to make explicit that the 3-gate
+  protocol detects response anomalies, not vulnerability confirmation.
+  `verify_and_record` and chain_exploit consumers updated accordingly.
+- **README: action section corrected (fix #3):** the CI action section now
+  accurately describes the GitHub Action as a plugin self-check, not a
+  PR-level target scanner.
+- **Benchmarks: reproducibility framing (fix #4):** benchmark results are
+  now explicitly labeled as historical operator-run snapshots with a note on
+  what metadata is needed for reproducible claims.
+- **Custody: scope disclaimer (fix #5):** `engine/custody.py` docstring and
+  README now document that the chain is tamper-evident (detects casual
+  modification) not tamper-proof, with pointers to stronger guarantees.
+
 ### Fixed
 - `skills/recon/surface-probes/SKILL.md`: frontmatter `feeds_into: [*]`
   was an invalid YAML alias (the file failed to parse as YAML; the plugin

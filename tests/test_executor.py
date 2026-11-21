@@ -89,14 +89,14 @@ def test_verify_task_runs_three_gate_when_spec_present(engagement):
     def fake_verify(finding_id, args):
         captured["finding_id"] = finding_id
         captured["args"] = args
-        return {"verdict": "confirmed"}
+        return {"verdict": "anomaly_detected"}
 
     ex = ReferenceExecutor(str(engagement), verify_fn=fake_verify)
     task = _task(phase="validation", skill="finding-validation")
     res = ex(task, {"verify_spec": {"finding_id": "F-1",
                                     "baseline_url": "http://target.example.com/"}})
     assert res["status"] == "completed"
-    assert res["result"]["verdict"] == "confirmed"
+    assert res["result"]["verdict"] == "anomaly_detected"
     assert captured["finding_id"] == "F-1"
     assert "finding_id" not in captured["args"]
 

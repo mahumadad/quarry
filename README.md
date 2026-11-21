@@ -22,7 +22,7 @@ Most AI pentest tools optimize for **autonomy** — more tools, more actions, le
 | Report findings based on version banners | Require PoC or evidence before any finding |
 | Trust the AI's classification | Blind adversarial rebuttal by an independent agent |
 | Flat list of vulnerabilities | Attack chains with BFS graph walking |
-| "We found 47 vulnerabilities" | Custody-grade evidence log, hash-chained, locally tamper-evident |
+| "We found 47 vulnerabilities" | Evidence log, hash-chained, locally tamper-evident |
 
 **The result:** reports that survive scrutiny. Findings that reproduce. Evidence that holds up.
 
@@ -41,7 +41,9 @@ Most AI pentest tools optimize for **autonomy** — more tools, more actions, le
 
 ## Benchmarks
 
-Results from manual runs against known-vulnerable applications (not yet automated in CI):
+Historical results from operator-run sessions against known-vulnerable applications.
+These are **point-in-time snapshots**, not continuously validated claims — results may
+differ on other Quarry commits, models, or target versions.
 
 | Target | Type | Expected | Found | Recall | Evidence integrity |
 |--------|------|----------|-------|--------|--------------------|
@@ -54,9 +56,11 @@ Results from manual runs against known-vulnerable applications (not yet automate
 
 Full results: [`benchmarks/results/`](benchmarks/results/). Target definitions: [`benchmarks/targets/`](benchmarks/targets/).
 
-> **Note:** CI currently runs a synthetic scoring test only. Automated benchmark execution
-> against Docker targets is planned but not yet implemented. The results above are from
-> operator-run sessions and may not reflect current plugin behavior after changes.
+> **Reproducibility status:** CI runs a synthetic scoring test only. Automated benchmark
+> execution against Docker targets is planned but not yet implemented. Each result file
+> should record: Quarry commit, model + configuration, target version, true/false positive
+> breakdown, time and cost, and per-finding validation evidence. Until that metadata is
+> captured systematically, treat these as exploratory results, not product recall metrics.
 
 ---
 
@@ -118,7 +122,7 @@ engagement-planner ──► recon-agent ──► exploit-researcher
 
 **Human gates:** exploitation, state-modifying payloads, scope expansion, destructive actions, and pivoting all require explicit operator confirmation.
 
-**Custody chain:** every evidence artifact is logged in an append-only, hash-chained custody log. The chain is locally tamper-evident — any modification breaks the hash sequence.
+**Custody chain:** every evidence artifact is logged in an append-only, hash-chained custody log. The chain is locally tamper-evident — any modification breaks the hash sequence. This detects casual tampering; for stronger guarantees (signed checkpoints, authenticated identity, external timestamping) see `engine/custody.py`.
 
 ---
 
@@ -167,17 +171,17 @@ docs/                 Design docs and gap analysis
 
 ---
 
-## CI & reusable action
+## CI & self-check action
 
-Quarry ships a [GitHub Action](action.yml) for PR-level security scanning with SARIF export:
+Quarry ships a [GitHub Action](action.yml) that validates the **plugin itself** — structural integrity, engine smoke tests, and module consistency. It does **not** scan the consuming repository for vulnerabilities.
 
 ```yaml
 - uses: mahumadad/quarry@main
   with:
-    sarif: "true"
+    sarif: "true"   # optional: upload self-check results to Code Scanning
 ```
 
-Results upload to GitHub Code Scanning automatically.
+Use it in Quarry's own CI or as a post-install sanity check. For target scanning, use the `/quarry:engage` → `/quarry:hunt` workflow inside Claude Code.
 
 ---
 

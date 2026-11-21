@@ -10,6 +10,17 @@ This is what makes a report defensible in procurement/legal/compliance
 contexts: not just "we found X" but "here is the tamper-evident record of
 when, how, and by what authority each action was taken".
 
+Scope and limitations:
+- TAMPER-EVIDENT, not tamper-proof. An attacker with write access to the
+  audit directory can rewrite the entire chain with valid hashes. The chain
+  detects casual or partial modification, not a full rewrite.
+- ``actor`` labels (agent/operator/engine) are self-reported tags, not
+  authenticated identities. No cryptographic binding to a user.
+- Timestamps are local clocks with no external witness.
+For stronger guarantees, layer external anchors: signed checkpoints (GPG or
+sigstore), authenticated actor identity, timestamping authority (RFC 3161),
+or replication to append-only remote storage.
+
 Log lives in .pentest-state/custody.jsonl (one JSON object per line).
 """
 
