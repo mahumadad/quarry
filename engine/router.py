@@ -9,8 +9,10 @@ from pathlib import Path
 
 try:
     from .orchestrator import Orchestrator
+    from .vuln_class_weights import class_weight
 except ImportError:
     from orchestrator import Orchestrator
+    from vuln_class_weights import class_weight
 
 WORKFLOW_BY_TYPE = {"web_app": "web-app-pentest.yaml", "api_only": "api-pentest.yaml",
                     "network": "ad-pentest.yaml", "mobile_api": "mobile-pentest.yaml"}
@@ -47,16 +49,21 @@ class Router:
         skills = self.get_phase_skills("hunting")
         gaps = {g.get("vuln_class", "") for g in coverage_gaps}
         suggestions = {s.get("vuln_class", "") for s in brain_suggestions}
-        prioritized, rest = [], []
+        suggested, gapped, rest = [], [], []
         for skill in skills:
             skill_class = skill.split("/")[-1]
             if skill_class in suggestions:
-                prioritized.insert(0, skill)
+                suggested.append(skill)
             elif skill_class in gaps:
-                prioritized.append(skill)
+                gapped.append(skill)
             else:
                 rest.append(skill)
-        return prioritized + rest
+        # Precedence stays (brain suggestions, then coverage gaps, then the
+        # rest); within each bucket, hunt the higher-yield classes first.
+        by_weight = lambda s: -class_weight(s.split("/")[-1])  # noqa: E731
+        return (sorted(suggested, key=by_weight)
+                + sorted(gapped, key=by_weight)
+                + sorted(rest, key=by_weight))
 
     def skip_skill(self, skill: str, exhausted_classes: set[str]) -> bool:
         return skill.split("/")[-1] in exhausted_classes
