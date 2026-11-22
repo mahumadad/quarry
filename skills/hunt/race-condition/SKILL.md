@@ -237,6 +237,30 @@ lock funciona (un único éxito anómalo entre muchos trials suele ser ruido del
   without you noticing — verify with response timestamps that requests genuinely overlapped
   server-side, not just that you fired them close together client-side.
 
+9. **State-transition TOCTOU (non-concurrent).** Not all TOCTOU needs a burst. When a workflow
+   validates a condition in one request and acts on it in a later request, the attacker has the
+   entire inter-request window to change the validated state — no concurrency tooling needed:
+   - **Email verification swap:** "Send verification link" checks the email is unverified.
+     Change the email to a victim's address *between* the send and the click. The verification
+     link now verifies the new (victim's) email.
+   - **Payment authorization gap:** "Authorize $10" succeeds. Before "Capture," the cart is
+     modified to $1000. If capture trusts the authorization amount without re-checking, the
+     $1000 order is charged at $10.
+   - **File upload pipeline:** Upload a benign file (passes validation). Replace the file at
+     the same storage path before the async processing step reads it. Processing handles the
+     malicious replacement under the validated benign file's trust.
+   ```bash
+   # 1. Upload benign.pdf → receives upload_id
+   UPLOAD_ID=$(curl -s -X POST https://target/api/upload -F "file=@benign.pdf" | jq -r .id)
+   # 2. Immediately overwrite with malicious.pdf using the same upload_id
+   curl -s -X PUT "https://target/api/upload/$UPLOAD_ID" -F "file=@malicious.pdf"
+   # 3. Trigger processing — does the pipeline process benign or malicious?
+   curl -s -X POST "https://target/api/upload/$UPLOAD_ID/process"
+   ```
+   This pattern bridges `race-condition` and `invariant-violation` — the invariant is "validated
+   data doesn't change between validation and use," but the exploitation doesn't require
+   concurrency, just faster-than-expected state mutation.
+
 ## Chain Anchors
 
 Before declaring this finding complete, probe these escalation paths:

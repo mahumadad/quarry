@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **New `hunt/invariant-violation` skill:** meta-hunting methodology for
+  systematically finding broken assumptions — immutability violations,
+  cross-component disagreement, trust boundary shifts, teardown/cleanup
+  incompleteness, temporal/ordering assumptions, and allowed-but-risky
+  patterns (eval of "sanitized" input, deserialization of "trusted" data).
+  Includes timing-oracle statistical validation (R² linearity for blind
+  confirmation), payloads-as-structured-tests table, and bypass techniques
+  against common defenses (client-side validation, WAF-only protection,
+  cache TTL, partial logout). Informed by XBOW's Chrome full-chain,
+  EAC calculator RCE, CVE-2026-72018 (kernel SMC-D), and CVE-2026-45185
+  (Exim UAF) research.
+- **`hunt/race-condition` enriched with state-transition TOCTOU (step 9):**
+  non-concurrent TOCTOU pattern — mutate validated state between workflow
+  steps without needing a concurrency burst (email verification swap,
+  payment authorization gap, file upload pipeline replacement).
 - **Extended chain-engine oracle set (13 new oracles):** `chain_exploit.py`
   now composes chains for `jwt-forgery`, `oauth-misconfig`, `saml-forgery`,
   `nosqli`, `graphql-introspection`, `mass-assignment`,
