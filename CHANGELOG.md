@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cache TTL, partial logout). Informed by XBOW's Chrome full-chain,
   EAC calculator RCE, CVE-2026-72018 (kernel SMC-D), and CVE-2026-45185
   (Exim UAF) research.
+- **`hunt/deserialization` enriched with signed-cookie forge chain (step 7):**
+  signed-but-not-encrypted session cookie inspection (Flask itsdangerous,
+  Django PickleSerializer), self-revealing secret recovery pattern (signing
+  key embedded in the cookie's own payload), timing-based blind pickle
+  confirmation (time.sleep correlation over 3+ data points), and new chain
+  anchor for secret-recovery → forge → deserialize escalation. Informed by
+  the Google DevSite Flask session pickle RCE writeup ($90k bounty).
+- **`hunt/xxe` enriched with translation file vectors (step 9, anchors 5–6):**
+  translation/localization import features (XLIFF, Android XML, .resx,
+  stringsdict) as XXE surface — each format uses a distinct parser code path,
+  so multi-format import multiplies entry points. New chain anchors for
+  multi-format surface testing and multi-tenant SaaS escalation (cloud
+  metadata, cross-tenant credential recovery). Informed by CVE-2026-32251
+  (Tolgee XXE via translation import).
 - **`hunt/race-condition` enriched with state-transition TOCTOU (step 9):**
   non-concurrent TOCTOU pattern — mutate validated state between workflow
   steps without needing a concurrency burst (email verification swap,
