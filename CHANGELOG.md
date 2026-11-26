@@ -25,12 +25,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with missing ownership checks), client-supplied identity override
   (`actor_id`), multi-subdomain GraphQL surface discovery, incomplete fix
   exploitation on sibling mutations, and cross-tenant mutation IDOR. New
-  Payloads rows (5) and Bypass rows (3). Informed by Meta AI ($10K
-  media_set_id IDOR), Meta support system ($78K case_id IDOR), and TikTok
-  Ads cross-tenant pixel events IDOR.
-- **`hunt/idor` enriched with GraphQL mutation vector (signal + anchor 6):**
+  Payloads rows (5) and Bypass rows (3). Step 8 extended with concrete
+  persisted query extraction from Next.js/Relay JS bundles: scan chunks for
+  32-char MD5 `doc_id` hashes, extract selection fields to understand mutation
+  shape without introspection, replay via `{"doc_id":"<hash>","variables":{}}`
+  to reach mutations not exposed by current UI. New Bypass row for persisted
+  query replay. Informed by Meta AI ($10K media_set_id IDOR), Meta support
+  system ($78K case_id IDOR), TikTok Ads cross-tenant pixel events IDOR,
+  and Meta AI recon (120 operations extracted from 139 JS chunks).
+- **`hunt/idor` enriched with hierarchical ID and batch vectors (payloads, bypass, anchors 7–8):**
   GraphQL mutation input parameters (`media_set_id`, `pixel_id`, `actor_id`)
-  as IDOR surface, cross-referencing `graphql` step 9.
+  as IDOR surface (anchor 6), hierarchical ID confused deputy (parent validates
+  but child doesn't — `bc_id`+`asset_id` pattern), batch per-item ownership
+  bypass (batch validates request but not individual items), and token scope
+  cross-contamination. Informed by TikTok Business Center API surface (37
+  endpoints with hierarchical bc_id→asset_id→advertiser_id) and Indonesian
+  Local Services batch API.
+- **`hunt/auth-bypass` enriched with HMAC signing and version downgrade (steps 9–10, anchors 5–6):**
+  API version downgrade testing (legacy/deprecated versions with weaker auth,
+  zombie endpoints past retirement date), HMAC signing bypass (omit sign param,
+  empty signature, timestamp window abuse, SDK-specific endpoints that skip
+  signing), and token scope cross-contamination. New Payloads rows (7) and
+  Bypass rows (3). Informed by TikTok Shop API (HMAC-SHA256 signing with Go
+  SDK bug on RecoverProduct, date-based versioning YYYYMM with legacy
+  endpoints, access token as query parameter).
 - **`hunt/deserialization` enriched with signed-cookie forge chain (step 7):**
   signed-but-not-encrypted session cookie inspection (Flask itsdangerous,
   Django PickleSerializer), self-revealing secret recovery pattern (signing

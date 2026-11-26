@@ -135,6 +135,9 @@ Guía de caza: una familia por forma de manipulación de referencia. La prueba d
 | ID encoding/format | int, UUID, base64 `MTA0Mg==`, hashid, array `id[]=` | Formatos alternos que el authz no cubre |
 | Wrapper/predictable token | reset token, presigned URL no ligada al usuario | Token válido para cualquier objeto |
 | Enumeration sweep | `seq` sobre rango de IDs en endpoint confirmado vulnerable | Medir blast radius (throttled) |
+| Hierarchical ID confused deputy | `bc_id` válido del atacante + `asset_id` de víctima dentro | Authz valida parent pero no child |
+| Batch per-item bypass | `[{id:A_own},{id:B_victim}]` en endpoint batch/bulk | Batch validado pero items individuales no |
+| Token scope cross-contamination | Token de recurso A funciona en recurso B del mismo tipo | Scope del token no limita a un solo recurso |
 
 Surface signals que delatan la clase antes de probar:
 - Params de referencia a objeto: `id`, `user_id`, `order_id`, `account_number`, `invoice_id`, `{uuid}`, `file`.
@@ -170,6 +173,8 @@ Agrupadas por el control de autorización que evaden; probar la familia completa
 | Formato de ID | Probar UUID→int, base64, `id[]=` array, wrapped `{"id":{"$ne":null}}` | Parser expande o castea distinto |
 | Per-resolver authz (GraphQL) | Probar cada field/mutation/batch por separado | REST protegido no implica field GraphQL protegido |
 | ID no adivinable | Cosechar IDs de exports, mensajes de error, links compartidos | "Missing authz, mitigado por ID no adivinable" si no hay leak |
+| Authz en parent, no child | ID jerárquico (`org_id`→`asset_id`): validar que el child pertenece al parent del caller | Plataformas multi-tenant con jerarquía de recursos |
+| Batch item ownership | Enviar batch con mix de items propios y ajenos; verificar si pasan todos | APIs batch/bulk validan el request pero no ownership por item |
 
 ## Root Causes
 
@@ -223,6 +228,8 @@ Before declaring this finding complete, probe these escalation paths:
 4. **ID enumerability** — Can you enumerate all valid IDs? Sequential integers are trivially enumerable; UUIDs need a separate leak path.
 5. **Rate limiting on exfiltration** — Does rate limiting or anomaly detection prevent mass exfiltration via the IDOR, or can thousands of records be pulled unthrottled?
 6. **GraphQL mutation input IDOR** — Do mutations accept resource IDs (`media_set_id`, `pixel_id`, `conversation_id`) without ownership validation? Test every `*_id` input parameter across all mutations, not just queries. Cross-reference `graphql` step 9.
+7. **Hierarchical ID confused deputy** — When an endpoint takes a parent ID and a child ID (e.g. `bc_id` + `asset_id`, `org_id` + `user_id`), does it validate that the child belongs to the parent owned by the caller? Test: use your valid parent with victim's child ID.
+8. **Batch per-item ownership** — Batch/bulk endpoints that accept arrays of IDs: does each item get an individual ownership check, or only the top-level request? Test: mix your own IDs with victim's IDs in a single batch call.
 
 A finding without chain anchor results is INCOMPLETE. Record each anchor as
 tested/not-applicable/blocked with the reason.

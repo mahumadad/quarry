@@ -37,6 +37,11 @@ chains_with: [idor, jwt, csrf, race-condition]
   it answers without a valid session).
 - "Remember me" tokens, API keys, or session identifiers with low entropy or predictable
   structure.
+- API endpoints with HMAC/signature-based authentication (`sign`, `signature`, `hmac` params)
+  — especially when SDKs implement the signing and may have bugs on specific endpoints.
+- Multiple API versions available (`/api/v1/`, `/api/v2/`, `/api/{YYYYMM}/`) where older
+  versions may have weaker authentication or missing authorization checks.
+- Deprecated/zombie endpoints past their documented retirement date still responding.
 
 ## Prerequisites
 
@@ -148,6 +153,44 @@ chains_with: [idor, jwt, csrf, race-condition]
    nuclei -l urls.txt -tags default-login,exposure -o nuclei_auth.txt
    ```
 
+9. **API version downgrade / zombie endpoints.** When the current API version is known (e.g.
+   `v2`, `202309`), test whether older versions still respond with weaker controls:
+   ```bash
+   # version prefix variation
+   for v in v1 v2 v3 internal beta; do
+     curl -s -o /dev/null -w "/api/$v/users -> %{http_code}\n" "https://target/api/$v/users"
+   done
+   # date-based versioning (TikTok pattern: YYYYMM)
+   for ver in 202301 202306 202309 202401; do
+     curl -s -o /dev/null -w "/$ver/orders -> %{http_code}\n" \
+       "https://target/order/$ver/orders/search" -X POST -H "Content-Type: application/json" -d '{}'
+   done
+   ```
+   Also check documented deprecated endpoints past their retirement date — many remain
+   routed and functional with legacy (less restrictive) auth middleware. Compare the same
+   operation on old vs. current version: if old returns data that current blocks, the
+   downgrade is a finding.
+
+10. **HMAC/API signing bypass.** For APIs using request signing (HMAC-SHA256, RSA signatures):
+    ```bash
+    # 1. Omit the sign parameter entirely — does the server enforce it?
+    curl -s "https://target/api/resource?app_key=KEY&timestamp=$(date +%s)" \
+      -H "x-access-token: $TOKEN"
+    # 2. Send empty/null signature
+    curl -s "https://target/api/resource?app_key=KEY&timestamp=$(date +%s)&sign=" \
+      -H "x-access-token: $TOKEN"
+    # 3. Timestamp window abuse — how far outside the expected window is accepted?
+    curl -s "https://target/api/resource?app_key=KEY&timestamp=1000000000&sign=$SIGN" \
+      -H "x-access-token: $TOKEN"
+    # 4. Check official SDKs for endpoints that skip signing (SDK bugs)
+    # grep for endpoints without sign/signature call in the SDK source
+    grep -rn 'def.*request\|func.*Request' sdk_source/ | grep -v 'sign\|signature\|hmac'
+    ```
+    SDK bugs where specific endpoints don't send the signature are real (observed in TikTok
+    Go SDK's `RecoverProduct`). Also test whether the token scope is enforced: an access
+    token scoped to resource A may work on resource B if the server only validates the token
+    is active, not its scope.
+
 ## Tooling
 
 - `curl` — the core manual technique across nearly every variant here.
@@ -173,6 +216,12 @@ mostrando sistemáticamente la ausencia de rate-limit/lockout, no un acierto por
 | OTP/MFA brute | Barrido `seq 0 9999` contra `/mfa/verify` sin rate limit | Espacio OTP corto sin lockout |
 | Session fixation | Reusar el session ID pre-login tras autenticar | ID no regenerado en cambio de privilegio |
 | Lockout bypass | Rotar `X-Forwarded-For: 10.0.0.$i` por intento | Lockout atado a IP spoofeable |
+| API version downgrade | `/api/v1/resource` cuando `/api/v2/resource` es current | Versión vieja con auth más débil |
+| Zombie endpoint | Endpoint pasado de fecha de retiro documentada, sigue respondiendo | Legacy middleware con menos controles |
+| HMAC sign omission | Omitir `sign`/`signature` param, o enviar vacío/null | Server no enforce firma |
+| Timestamp window | Timestamp Unix muy antiguo o futuro en request firmado | Ventana de validación laxa o sin validar |
+| SDK signing bug | Endpoint específico donde el SDK oficial no envía firma | Bug en SDK = endpoint sin sign en producción |
+| Token scope leak | Token de recurso A funciona en recurso B sin re-validar scope | Validación de token activo pero no de scope |
 
 Surface signals que delatan la clase antes de probar:
 - Paneles admin en rutas predecibles sin redirect a login.
@@ -207,6 +256,9 @@ seguro.
 | Rate limit / lockout por IP | Rotar `X-Forwarded-For`, espaciar, distribuir origen | Lockout atado a IP, no a cuenta |
 | Route guard client-side | Llamar la API directo, sin pasar por la UI | Guard en JS no re-verifica server-side |
 | Token de reset "en URL" | Confirmar single-use/expiry/entropía antes de reportar | Token largo random single-use es patrón válido, no finding |
+| API version downgrade | Probar `/v1/`, `/v0/`, versiones legacy, endpoints con fecha de retiro pasada | Mismo recurso con middleware anterior |
+| HMAC signing bypass | Omitir sign, vaciar firma, timestamp fuera de ventana, buscar SDK bugs | El SDK oficial puede no firmar ciertos endpoints |
+| Token scope validation | Usar token de recurso A en recurso B del mismo tipo | Server valida existencia del token, no su scope |
 
 ## Root Causes
 
@@ -262,6 +314,8 @@ Before declaring this finding complete, probe these escalation paths:
 2. **Other users' data** — Can you access other users' data through the bypassed auth check?
 3. **Reliability** — Is the bypass deterministic, or is it actually a race condition that only sometimes succeeds?
 4. **Blast radius** — Does the bypass affect one endpoint, or does it invalidate auth checks across the entire API (e.g. a shared middleware flaw)?
+5. **API version downgrade** — Does the same resource respond on an older API version with weaker auth? Are deprecated endpoints past retirement date still routed?
+6. **HMAC/signing bypass** — Does the endpoint accept requests without a valid signature? Are there SDK-specific endpoints that skip signing? Is the timestamp validation window wide enough to replay?
 
 A finding without chain anchor results is INCOMPLETE. Record each anchor as
 tested/not-applicable/blocked with the reason.

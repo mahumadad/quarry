@@ -179,7 +179,8 @@ sin gate del operador.
 | Check en read-path | Repetir el bypass en mutations (write-path) | El write suele omitir el check del read |
 | Validación por tipo esperado | Type/interface coercion a tipo hermano sin check | Auth escrita contra un implementing type, no el otro |
 | Depth/complexity limiting | Aliasing ancho (muchos campos) en vez de profundo, fragmentos | Buscar el umbral real, no asumir por un rechazo |
-| Persisted-queries only | N/A real si no acepta query cruda; confirmar antes de armar plan | Defeat de pasos 3–6 por diseño |
+| Persisted-queries only (raw blocked) | N/A para pasos 3–6 si no acepta query cruda — pero las persisted queries se pueden descubrir y replay (ver paso 8 bundle extraction) | Confirmar si el server rechaza raw queries antes de armar plan |
+| Persisted query replay | Extraer `doc_id` hashes de JS bundles, replay via `{"doc_id":"<hash>","variables":{}}` | Acceder a mutations no expuestas por el UI actual sin raw query |
 | Auth gateway vs resolver | Misma mutation en otro subdominio con gateway menos restrictivo | Backend compartido, middleware distinto |
 | Fix parcial | Probar mutations hermanas / action values alternos post-parche | El fix cubrió un code path, no todos |
 | Identity override | `actor_id` en input de mutation si el resolver no valida contra sesión | Impersonation sin token robado |
@@ -242,6 +243,25 @@ sin gate del operador.
    mutations, but the endpoint may accept 200. Mutations not called by the current UI version
    are prime candidates for missing auth checks (deprecated but still routed, internal-only
    but not gated).
+
+   **Persisted query extraction from JS bundles (Relay/Next.js).** When introspection is off
+   and the server only accepts `doc_id` hashes (not raw query text), extract persisted query
+   IDs directly from the client-side JS:
+   ```bash
+   # Download all JS chunks (Next.js/Turbopack pattern)
+   curl -s https://target/_next/static/immutable/chunks/ | grep -oP '[a-f0-9_]+\.js' | \
+     while read f; do curl -sO "https://target/_next/static/immutable/chunks/$f"; done
+   # Extract 32-char hex doc_id hashes (Relay persisted query IDs)
+   grep -rhoP '"doc_id"\s*:\s*"([a-f0-9]{32})"' *.js | sort -u
+   # Extract operation names alongside their doc_id
+   grep -rhoP '(doc_id|fb_api_req_friendly_name)["\s:=]+["'\'']\K[^"'\'']+' *.js | sort -u
+   # Extract selection field patterns to understand mutation shape without introspection
+   grep -rhoP 'selections:\s*\[.*?\]' *.js | head -20
+   ```
+   Each `doc_id` is a callable persisted query — replay it via
+   `{"doc_id":"<hash>","variables":{...}}` even without knowing the query text. The selection
+   fields embedded in the compiled Relay artifacts reveal what data each mutation reads/writes,
+   substituting for introspection on the mutation surface.
 
 9. **Input parameter IDOR on mutations (media_set_id pattern).** Mutations often accept
    resource IDs as input parameters (`media_set_id`, `conversation_id`, `pixel_id`,
