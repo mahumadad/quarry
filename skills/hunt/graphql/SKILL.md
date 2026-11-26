@@ -137,6 +137,11 @@ desviación de comportamiento (bypass de auth, contador de rate-limit incrementa
 | Field-level auth bypass | `{ user(id:"B"){ email paymentMethods{ last4 } } }` como cuenta A | Resolver sin check object-level |
 | Mutation auth bypass | `mutation { updateUser(id:"B", input:{...}){id} }` | Write-path sin el check que sí tiene el read-path |
 | Type/interface coercion | enviar tipo concreto inesperado en campo union/interface | Eludir validación escrita contra otro tipo hermano |
+| Relay mutation enumeration | extraer `fb_api_req_friendly_name` / operation names de JS bundles | Descubrir mutations no usadas por el UI actual |
+| Input param IDOR | `mutation { edit(input:{resource_id:"<B_id>",...}) }` como A | Ownership check faltante en parámetros de input |
+| Client-supplied identity | `actor_id` / `user_id` en input de mutation sobreescribe sesión | Impersonation si el resolver confía en el input |
+| Cross-tenant mutation | mutation que modifica pixel/product/campaign de otro tenant | IDOR en multi-tenant SaaS compartiendo backend |
+| Incomplete fix sibling | misma operación en mutation hermana post-parche | El fix cubrió un path pero no los siblings |
 
 Surface signals que delatan la clase antes de inyectar:
 - Endpoint `/graphql`, `/graphiql`, `/api/graphql`, `/v1/graphql` o POST-JSON que acepta `{"query":"..."}`.
@@ -175,6 +180,9 @@ sin gate del operador.
 | Validación por tipo esperado | Type/interface coercion a tipo hermano sin check | Auth escrita contra un implementing type, no el otro |
 | Depth/complexity limiting | Aliasing ancho (muchos campos) en vez de profundo, fragmentos | Buscar el umbral real, no asumir por un rechazo |
 | Persisted-queries only | N/A real si no acepta query cruda; confirmar antes de armar plan | Defeat de pasos 3–6 por diseño |
+| Auth gateway vs resolver | Misma mutation en otro subdominio con gateway menos restrictivo | Backend compartido, middleware distinto |
+| Fix parcial | Probar mutations hermanas / action values alternos post-parche | El fix cubrió un code path, no todos |
+| Identity override | `actor_id` en input de mutation si el resolver no valida contra sesión | Impersonation sin token robado |
 
 ## Root Causes
 
@@ -220,6 +228,58 @@ sin gate del operador.
 - Batch/alias requests can look identical to legitimate complex client queries in logs —
   document the exact query sent so the finding is unambiguous to a reviewer.
 
+8. **Relay-convention mutation mapping (Meta/big-tech pattern).** Large platforms identify
+   mutations by a friendly name in the request body (`fb_api_req_friendly_name` at Meta,
+   similar `action` or `operation_name` fields elsewhere) rather than by the query string.
+   Map the full mutation surface by mining the client-side JavaScript:
+   ```bash
+   # Extract mutation names from JS bundles (after js-analysis/source-map extraction)
+   grep -rhoP 'fb_api_req_friendly_name["\s:=]+["'\'']\K[^"'\'']+' js_bundles/ | sort -u
+   # Or capture from network traffic — every GraphQL POST includes the operation name
+   # In Burp: filter proxy history by URL containing /graphql, extract unique operation names
+   ```
+   Each mutation is a separate authorization boundary — the official client may only call 20
+   mutations, but the endpoint may accept 200. Mutations not called by the current UI version
+   are prime candidates for missing auth checks (deprecated but still routed, internal-only
+   but not gated).
+
+9. **Input parameter IDOR on mutations (media_set_id pattern).** Mutations often accept
+   resource IDs as input parameters (`media_set_id`, `conversation_id`, `pixel_id`,
+   `shop_id`) that reference objects belonging to other users. Unlike field-level auth bypass
+   (step 5), this targets the *input validation* — the resolver processes the mutation using
+   the referenced object without checking if the caller owns it:
+   ```bash
+   # Identify all *_id input parameters in mutations from the schema
+   # For each: substitute with an ID belonging to account B while authenticated as A
+   curl -s -X POST https://target/api/graphql -H "Authorization: Bearer $TOKEN_A" \
+     -H "Content-Type: application/json" \
+     -d '{"query":"mutation { editResource(input: {resource_id: \"<B_resource_id>\", data: \"test\"}) { id } }"}'
+   ```
+   Also check for client-supplied identity fields (`actor_id`, `user_id`, `owner_id`) in the
+   mutation input — if the resolver trusts the input `actor_id` over the session identity, the
+   caller can impersonate any user.
+
+10. **Multi-subdomain GraphQL surface.** Large platforms expose GraphQL on multiple subdomains
+    (`ads.target.com/graphql`, `seller.target.com/graphql`, `ai.target.com/api/graphql`,
+    `business.target.com/graphql`) each with potentially different:
+    - Auth middleware (one may enforce roles, another may only check "is authenticated")
+    - Schema overlap (same types/mutations available but with different auth checks)
+    - Rate limiting and query complexity thresholds
+    Map all GraphQL endpoints during recon (subdomain enumeration + path fuzzing for
+    `/graphql`, `/api/graphql`, `/gql`, `/v1/graphql`, `/v2/graphql`). A mutation blocked on
+    one subdomain may succeed on another that shares the same backend resolvers but has weaker
+    gateway-level controls.
+
+11. **Incomplete fix exploitation.** When a mutation is patched for an IDOR or auth bypass,
+    test immediately:
+    - **Sibling mutations** that operate on the same resource type (e.g., if `editImage` was
+      fixed, try `reimagineImage`, `deleteImage`, `shareImage`)
+    - **Different `action` values** on the same mutation endpoint (some platforms route by an
+      `action` field inside the input, not by the mutation name)
+    - **The same mutation with optional/deprecated parameters** that bypass the new check
+    The Meta pattern: a first fix on one code path gets a second bounty when the same logic
+    gap exists on a related mutation. This applies within hours/days of a disclosed fix.
+
 ## Chain Anchors
 
 Before declaring this finding complete, probe these escalation paths:
@@ -229,6 +289,9 @@ Before declaring this finding complete, probe these escalation paths:
 3. **Nested query DoS** — Can a deeply nested or circular query cause resource exhaustion when query complexity/depth isn't limited?
 4. **IDOR via object-level auth gaps** — Do individual resolvers enforce object-level authorization, or can other users' data be fetched by ID through a different query/mutation path?
 5. **Error-based information disclosure** — Do verbose GraphQL errors leak schema internals, stack traces, or validation details useful for further attack?
+6. **Cross-tenant mutation IDOR** — Can a mutation modify resources belonging to another tenant/advertiser/seller (pixel events, products, campaigns, rules)? Multi-tenant SaaS with shared GraphQL backends is the highest-impact variant.
+7. **Multi-subdomain auth inconsistency** — Is the same mutation available on multiple subdomains with different authorization enforcement? A protected mutation on `app.target.com` may be unprotected on `ads.target.com`.
+8. **Incomplete fix on sibling mutations** — After a disclosed fix, do related mutations on the same resource type still have the gap?
 
 A finding without chain anchor results is INCOMPLETE. Record each anchor as
 tested/not-applicable/blocked with the reason.

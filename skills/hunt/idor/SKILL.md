@@ -36,6 +36,10 @@ chains_with: [auth-bypass, info-disclosure, csrf]
   `PUT /api/profile` with a hidden `user_id` field) — classic mass-assignment-flavored IDOR.
 - Admin/staff endpoints reachable by a lower-privileged role simply by hitting the URL directly
   (vertical IDOR / forced browsing).
+- **GraphQL mutation input parameters** (`media_set_id`, `pixel_id`, `shop_id`, `actor_id`) —
+  mutations that accept a resource or identity ID in the input without validating ownership.
+  Relay-style APIs with `client_mutation_id` and many `*_id` inputs are prime targets; cross-
+  reference with `graphql` for the full methodology.
 
 ## Prerequisites
 
@@ -218,6 +222,7 @@ Before declaring this finding complete, probe these escalation paths:
 3. **Pattern consistency** — Is the IDOR pattern consistent across all similar endpoints (list, detail, export, delete), or only the one tested?
 4. **ID enumerability** — Can you enumerate all valid IDs? Sequential integers are trivially enumerable; UUIDs need a separate leak path.
 5. **Rate limiting on exfiltration** — Does rate limiting or anomaly detection prevent mass exfiltration via the IDOR, or can thousands of records be pulled unthrottled?
+6. **GraphQL mutation input IDOR** — Do mutations accept resource IDs (`media_set_id`, `pixel_id`, `conversation_id`) without ownership validation? Test every `*_id` input parameter across all mutations, not just queries. Cross-reference `graphql` step 9.
 
 A finding without chain anchor results is INCOMPLETE. Record each anchor as
 tested/not-applicable/blocked with the reason.

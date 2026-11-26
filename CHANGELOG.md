@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cache TTL, partial logout). Informed by XBOW's Chrome full-chain,
   EAC calculator RCE, CVE-2026-72018 (kernel SMC-D), and CVE-2026-45185
   (Exim UAF) research.
+- **`hunt/graphql` enriched with big-tech bounty patterns (steps 8–11, anchors 6–8):**
+  Relay-convention mutation mapping (extract `fb_api_req_friendly_name` from
+  JS bundles), input parameter IDOR on mutations (`media_set_id` pattern
+  with missing ownership checks), client-supplied identity override
+  (`actor_id`), multi-subdomain GraphQL surface discovery, incomplete fix
+  exploitation on sibling mutations, and cross-tenant mutation IDOR. New
+  Payloads rows (5) and Bypass rows (3). Informed by Meta AI ($10K
+  media_set_id IDOR), Meta support system ($78K case_id IDOR), and TikTok
+  Ads cross-tenant pixel events IDOR.
+- **`hunt/idor` enriched with GraphQL mutation vector (signal + anchor 6):**
+  GraphQL mutation input parameters (`media_set_id`, `pixel_id`, `actor_id`)
+  as IDOR surface, cross-referencing `graphql` step 9.
 - **`hunt/deserialization` enriched with signed-cookie forge chain (step 7):**
   signed-but-not-encrypted session cookie inspection (Flask itsdangerous,
   Django PickleSerializer), self-revealing secret recovery pattern (signing
